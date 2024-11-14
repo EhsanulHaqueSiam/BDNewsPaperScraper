@@ -1,0 +1,12 @@
+*.pyc
+*.pyo
+__pycache__
+venv/
+env/
+*.egg-info/
+.scrapy/
+*.db
+.DS_Store
+Thumbs.db
+*.log
+config.local.json
