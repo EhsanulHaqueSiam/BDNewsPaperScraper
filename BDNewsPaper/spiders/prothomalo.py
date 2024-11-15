@@ -3,6 +3,7 @@ from datetime import datetime
 import pytz
 import json
 import sqlite3
+from BDNewsPaper.items import ArticleItem
 
 
 class ProthomaloSpider(scrapy.Spider):
@@ -63,10 +64,15 @@ class ProthomaloSpider(scrapy.Spider):
             api_url,
             callback=self.parse_api_response,
             meta={"category": category, "section_id": section_id, "offset": offset},
+            errback=self.handle_request_failure,
         )
 
     def parse_api_response(self, response):
-        data = json.loads(response.text)
+        try:
+            data = json.loads(response.text)
+        except json.JSONDecodeError:
+            self.logger.error(f"Failed to parse JSON from {response.url}")
+            return
         category = response.meta["category"]
         section_id = response.meta["section_id"]
         offset = response.meta["offset"]
@@ -83,6 +89,7 @@ class ProthomaloSpider(scrapy.Spider):
                         full_url,
                         callback=self.parse_news_article,
                         meta={"category": category},
+                        errback=self.handle_request_failure,
                     )
 
         # Paginate if there are more items
@@ -96,19 +103,97 @@ class ProthomaloSpider(scrapy.Spider):
         return self.cursor.fetchone() is not None
 
     def parse_news_article(self, response):
-        category = response.meta["category"]
-        headline = response.xpath("//h1/text()").get()
-        content = " ".join(response.css("div.story-element p::text").getall())
-        published_date = response.css("time::attr(datetime)").get()
+        self.logger.info(f"Processing URL: {response.url}")
+        # Extract all <script> tags with type application/ld+json
+        scripts = response.xpath(
+            "//script[@type='application/ld+json']/text()"
+        ).getall()
 
-        yield {
-            "headline": headline,
-            "content": content,
-            "published_date": published_date,
-            "url": response.url,
-            "category": category,
-            "paper_name": "ProthomAlo",
-        }
+        for script in scripts:
+            try:
+                # Attempt to parse JSON content
+                data = json.loads(script)
+
+                # Look for relevant types
+                if data.get("@type") in ["Article", "NewsArticle"]:
+                    item = self.extract_data(data, response)
+                    if item:
+                        yield item
+
+            except json.JSONDecodeError as e:
+                self.logger.error(f"JSON decode error in {response.url}: {e}")
+            except KeyError as e:
+                self.logger.error(f"Missing key error in {response.url}: {e}")
+            except Exception as e:
+                self.logger.exception(f"Unexpected error in {response.url}: {e}")
+
+    def extract_data(self, data, response=None):
+        """Extract and validate article data."""
+        item = ArticleItem()
+        item["headline"] = data.get("headline", "No headline available")
+
+        # Image handling: If there are multiple images, store them all in a list
+        image_data = data.get("image", [])
+        if isinstance(image_data, list):
+            item["image_url"] = [
+                img.get("url")
+                for img in image_data
+                if isinstance(img, dict) and img.get("url")
+            ]
+        elif isinstance(image_data, dict):
+            item["image_url"] = [image_data.get("url")]
+        else:
+            item["image_url"] = None
+
+        # Date parsing
+        item["publication_date"] = data.get("datePublished", "Unknown date")
+        item["modification_date"] = data.get("dateModified", "Unknown date")
+
+        # Body content
+        item["article_body"] = data.get("articleBody", "No article body")
+
+        # Keywords handling: If the keywords are a list, join them as a string, otherwise treat them as they are
+        keywords = data.get("keywords", [])
+        if isinstance(keywords, list):
+            # Ensure each keyword is a valid string and join them with commas
+            item["keywords"] = ", ".join(
+                [
+                    str(keyword).strip()
+                    for keyword in keywords
+                    if isinstance(keyword, str)
+                ]
+            )
+        elif isinstance(keywords, str):
+            # If keywords is a single string (e.g., comma-separated), just assign it
+            item["keywords"] = keywords
+        else:
+            item["keywords"] = None
+
+        item["url"] = data.get("url", response.url if response else "Unknown URL")
+
+        # Publisher
+        publisher_data = data.get("publisher", {})
+        item["publisher"] = publisher_data.get("name", "Unknown publisher")
+
+        # Author handling
+        item["author"] = self.extract_authors(data)
+
+        # Fixed source name
+        item["paper_name"] = "ProthomAlo"
+
+        return item
+
+    def extract_authors(self, data):
+        """Extract author(s) information."""
+        authors = data.get("author", [])
+        if isinstance(authors, list):
+            return [author.get("name", "Unknown") for author in authors]
+        elif isinstance(authors, dict):
+            return [authors.get("name", "Unknown")]
+        return ["Unknown"]
+
+    def handle_request_failure(self, failure):
+        self.logger.error(f"Request failed for {failure.request.url}: {failure.value}")
 
     def close(self, reason):
         self.conn.close()

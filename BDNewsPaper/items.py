@@ -6,10 +6,14 @@
 import scrapy
 
 
-class BdnewspaperItem(scrapy.Item):
+class ArticleItem(scrapy.Item):
     headline = scrapy.Field()
-    content = scrapy.Field()
-    published_date = scrapy.Field()
-    url = scrapy.Field()
+    image_url = scrapy.Field()
+    publication_date = scrapy.Field()
+    modification_date = scrapy.Field()
+    article_body = scrapy.Field()
+    keywords = scrapy.Field()
+    author = scrapy.Field()
     paper_name = scrapy.Field()
-    # Additional fields as needed
+    url = scrapy.Field()
+    publisher = scrapy.Field()
