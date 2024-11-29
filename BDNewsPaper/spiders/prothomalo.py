@@ -195,5 +195,5 @@ class ProthomaloSpider(scrapy.Spider):
     def handle_request_failure(self, failure):
         self.logger.error(f"Request failed for {failure.request.url}: {failure.value}")
 
-    def close(self, reason):
+    def closeConnection(self, reason):
         self.conn.close()

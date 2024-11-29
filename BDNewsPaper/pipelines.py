@@ -6,7 +6,7 @@
 
 # useful for handling different item types with a single interface
 import sqlite3
-from itemadapter import ItemAdapter
+from itemadapter.adapter import ItemAdapter
 import os
 from scrapy.exceptions import DropItem
 from w3lib.html import remove_tags
@@ -73,34 +73,38 @@ class BdnewspaperSQLitePipeline:
 
 class ProthomaloPipeline:
     def process_item(self, item, spider):
-        # Clean up text fields
-        item["article_body"] = (
-            item["article_body"]
-            .replace("&lt;p&gt;", "")
-            .replace("&lt;/p&gt;", "")
-            .strip()
-        )
-        item["keywords"] = ", ".join(item["keywords"]) if item["keywords"] else None
+        if item.get("paper_name") == "ProthomAlo":
+            # Clean up text fields
+            item["article_body"] = (
+                item["article_body"]
+                .replace("&lt;p&gt;", "")
+                .replace("&lt;/p&gt;", "")
+                .strip()
+            )
+            item["keywords"] = ", ".join(item["keywords"]) if item["keywords"] else None
         return item
 
 
 class CleanArticlePipeline:
     def process_item(self, item, spider):
-        # Clean the article body
-        if "article_body" in item:
-            item["article_body"] = self.clean_article_body(item["article_body"])
+        if item.get("paper_name") == "ProthomAlo":
+            # Clean the article body
+            if "article_body" in item:
+                item["article_body"] = self.clean_article_body(item["article_body"])
 
-        # Validate and clean other fields
-        item["headline"] = self.clean_text(
-            item.get("headline", "No headline available")
-        )
-        item["author"] = self.clean_text(item.get("author", "Unknown author"))
-        item["publication_date"] = item.get("publication_date", "Unknown date")
-        item["image_url"] = item.get("image_url", None)
+            # Validate and clean other fields
+            item["headline"] = self.clean_text(
+                item.get("headline", "No headline available")
+            )
+            item["author"] = self.clean_text(item.get("author", "Unknown author"))
+            item["publication_date"] = item.get("publication_date", "Unknown date")
+            item["image_url"] = item.get("image_url", None)
 
-        # Drop items with no article body
-        if not item["article_body"]:
-            raise DropItem(f"Missing article body in {item.get('url', 'unknown URL')}")
+            # Drop items with no article body
+            if not item["article_body"]:
+                raise DropItem(
+                    f"Missing article body in {item.get('url', 'unknown URL')}"
+                )
 
         return item
 

@@ -17,3 +17,4 @@ class ArticleItem(scrapy.Item):
     paper_name = scrapy.Field()
     url = scrapy.Field()
     publisher = scrapy.Field()
+    category = scrapy.Field()
