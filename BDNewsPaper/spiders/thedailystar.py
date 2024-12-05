@@ -37,7 +37,7 @@ class DailyStarSpider(scrapy.Spider):
     end_page = 10000
 
     # Stopping date
-    stop_date = datetime.strptime("2024-11-15", "%Y-%m-%d")
+    stop_date = datetime.strptime("2024-06-01", "%Y-%m-%d")
 
     custom_settings = {
         "CONCURRENT_REQUESTS": 32,

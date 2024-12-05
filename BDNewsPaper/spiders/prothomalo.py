@@ -13,7 +13,7 @@ class ProthomaloSpider(scrapy.Spider):
 
     local_timezone = pytz.timezone("Asia/Dhaka")
     startDateTime = "2024-06-01 00:00:00"
-    endDateTime = "2024-11-13 23:59:59"
+    endDateTime = "2024-12-13 23:59:59"
 
     start_dt = local_timezone.localize(
         datetime.strptime(startDateTime, "%Y-%m-%d %H:%M:%S")
