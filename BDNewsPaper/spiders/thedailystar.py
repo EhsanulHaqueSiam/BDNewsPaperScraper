@@ -77,7 +77,7 @@ class DailyStarSpider(scrapy.Spider):
                     }
                     yield scrapy.FormRequest(
                         url=self.start_urls[0],
-                        formdata=payload,
+                        formdata=dict(payload),
                         headers=self.headers,
                         callback=self.parse_ajax,
                         meta={"category": category, "page": page},

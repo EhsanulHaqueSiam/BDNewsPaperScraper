@@ -10,3 +10,5 @@ env/
 Thumbs.db
 *.log
 config.local.json
+news_articles.xlsx
+output.csv
