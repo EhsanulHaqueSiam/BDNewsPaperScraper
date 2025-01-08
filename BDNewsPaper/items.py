@@ -8,6 +8,7 @@ import scrapy
 
 class ArticleItem(scrapy.Item):
     headline = scrapy.Field()
+    sub_title = scrapy.Field()
     image_url = scrapy.Field()
     publication_date = scrapy.Field()
     modification_date = scrapy.Field()
@@ -18,3 +19,5 @@ class ArticleItem(scrapy.Item):
     url = scrapy.Field()
     publisher = scrapy.Field()
     category = scrapy.Field()
+
+
