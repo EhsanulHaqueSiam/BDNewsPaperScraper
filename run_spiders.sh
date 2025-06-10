@@ -1,15 +1,16 @@
 #!/bin/bash
 
 spiders=(
-  tbdpratidin
-  dailysun
-  dhakatribune
-  ittefaq
-  kalerkantho
-  prothomalo
-  thebangladeshtoday
-  thedailystar
+	BDpratidin
+	dailysun
+	ittefaq
+	kalerKantho
+	prothomalo
+	bangladesh_today
+	thedailystar
+
 )
+
 
 for spider in "${spiders[@]}"; do
   echo "Running spider: $spider"
