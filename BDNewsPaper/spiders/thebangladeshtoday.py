@@ -1,9 +1,9 @@
 import scrapy
 from scrapy.http import Request
-from NewspaperBD.items import ArticleItem
+from BDNewsPaper.items import ArticleItem
 from datetime import datetime
 import time
-from NewspaperBD.bengalidate_to_englishdate import convert_bengali_date_to_english
+from BDNewsPaper.bengalidate_to_englishdate import convert_bengali_date_to_english
 
 class BangladeshTodaySpider(scrapy.Spider):
     name = "bangladesh_today"

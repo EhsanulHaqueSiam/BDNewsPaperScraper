@@ -1,7 +1,7 @@
 import scrapy
 import json
 from scrapy.http import JsonRequest
-from NewspaperBD.items import ArticleItem
+from BDNewsPaper.items import ArticleItem
 from datetime import datetime
 import time  # For handling Unix timestamps
 
