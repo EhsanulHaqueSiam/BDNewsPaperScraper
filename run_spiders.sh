@@ -14,6 +14,5 @@ spiders=(
 
 for spider in "${spiders[@]}"; do
   echo "Running spider: $spider"
-  scrapy crawl "$spider"
+  scrapy crawl "$spider" >> logs/"$spider".log 2>&1
 done
-
