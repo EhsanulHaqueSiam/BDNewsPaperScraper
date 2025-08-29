@@ -26,6 +26,9 @@ chmod +x run_spiders_optimized.sh
 
 # 5. Export data
 ./toxlsx.py --output news_data.xlsx
+
+# 🗓️ BONUS: Date filtering (all spiders support this!)
+uv run scrapy crawl prothomalo -a start_date=2024-08-01 -a end_date=2024-08-31
 ```
 
 ## ✅ Prerequisites
@@ -175,6 +178,24 @@ uv run scrapy crawl thedailystar    # Legacy archive support
 uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=100  # Limit to 100 articles
 uv run scrapy crawl dailysun -s DOWNLOAD_DELAY=2            # Add 2s delay
 uv run scrapy crawl ittefaq -s CONCURRENT_REQUESTS=32       # More concurrent requests
+
+# 🗓️ DATE RANGE FILTERING (All Spiders Support This!)
+# Scrape articles from specific date ranges
+uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31  # January 2024
+uv run scrapy crawl dailysun -a start_date=2024-06-01 -a end_date=2024-06-30    # June 2024
+uv run scrapy crawl ittefaq -a start_date=2024-08-01        # From Aug 1 to today
+uv run scrapy crawl kalerKantho -a end_date=2024-12-31      # From default start to Dec 31
+uv run scrapy crawl BDpratidin -a start_date=2024-01-01 -a end_date=2024-12-31  # Entire 2024
+uv run scrapy crawl bangladesh_today -a start_date=2024-03-01 -a end_date=2024-03-31  # March 2024
+uv run scrapy crawl thedailystar -a start_date=2024-07-01 -a end_date=2024-07-31      # July 2024
+
+# 📅 DATE FORMAT: YYYY-MM-DD (ISO format)
+# ⏰ If only start_date is provided, end_date defaults to today
+# ⏰ If only end_date is provided, start_date uses spider default (usually 6 months back)
+
+# 🎯 COMBINE DATE FILTERING WITH OTHER OPTIONS
+uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31 -s CLOSESPIDER_ITEMCOUNT=50
+uv run scrapy crawl dailysun -a start_date=2024-06-01 -a categories="national,sports" -s DOWNLOAD_DELAY=1
 ```
 
 ### Method 2: Enhanced Batch Runner (RECOMMENDED for Production)
@@ -193,6 +214,17 @@ chmod +x run_spiders_optimized.sh
 # Run with performance monitoring
 ./run_spiders_optimized.sh --monitor
 ./run_spiders_optimized.sh prothomalo --monitor
+
+# 🗓️ DATE RANGE FILTERING with Enhanced Runner
+# Run all spiders for specific date range
+./run_spiders_optimized.sh --start-date 2024-01-01 --end-date 2024-01-31
+
+# Run specific spider with date filtering
+./run_spiders_optimized.sh prothomalo --start-date 2024-06-01 --end-date 2024-06-30
+
+# Run with both monitoring and date filtering
+./run_spiders_optimized.sh --monitor --start-date 2024-08-01 --end-date 2024-08-31
+./run_spiders_optimized.sh prothomalo --monitor --start-date 2024-08-01
 
 # Get help and see all options
 ./run_spiders_optimized.sh --help
@@ -213,8 +245,21 @@ uv run scrapy crawl ittefaq
 uv run scrapy crawl dailysun
 uv run scrapy crawl kalerKantho
 
-# Run with specific parameters
-uv run scrapy crawl bangladesh_today -a category="politics" -s CLOSESPIDER_ITEMCOUNT=50
+# Run with specific parameters and date ranges
+uv run scrapy crawl bangladesh_today -a start_date=2024-01-01 -a end_date=2024-01-31 -s CLOSESPIDER_ITEMCOUNT=50
+
+# 📅 DATE-SPECIFIC SCRAPING EXAMPLES
+# Last week's news
+uv run scrapy crawl prothomalo -a start_date=2024-08-22 -a end_date=2024-08-29
+
+# Monthly archives
+uv run scrapy crawl dailysun -a start_date=2024-01-01 -a end_date=2024-01-31    # January
+uv run scrapy crawl ittefaq -a start_date=2024-02-01 -a end_date=2024-02-29     # February
+uv run scrapy crawl thedailystar -a start_date=2024-03-01 -a end_date=2024-03-31 # March
+
+# Quarterly reports
+uv run scrapy crawl BDpratidin -a start_date=2024-01-01 -a end_date=2024-03-31  # Q1 2024
+uv run scrapy crawl kalerKantho -a start_date=2024-04-01 -a end_date=2024-06-30 # Q2 2024
 ```
 
 ### Method 4: Development & Testing
@@ -279,7 +324,24 @@ chmod +x run_spiders_optimized.sh
 # - Automatic performance report generation
 ```
 
-#### 3. Help and Information
+#### 3. Date Range Filtering
+```bash
+# Filter articles by date range (all spiders support this)
+./run_spiders_optimized.sh --start-date 2024-01-01 --end-date 2024-01-31  # All spiders for January 2024
+./run_spiders_optimized.sh prothomalo --start-date 2024-06-01 --end-date 2024-06-30  # ProthomAlo for June 2024
+
+# From specific date to today
+./run_spiders_optimized.sh dailysun --start-date 2024-08-01
+
+# Up to specific date (from default start)
+./run_spiders_optimized.sh ittefaq --end-date 2024-12-31
+
+# Combine with monitoring
+./run_spiders_optimized.sh --monitor --start-date 2024-08-01 --end-date 2024-08-31
+./run_spiders_optimized.sh prothomalo --monitor --start-date 2024-01-01 --end-date 2024-01-31
+```
+
+#### 4. Help and Information
 ```bash
 # Show all available options and spiders
 ./run_spiders_optimized.sh --help
@@ -287,6 +349,7 @@ chmod +x run_spiders_optimized.sh
 
 # Output shows:
 # - Available spider names
+# - Date filtering options
 # - Usage examples
 # - Parameter explanations
 ```
@@ -920,13 +983,75 @@ sqlite3 news_articles.db "SELECT COUNT(*) FROM articles WHERE publication_date L
 
 | Spider Name | Command | Website | Features |
 |-------------|---------|---------|----------|
-| `prothomalo` | `uv run scrapy crawl prothomalo` | ProthomAlo | ✅ API-based, Fast, JSON responses |
-| `dailysun` | `uv run scrapy crawl dailysun` | Daily Sun | ✅ Enhanced extraction, Bengali support |
-| `ittefaq` | `uv run scrapy crawl ittefaq` | Daily Ittefaq | ✅ Robust pagination, Date filtering |
-| `kalerKantho` | `uv run scrapy crawl kalerKantho` | Kaler Kantho | ✅ Content filtering, Image extraction |
-| `BDpratidin` | `uv run scrapy crawl BDpratidin` | BD Pratidin | ✅ Bengali date handling, Categories |
-| `bangladesh_today` | `uv run scrapy crawl bangladesh_today` | Bangladesh Today | ✅ Multi-format support, English content |
-| `thedailystar` | `uv run scrapy crawl thedailystar` | The Daily Star | ✅ Legacy support, Large archive |
+| `prothomalo` | `uv run scrapy crawl prothomalo` | ProthomAlo | ✅ API-based, Fast, JSON responses, **Date filtering** |
+| `dailysun` | `uv run scrapy crawl dailysun` | Daily Sun | ✅ Enhanced extraction, Bengali support, **Date filtering** |
+| `ittefaq` | `uv run scrapy crawl ittefaq` | Daily Ittefaq | ✅ Robust pagination, **Date filtering** |
+| `kalerKantho` | `uv run scrapy crawl kalerKantho` | Kaler Kantho | ✅ Content filtering, Image extraction, **Date filtering** |
+| `BDpratidin` | `uv run scrapy crawl BDpratidin` | BD Pratidin | ✅ Bengali date handling, Categories, **Date filtering** |
+| `bangladesh_today` | `uv run scrapy crawl bangladesh_today` | Bangladesh Today | ✅ Multi-format support, English content, **Date filtering** |
+| `thedailystar` | `uv run scrapy crawl thedailystar` | The Daily Star | ✅ Legacy support, Large archive, **Date filtering** |
+
+## 🗓️ Date Range Filtering (All Spiders)
+
+**All spiders now support date range filtering!** You can scrape articles from specific time periods using the `start_date` and `end_date` parameters.
+
+### Basic Date Filtering
+```bash
+# Scrape articles from January 2024
+uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31
+
+# Scrape from specific date to today
+uv run scrapy crawl dailysun -a start_date=2024-06-01
+
+# Scrape up to specific date (from default start)
+uv run scrapy crawl ittefaq -a end_date=2024-12-31
+```
+
+### Advanced Date Examples
+```bash
+# 📅 MONTHLY ARCHIVES
+uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31    # January 2024
+uv run scrapy crawl dailysun -a start_date=2024-02-01 -a end_date=2024-02-29      # February 2024
+uv run scrapy crawl ittefaq -a start_date=2024-03-01 -a end_date=2024-03-31       # March 2024
+
+# 📊 QUARTERLY REPORTS
+uv run scrapy crawl kalerKantho -a start_date=2024-01-01 -a end_date=2024-03-31   # Q1 2024
+uv run scrapy crawl BDpratidin -a start_date=2024-04-01 -a end_date=2024-06-30   # Q2 2024
+uv run scrapy crawl bangladesh_today -a start_date=2024-07-01 -a end_date=2024-09-30  # Q3 2024
+
+# 📰 RECENT NEWS
+uv run scrapy crawl thedailystar -a start_date=2024-08-22 -a end_date=2024-08-29  # Last week
+uv run scrapy crawl prothomalo -a start_date=2024-08-01                           # This month
+
+# 🎯 COMBINED WITH OTHER FILTERS
+uv run scrapy crawl dailysun -a start_date=2024-01-01 -a end_date=2024-01-31 -s CLOSESPIDER_ITEMCOUNT=100
+uv run scrapy crawl prothomalo -a start_date=2024-06-01 -a categories="Bangladesh,Sports" -s DOWNLOAD_DELAY=1
+```
+
+### Date Format Rules
+- **Format**: `YYYY-MM-DD` (ISO 8601 standard)
+- **Timezone**: All dates are interpreted in Dhaka timezone (Asia/Dhaka)
+- **Default start_date**: Usually 6 months back (varies by spider)
+- **Default end_date**: Today's date
+- **Range**: Only articles published within the specified range are scraped
+
+### Pro Tips for Date Filtering
+```bash
+# ✅ RECOMMENDED: Use specific date ranges for faster scraping
+uv run scrapy crawl prothomalo -a start_date=2024-08-01 -a end_date=2024-08-31
+
+# ✅ PERFORMANCE: Shorter date ranges = faster completion
+uv run scrapy crawl dailysun -a start_date=2024-08-25 -a end_date=2024-08-29
+
+# ✅ ARCHIVAL: For historical data, use longer ranges
+uv run scrapy crawl thedailystar -a start_date=2024-01-01 -a end_date=2024-12-31
+
+# ❌ AVOID: Very large date ranges without limits (may take hours)
+# uv run scrapy crawl ittefaq -a start_date=2020-01-01 -a end_date=2024-12-31
+
+# ✅ BETTER: Use limits with large ranges
+uv run scrapy crawl ittefaq -a start_date=2023-01-01 -a end_date=2024-12-31 -s CLOSESPIDER_ITEMCOUNT=1000
+```
 
 ## 🗂️ Database Structure
 
@@ -1373,7 +1498,15 @@ A: Excel (.xlsx) and CSV (.csv) using the `./toxlsx.py` tool
 A: Use `./toxlsx.py --list` for quick overview or SQLite commands for detailed queries
 
 **Q: Can I filter data by date?**
-A: Yes, using SQLite queries: `sqlite3 news_articles.db "SELECT * FROM articles WHERE publication_date LIKE '2024-01%';"`
+A: Yes! Two ways:
+1. **During scraping**: Use date arguments: `uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31`
+2. **After scraping**: SQLite queries: `sqlite3 news_articles.db "SELECT * FROM articles WHERE publication_date LIKE '2024-01%';"`
+
+**Q: How do I scrape articles from specific dates?**
+A: All spiders support date filtering with these arguments:
+- `start_date=YYYY-MM-DD` - Start from this date
+- `end_date=YYYY-MM-DD` - End at this date
+Example: `uv run scrapy crawl dailysun -a start_date=2024-08-01 -a end_date=2024-08-31`
 
 ### Technical
 

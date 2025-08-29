@@ -43,7 +43,26 @@ class NewsSpider(scrapy.Spider):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.db_path = f"{self.name}_urls.db"
+        
+        # Parse date arguments
+        try:
+            self.start_date = datetime.strptime(
+                kwargs.get('start_date', '2024-06-01'), '%Y-%m-%d'
+            ).replace(tzinfo=self.dhaka_tz)
+            self.end_date = datetime.strptime(
+                kwargs.get('end_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d'
+            ).replace(tzinfo=self.dhaka_tz)
+        except ValueError as e:
+            self.logger.error(f"Invalid date format: {e}")
+            self.start_date = datetime(2024, 6, 1, tzinfo=self.dhaka_tz)
+            self.end_date = datetime.now().replace(tzinfo=self.dhaka_tz)
+        
+        # Update stop_date to use start_date for consistency
+        self.stop_date = self.start_date
+        
+        self.logger.info(f"Date range: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}")
+        
+        self.db_path = kwargs.get('db_path', 'news_articles.db')
         self.init_database()
 
     def init_database(self):
