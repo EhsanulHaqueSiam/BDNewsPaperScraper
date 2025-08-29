@@ -2,9 +2,9 @@
 
 **✅ Project Status: CLEANED & OPTIMIZED**
 
-High-performance web scraper for Bangladeshi newspapers using Scrapy and UV package manager.
-
 > **🧹 Recently Cleaned**: Removed unnecessary files, optimized project structure, and enhanced documentation for better performance and maintainability.
+
+> **📰 August 2024 Update**: Kaler Kantho English version discontinued. Spider disabled (now `.disabled`). Only Bangla content remains at kalerkantho.com.
 
 ## 🚀 Quick Start (TL;DR)
 
@@ -76,7 +76,6 @@ uv run scrapy list
 # bangladesh_today  
 # dailysun
 # ittefaq
-# kalerKantho
 # prothomalo
 # thedailystar
 
@@ -169,7 +168,6 @@ The BDNewsPaper scraper provides **16 different methods** to run the project, co
 uv run scrapy crawl prothomalo      # Fastest (API-based)
 uv run scrapy crawl dailysun        # Enhanced extraction
 uv run scrapy crawl ittefaq         # Robust pagination  
-uv run scrapy crawl kalerKantho     # Content filtering
 uv run scrapy crawl BDpratidin      # Bengali date handling
 uv run scrapy crawl bangladesh_today # Multi-format support
 uv run scrapy crawl thedailystar    # Legacy archive support
@@ -184,7 +182,6 @@ uv run scrapy crawl ittefaq -s CONCURRENT_REQUESTS=32       # More concurrent re
 uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31  # January 2024
 uv run scrapy crawl dailysun -a start_date=2024-06-01 -a end_date=2024-06-30    # June 2024
 uv run scrapy crawl ittefaq -a start_date=2024-08-01        # From Aug 1 to today
-uv run scrapy crawl kalerKantho -a end_date=2024-12-31      # From default start to Dec 31
 uv run scrapy crawl BDpratidin -a start_date=2024-01-01 -a end_date=2024-12-31  # Entire 2024
 uv run scrapy crawl bangladesh_today -a start_date=2024-03-01 -a end_date=2024-03-31  # March 2024
 uv run scrapy crawl thedailystar -a start_date=2024-07-01 -a end_date=2024-07-31      # July 2024
@@ -230,7 +227,7 @@ chmod +x run_spiders_optimized.sh
 ./run_spiders_optimized.sh --help
 
 # Available spiders for the script:
-# prothomalo, bdpratidin, dailysun, ittefaq, kalerkantho, bangladesh_today, thedailystar
+# prothomalo, bdpratidin, dailysun, ittefaq, bangladesh_today, thedailystar
 ```
 
 
@@ -243,7 +240,7 @@ uv run scrapy crawl prothomalo
 # Run only specific categories
 uv run scrapy crawl ittefaq
 uv run scrapy crawl dailysun
-uv run scrapy crawl kalerKantho
+uv run scrapy crawl BDpratidin
 
 # Run with specific parameters and date ranges
 uv run scrapy crawl bangladesh_today -a start_date=2024-01-01 -a end_date=2024-01-31 -s CLOSESPIDER_ITEMCOUNT=50
@@ -259,7 +256,7 @@ uv run scrapy crawl thedailystar -a start_date=2024-03-01 -a end_date=2024-03-31
 
 # Quarterly reports
 uv run scrapy crawl BDpratidin -a start_date=2024-01-01 -a end_date=2024-03-31  # Q1 2024
-uv run scrapy crawl kalerKantho -a start_date=2024-04-01 -a end_date=2024-06-30 # Q2 2024
+uv run scrapy crawl bangladesh_today -a start_date=2024-04-01 -a end_date=2024-06-30 # Q2 2024
 ```
 
 ### Method 4: Development & Testing
@@ -273,7 +270,7 @@ uv run scrapy crawl dailysun
 
 # Run with custom log levels
 uv run scrapy crawl ittefaq -L INFO     # Less verbose
-uv run scrapy crawl kalerKantho -L ERROR # Only errors
+uv run scrapy crawl BDpratidin -L ERROR # Only errors
 ```
 
 ## 🚀 Enhanced Spider Runner (`run_spiders_optimized.sh`)
@@ -303,7 +300,6 @@ chmod +x run_spiders_optimized.sh
 ./run_spiders_optimized.sh bdpratidin        # BD Pratidin (Bengali handling)
 ./run_spiders_optimized.sh dailysun          # Daily Sun (enhanced extraction)
 ./run_spiders_optimized.sh ittefaq           # Daily Ittefaq (robust pagination)
-./run_spiders_optimized.sh kalerkantho       # Kaler Kantho (content filtering)
 ./run_spiders_optimized.sh bangladesh_today  # Bangladesh Today (multi-format)
 ./run_spiders_optimized.sh thedailystar      # The Daily Star (legacy support)
 ```
@@ -726,7 +722,7 @@ cat > custom_runner.py << 'EOF'
 import subprocess
 import sys
 
-spiders = ['prothomalo', 'dailysun', 'ittefaq', 'kalerKantho']
+spiders = ['prothomalo', 'dailysun', 'ittefaq', 'BDpratidin']
 
 for spider in spiders:
     print(f"Running {spider}...")
@@ -986,10 +982,10 @@ sqlite3 news_articles.db "SELECT COUNT(*) FROM articles WHERE publication_date L
 | `prothomalo` | `uv run scrapy crawl prothomalo` | ProthomAlo | ✅ API-based, Fast, JSON responses, **Date filtering** |
 | `dailysun` | `uv run scrapy crawl dailysun` | Daily Sun | ✅ Enhanced extraction, Bengali support, **Date filtering** |
 | `ittefaq` | `uv run scrapy crawl ittefaq` | Daily Ittefaq | ✅ Robust pagination, **Date filtering** |
-| `kalerKantho` | `uv run scrapy crawl kalerKantho` | Kaler Kantho | ✅ Content filtering, Image extraction, **Date filtering** |
 | `BDpratidin` | `uv run scrapy crawl BDpratidin` | BD Pratidin | ✅ Bengali date handling, Categories, **Date filtering** |
 | `bangladesh_today` | `uv run scrapy crawl bangladesh_today` | Bangladesh Today | ✅ Multi-format support, English content, **Date filtering** |
 | `thedailystar` | `uv run scrapy crawl thedailystar` | The Daily Star | ✅ Legacy support, Large archive, **Date filtering** |
+| ~~`kalerKantho`~~ | ❌ **DISCONTINUED** | ~~Kaler Kantho~~ | ❌ English version discontinued Aug 2024, now Bangla-only |
 
 ## 🗓️ Date Range Filtering (All Spiders)
 
@@ -1015,9 +1011,9 @@ uv run scrapy crawl dailysun -a start_date=2024-02-01 -a end_date=2024-02-29    
 uv run scrapy crawl ittefaq -a start_date=2024-03-01 -a end_date=2024-03-31       # March 2024
 
 # 📊 QUARTERLY REPORTS
-uv run scrapy crawl kalerKantho -a start_date=2024-01-01 -a end_date=2024-03-31   # Q1 2024
-uv run scrapy crawl BDpratidin -a start_date=2024-04-01 -a end_date=2024-06-30   # Q2 2024
-uv run scrapy crawl bangladesh_today -a start_date=2024-07-01 -a end_date=2024-09-30  # Q3 2024
+uv run scrapy crawl BDpratidin -a start_date=2024-01-01 -a end_date=2024-03-31   # Q1 2024
+uv run scrapy crawl bangladesh_today -a start_date=2024-04-01 -a end_date=2024-06-30   # Q2 2024
+uv run scrapy crawl thedailystar -a start_date=2024-07-01 -a end_date=2024-09-30  # Q3 2024
 
 # 📰 RECENT NEWS
 uv run scrapy crawl thedailystar -a start_date=2024-08-22 -a end_date=2024-08-29  # Last week
@@ -1134,7 +1130,6 @@ uv run scrapy crawl dailysun        # Enhanced extraction
 uv run scrapy crawl ittefaq         # Robust pagination
 
 # Comprehensive spiders (slower but thorough)
-uv run scrapy crawl kalerKantho     # Content filtering
 uv run scrapy crawl BDpratidin      # Bengali date handling
 uv run scrapy crawl bangladesh_today # Multi-format support
 uv run scrapy crawl thedailystar    # Large archive
@@ -1152,7 +1147,7 @@ uv run scrapy crawl dailysun -s CONCURRENT_REQUESTS=32
 uv run scrapy crawl ittefaq -s DOWNLOAD_DELAY=1
 
 # Disable unnecessary features for speed
-uv run scrapy crawl kalerKantho -s COOKIES_ENABLED=False -s RETRY_ENABLED=False
+uv run scrapy crawl ittefaq -s COOKIES_ENABLED=False -s RETRY_ENABLED=False
 ```
 
 ### Monitoring Commands
@@ -1193,7 +1188,7 @@ uv run scrapy crawl dailysun -s DOWNLOAD_DELAY=2
 uv run scrapy crawl ittefaq -s CONCURRENT_REQUESTS=32
 
 # Set log level
-uv run scrapy crawl kalerKantho -L DEBUG
+uv run scrapy crawl BDpratidin -L DEBUG
 ```
 
 ### Database Settings
@@ -1227,7 +1222,7 @@ BDNewsPaperScraper/
 │   │   ├── prothomalo.py    # ProthomAlo spider (API-based)
 │   │   ├── dailysun.py      # Daily Sun spider  
 │   │   ├── ittefaq.py       # Daily Ittefaq spider
-│   │   ├── kalerkantho.py   # Kaler Kantho spider
+│   │   ├── kalerkantho.py.disabled # Kaler Kantho spider (DISCONTINUED)
 │   │   ├── bdpratidin.py    # BD Pratidin spider
 │   │   ├── thebangladeshtoday.py # Bangladesh Today spider
 │   │   └── thedailystar.py  # The Daily Star spider

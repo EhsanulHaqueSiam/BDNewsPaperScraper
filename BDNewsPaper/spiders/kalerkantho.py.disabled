@@ -1,3 +1,30 @@
+"""
+KALER KANTHO SPIDER - DISCONTINUED
+====================================
+
+STATUS: DISABLED - English version discontinued as of August 2024
+
+ISSUE: The English version of Kaler Kantho website has been discontinued.
+       Only the Bangla (Bengali) version remains operational at kalerkantho.com.
+       
+API STATUS: Still functional but serves only Bangla content
+CONTENT: All articles are now in Bengali script instead of English
+
+DECISION: Spider disabled because:
+- Project focuses on English-language news scraping
+- Current spider expects English content structure  
+- Would require complete rewrite for Bangla content support
+
+LAST WORKING: Before August 2024 with English content
+RENAMED: August 30, 2024 - kalerkantho.py -> kalerkantho.py.disabled
+
+If you need to reactivate this spider for Bangla content:
+1. Rename back to kalerkantho.py
+2. Update content extraction for Bengali text
+3. Update database handling for Bengali characters
+4. Test thoroughly with current website structure
+"""
+
 import json
 import sqlite3
 from datetime import datetime

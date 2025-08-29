@@ -1,25 +1,38 @@
 import scrapy
 import json
 import sqlite3
-import threading
-import time
 import re
 import html
-from collections import defaultdict
-from typing import Dict, List, Optional, Set, Generator, Any
-from datetime import datetime, timedelta
 import pytz
-
+from datetime import datetime, timedelta
+from typing import Dict, List, Optional, Generator, Any
+from scrapy.exceptions import CloseSpider
 from BDNewsPaper.items import ArticleItem
 
 
 class DailysunSpider(scrapy.Spider):
     name = "dailysun"
-    allowed_domains = ["daily-sun.com"]
-    
+    allowed_domains = ["www.daily-sun.com"]
+
+    # Enhanced custom settings for better performance
+    custom_settings = {
+        'DOWNLOAD_DELAY': 0.5,
+        'RANDOMIZE_DOWNLOAD_DELAY': True,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
+        'AUTOTHROTTLE_ENABLED': True,
+        'AUTOTHROTTLE_START_DELAY': 0.25,
+        'AUTOTHROTTLE_MAX_DELAY': 2.0,
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 4.0,
+        'RETRY_ENABLED': True,
+        'RETRY_TIMES': 3,
+        'RETRY_HTTP_CODES': [500, 502, 503, 504, 408, 429],
+        'ROBOTSTXT_OBEY': False,
+    }
+
+    # Default categories - can be overridden via command line
     DEFAULT_CATEGORIES = [
         "national",
-        "economy", 
+        "economy",
         "diplomacy",
         "sports",
         "bashundhara-shuvosangho",
@@ -34,21 +47,6 @@ class DailysunSpider(scrapy.Spider):
         "corporate",
     ]
 
-    custom_settings = {
-        "CONCURRENT_REQUESTS": 32,
-        "DOWNLOAD_DELAY": 0.5,
-        "RANDOMIZE_DOWNLOAD_DELAY": True,
-        "AUTOTHROTTLE_ENABLED": True,
-        "AUTOTHROTTLE_START_DELAY": 0.25,
-        "AUTOTHROTTLE_MAX_DELAY": 2.0,
-        "AUTOTHROTTLE_TARGET_CONCURRENCY": 16.0,
-        "AUTOTHROTTLE_DEBUG": False,
-        "RETRY_ENABLED": True,
-        "RETRY_TIMES": 3,
-        "RETRY_HTTP_CODES": [500, 502, 503, 504, 408, 429],
-        "HTTPERROR_ALLOWED_CODES": [404],
-    }
-
     headers = {
         "Accept": "application/json, text/plain, */*",
         "Accept-Language": "en-US,en;q=0.9",
@@ -59,39 +57,52 @@ class DailysunSpider(scrapy.Spider):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        self.start_time = datetime.now()
+        # Timezone configuration
         self.dhaka_tz = pytz.timezone('Asia/Dhaka')
         
-        self._parse_cli_arguments(kwargs)
-        self._initialize_configuration()
-        self._setup_database()
-        self._initialize_statistics()
+        # Parse command-line arguments with proper error handling
+        self._parse_arguments(kwargs)
         
-        self.logger.info(f"DailySunSpider initialized with categories: {self.categories}")
-        self.logger.info(f"Date range: {self.start_date} to {self.end_date}")
+        # Initialize database connection with proper error handling
+        self._init_database()
+        
+        # Initialize statistics tracking
+        self._init_statistics()
+        
+        # Initialize pagination state
+        self._init_pagination_state()
+        
+        # Create start URLs based on selected categories
+        self.start_urls = [
+            f"https://www.daily-sun.com/api/catpagination/online/{category}"
+            for category in self.categories
+        ]
+        
+        self.logger.info(f"DailySun Spider initialized")
+        self.logger.info(f"Date range: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}")
+        self.logger.info(f"Categories: {self.categories}")
         self.logger.info(f"Max pages per category: {self.max_pages}")
 
-    def _parse_cli_arguments(self, kwargs: Dict) -> None:
+    def _parse_arguments(self, kwargs: Dict[str, Any]) -> None:
+        """Parse and validate command-line arguments."""
+        # Date range parsing with timezone awareness
         try:
-            self.start_date = datetime.strptime(
-                kwargs.get('start_date', '2024-01-01'), '%Y-%m-%d'
-            )
-            self.end_date = datetime.strptime(
-                kwargs.get('end_date', '2024-06-01'), '%Y-%m-%d'
-            )
+            start_date_str = kwargs.get('start_date', '2024-06-01')
+            end_date_str = kwargs.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+            
+            self.start_date = self._parse_date(start_date_str)
+            self.end_date = self._parse_date(end_date_str, end_of_day=True)
+            
+            if self.start_date > self.end_date:
+                self.logger.warning("Start date is after end date, swapping...")
+                self.start_date, self.end_date = self.end_date, self.start_date
+                
         except ValueError as e:
             self.logger.error(f"Invalid date format: {e}")
-            self.start_date = datetime(2024, 1, 1)
-            self.end_date = datetime(2024, 6, 1)
+            self.start_date = self.dhaka_tz.localize(datetime(2024, 6, 1))
+            self.end_date = self.dhaka_tz.localize(datetime.now())
 
-        try:
-            self.max_pages = int(kwargs.get('max_pages', 100))
-            self.max_pages = min(max(self.max_pages, 1), 5000)
-        except (ValueError, TypeError):
-            self.max_pages = 100
-
-        self.db_path = kwargs.get('db_path', 'news_articles.db')
-        
+        # Categories parsing
         categories_str = kwargs.get('categories', '')
         if categories_str:
             requested_categories = [cat.strip() for cat in categories_str.split(',')]
@@ -105,106 +116,96 @@ class DailysunSpider(scrapy.Spider):
         else:
             self.categories = self.DEFAULT_CATEGORIES
 
-        enable_stats_value = kwargs.get('enable_stats', 'true')
-        self.enable_stats = str(enable_stats_value).lower() == 'true'
+        # Pagination settings
+        try:
+            self.max_pages = int(kwargs.get('max_pages', 100))
+            self.max_pages = min(max(self.max_pages, 1), 5000)  # Safety bounds
+        except (ValueError, TypeError):
+            self.max_pages = 100
 
-    def _initialize_configuration(self) -> None:
-        self.start_urls = [
-            f"https://www.daily-sun.com/api/catpagination/online/{category}"
-            for category in self.categories
-        ]
+        # Database path
+        self.db_path = kwargs.get('db_path', 'news_articles.db')
         
+        # Statistics toggle
+        self.enable_stats = str(kwargs.get('enable_stats', 'true')).lower() == 'true'
+
+    def _parse_date(self, date_str: str, end_of_day: bool = False) -> datetime:
+        """Parse date string and localize to Dhaka timezone."""
+        try:
+            if len(date_str.split()) == 1:  # Only date provided
+                time_part = "23:59:59" if end_of_day else "00:00:00"
+                date_str = f"{date_str} {time_part}"
+            
+            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+            return self.dhaka_tz.localize(dt)
+        except ValueError as e:
+            self.logger.error(f"Invalid date format '{date_str}': {e}")
+            # Fallback to reasonable defaults
+            if end_of_day:
+                return self.dhaka_tz.localize(datetime.now())
+            else:
+                return self.dhaka_tz.localize(datetime.now() - timedelta(days=30))
+
+    def _init_database(self) -> None:
+        """Initialize database connection with proper error handling."""
+        try:
+            self.conn = sqlite3.connect(self.db_path, timeout=30.0)
+            self.cursor = self.conn.cursor()
+            
+            # Enable WAL mode for better concurrent access
+            self.cursor.execute('PRAGMA journal_mode=WAL')
+            self.cursor.execute('PRAGMA synchronous=NORMAL')
+            self.cursor.execute('PRAGMA cache_size=10000')
+            self.cursor.execute('PRAGMA temp_store=MEMORY')
+            
+            # Ensure articles table exists
+            self.cursor.execute("""
+                CREATE TABLE IF NOT EXISTS articles (
+                    id INTEGER PRIMARY KEY,
+                    url TEXT UNIQUE,
+                    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            self.conn.commit()
+            
+            self.logger.info("Database initialized successfully")
+            
+        except sqlite3.Error as e:
+            self.logger.error(f"Failed to initialize database: {e}")
+            raise
+
+    def _init_statistics(self) -> None:
+        """Initialize statistics tracking."""
+        self.stats = {
+            'api_requests': 0,
+            'articles_found': 0,
+            'articles_processed': 0,
+            'duplicates_skipped': 0,
+            'errors': 0,
+            'categories_completed': 0,
+            'start_time': datetime.now()
+        }
+
+    def _init_pagination_state(self) -> None:
+        """Initialize pagination state tracking."""
         self.continue_scraping = {category: True for category in self.categories}
-        self.processed_urls: Set[str] = set()
-        self.duplicate_urls: Set[str] = set()
-        
+        self.processed_urls = set()
         self.pagination_state = {
             category: {'current_page': 1, 'consecutive_empty': 0, 'max_empty': 3}
             for category in self.categories
         }
 
-    def _setup_database(self) -> None:
-        self._db_lock = threading.Lock()
-        self._local = threading.local()
-
-    def _get_db_connection(self):
-        if not hasattr(self._local, 'connection'):
-            self._local.connection = sqlite3.connect(
-                self.db_path,
-                check_same_thread=False,
-                timeout=30.0
-            )
-            self._local.connection.execute('PRAGMA journal_mode=WAL')
-            self._local.connection.execute('PRAGMA synchronous=NORMAL')
-            self._local.connection.execute('PRAGMA cache_size=10000')
-            self._local.connection.execute('PRAGMA temp_store=MEMORY')
-        return self._local.connection
-
-    def _initialize_statistics(self) -> None:
-        self.stats = {
-            'requests_made': defaultdict(int),
-            'articles_scraped': defaultdict(int),
-            'articles_skipped': defaultdict(int),
-            'errors': defaultdict(int),
-            'total_requests': 0,
-            'total_articles': 0,
-            'total_duplicates': 0,
-            'categories_completed': 0,
-            'start_time': self.start_time,
-        }
-        
-        if self.enable_stats:
-            self._start_statistics_thread()
-
-    def _start_statistics_thread(self) -> None:
-        def log_stats():
-            while True:
-                time.sleep(60)
-                if hasattr(self, '_should_stop_stats') and self._should_stop_stats:
-                    break
-                self._log_statistics()
-        
-        self._stats_thread = threading.Thread(target=log_stats, daemon=True)
-        self._stats_thread.start()
-
-    def _log_statistics(self) -> None:
-        runtime = datetime.now() - self.start_time
-        total_articles = sum(self.stats['articles_scraped'].values())
-        total_requests = self.stats['total_requests']
-        
-        self.logger.info(f"=== DailySunSpider Statistics (Runtime: {runtime}) ===")
-        self.logger.info(f"Total Requests: {total_requests}")
-        self.logger.info(f"Total Articles: {total_articles}")
-        self.logger.info(f"Total Duplicates: {self.stats['total_duplicates']}")
-        
-        if total_requests > 0:
-            self.logger.info(f"Success Rate: {(total_articles/total_requests)*100:.1f}%")
-        
-        for category in self.categories:
-            scraped = self.stats['articles_scraped'][category]
-            skipped = self.stats['articles_skipped'][category]
-            errors = self.stats['errors'][category]
-            self.logger.info(f"  {category}: {scraped} articles, {skipped} skipped, {errors} errors")
-
     def is_url_in_db(self, url: str) -> bool:
-        if url in self.processed_urls:
-            return True
-        
-        if url in self.duplicate_urls:
-            return True
-        
+        """Check if URL exists in database using a separate connection for thread safety."""
         try:
-            with self._db_lock:
-                conn = self._get_db_connection()
+            # Use a separate connection for each check to avoid threading issues
+            with sqlite3.connect(self.db_path, timeout=10.0) as conn:
                 cursor = conn.cursor()
                 cursor.execute("SELECT 1 FROM articles WHERE url = ? LIMIT 1", (url,))
                 result = cursor.fetchone() is not None
                 
                 if result:
-                    self.duplicate_urls.add(url)
-                    self.stats['total_duplicates'] += 1
-                else:
-                    self.processed_urls.add(url)
+                    self.stats['duplicates_skipped'] += 1
                 
                 return result
         except sqlite3.Error as e:
@@ -212,33 +213,30 @@ class DailysunSpider(scrapy.Spider):
             return False
 
     def start_requests(self) -> Generator[scrapy.Request, None, None]:
+        """Send requests for each category with enhanced error handling."""
         for start_url in self.start_urls:
             category = start_url.split("/")[-1]
             
-            self.stats['requests_made'][category] += 1
-            self.stats['total_requests'] += 1
+            self.stats['api_requests'] += 1
             
             yield scrapy.Request(
                 url=start_url,
                 headers=self.headers,
                 callback=self.parse_api,
-                meta={
-                    "page": 1,
-                    "category": category,
-                    "dont_cache": True
-                },
-                errback=self.handle_error,
+                meta={"page": 1, "category": category},
+                errback=self.handle_request_failure,
                 dont_filter=True
             )
 
     def parse_api(self, response) -> Generator[scrapy.Request, None, None]:
+        """Parse JSON response and extract articles with enhanced error handling."""
         category = response.meta["category"]
         page = response.meta["page"]
         
         try:
             if response.status != 200:
                 self.logger.warning(f"Non-200 status {response.status} for {category} page {page}")
-                self.stats['errors'][category] += 1
+                self.stats['errors'] += 1
                 return
 
             if not response.text.strip():
@@ -250,7 +248,7 @@ class DailysunSpider(scrapy.Spider):
                 data = json.loads(response.text)
             except json.JSONDecodeError as e:
                 self.logger.error(f"JSON decode error for {category} page {page}: {e}")
-                self.stats['errors'][category] += 1
+                self.stats['errors'] += 1
                 return
 
             articles = data.get("category", {}).get("data", [])
@@ -273,17 +271,28 @@ class DailysunSpider(scrapy.Spider):
                     break
                 elif isinstance(request, scrapy.Request):
                     articles_found += 1
+                    self.stats['articles_found'] += 1
                     yield request
 
             self.logger.debug(f"{category} page {page}: {articles_found} articles processed")
 
-            # Handle pagination
+            # Handle pagination with safety limits
             if (self.continue_scraping[category] and 
                 page < self.max_pages and 
                 articles_found > 0):
                 
                 self.pagination_state[category]['consecutive_empty'] = 0
-                yield self._generate_next_page_request(category, page)
+                next_page = page + 1
+                self.stats['api_requests'] += 1
+                
+                yield scrapy.Request(
+                    url=response.url,
+                    headers=self.headers,
+                    callback=self.parse_api,
+                    meta={"page": next_page, "category": category},
+                    errback=self.handle_request_failure,
+                    dont_filter=True
+                )
             else:
                 if articles_found == 0:
                     self._handle_empty_page(category, page)
@@ -294,9 +303,10 @@ class DailysunSpider(scrapy.Spider):
 
         except Exception as e:
             self.logger.error(f"Unexpected error parsing {category} page {page}: {e}")
-            self.stats['errors'][category] += 1
+            self.stats['errors'] += 1
 
     def _process_article(self, article: Dict[str, Any], category: str) -> Optional[scrapy.Request]:
+        """Process individual article with enhanced validation."""
         try:
             n_id = article.get("n_id")
             created_at = article.get("created_at")
@@ -306,17 +316,20 @@ class DailysunSpider(scrapy.Spider):
                 self.logger.debug(f"Missing required fields in article: {article}")
                 return None
 
-            # Check date range
+            # Parse and validate article date with timezone awareness
             try:
                 publish_date = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
+                publish_date = self.dhaka_tz.localize(publish_date)
                 
+                # Check if article is before start date (stop condition)
                 if publish_date < self.start_date:
                     self.logger.info(f"Stopping {category}: Article date {publish_date} < Start date {self.start_date}")
                     return None
                 
+                # Check if article is after end date (skip article)
                 if publish_date > self.end_date:
                     self.logger.debug(f"Skipping future article: {publish_date} > {self.end_date}")
-                    return None
+                    return None  # Continue processing but skip this article
                     
             except ValueError as e:
                 self.logger.warning(f"Invalid date format '{created_at}': {e}")
@@ -327,14 +340,16 @@ class DailysunSpider(scrapy.Spider):
 
             # Check for duplicates
             if self.is_url_in_db(post_url):
-                self.stats['articles_skipped'][category] += 1
                 self.logger.debug(f"Skipping duplicate URL: {post_url}")
                 return None
 
-            # Generate article request
-            self.stats['requests_made'][category] += 1
-            self.stats['total_requests'] += 1
+            # Add to processed URLs set
+            if post_url in self.processed_urls:
+                self.logger.debug(f"URL already processed in session: {post_url}")
+                return None
             
+            self.processed_urls.add(post_url)
+
             return scrapy.Request(
                 url=post_url,
                 headers=self.headers,
@@ -345,18 +360,18 @@ class DailysunSpider(scrapy.Spider):
                     "post_url": post_url,
                     "news_id": n_id,
                     "headline": n_head,
-                    "dont_cache": True
                 },
-                errback=self.handle_error,
+                errback=self.handle_request_failure,
                 dont_filter=False
             )
 
         except Exception as e:
             self.logger.error(f"Error processing article {article}: {e}")
-            self.stats['errors'][category] += 1
+            self.stats['errors'] += 1
             return None
 
     def _handle_empty_page(self, category: str, page: int) -> None:
+        """Handle empty pages with consecutive tracking."""
         self.pagination_state[category]['consecutive_empty'] += 1
         
         if self.pagination_state[category]['consecutive_empty'] >= self.pagination_state[category]['max_empty']:
@@ -364,56 +379,34 @@ class DailysunSpider(scrapy.Spider):
             self.continue_scraping[category] = False
             self.stats['categories_completed'] += 1
 
-    def _generate_next_page_request(self, category: str, page: int) -> scrapy.Request:
-        next_page = page + 1
-        next_url = f"https://www.daily-sun.com/api/catpagination/online/{category}"
-        
-        # Add page parameter to URL for DailySun API
-        if next_page > 1:
-            next_url += f"?page={next_page}"
-        
-        self.stats['requests_made'][category] += 1
-        self.stats['total_requests'] += 1
-        
-        return scrapy.Request(
-            url=next_url,
-            headers=self.headers,
-            callback=self.parse_api,
-            meta={
-                "page": next_page,
-                "category": category,
-                "dont_cache": True
-            },
-            errback=self.handle_error,
-            dont_filter=True
-        )
-
     def parse_post(self, response) -> Optional[ArticleItem]:
+        """Parse individual article pages with enhanced extraction."""
         if response.status != 200:
             self.logger.warning(f"Non-200 status {response.status} for article: {response.url}")
-            self.stats['errors'][response.meta['category']] += 1
+            self.stats['errors'] += 1
             return None
 
         try:
             item = self._extract_article_data(response)
-            if item and self._validate_article(item, response.meta['category']):
-                self.stats['articles_scraped'][response.meta['category']] += 1
-                self.stats['total_articles'] += 1
+            if item and self._validate_article(item):
+                self.stats['articles_processed'] += 1
                 return item
             else:
-                self.stats['articles_skipped'][response.meta['category']] += 1
+                self.logger.warning(f"Article validation failed for {response.url}")
+                self.stats['errors'] += 1
                 return None
                 
         except Exception as e:
             self.logger.error(f"Error parsing article {response.url}: {e}")
-            self.stats['errors'][response.meta['category']] += 1
+            self.stats['errors'] += 1
             return None
 
     def _extract_article_data(self, response) -> Optional[ArticleItem]:
+        """Extract article data with multiple fallback strategies."""
         item = ArticleItem()
         
         # Basic metadata from request meta
-        item["headline"] = response.meta.get("headline", "No headline")
+        item["headline"] = self._clean_text(response.meta.get("headline", "No headline"))
         item["url"] = response.meta["post_url"]
         item["publication_date"] = response.meta["publish_date"]
         item["paper_name"] = "daily-sun"
@@ -425,6 +418,7 @@ class DailysunSpider(scrapy.Spider):
         return item
 
     def _extract_article_body(self, response) -> str:
+        """Extract article body with multiple strategies."""
         # Strategy 1: Extract from Next.js script data (original method)
         body = self._extract_from_nextjs_script(response)
         if body and len(body) > 50:
@@ -444,12 +438,13 @@ class DailysunSpider(scrapy.Spider):
         meta_desc = response.xpath("//meta[@name='description']/@content").get()
         if meta_desc and len(meta_desc) > 50:
             self.logger.warning(f"Using meta description for {response.url}")
-            return meta_desc
+            return self._clean_text(meta_desc)
         
         self.logger.warning(f"Could not extract article body from {response.url}")
         return "No content available"
 
     def _extract_from_nextjs_script(self, response) -> Optional[str]:
+        """Extract from Next.js script data (original working method)."""
         try:
             script_content = response.xpath(
                 "//script[contains(text(), 'self.__next_f.push([1,\"\\u0026lt;')]/text()"
@@ -471,7 +466,7 @@ class DailysunSpider(scrapy.Spider):
                 plain_text = re.sub(r"<[^>]*>", "", html_content)
                 
                 # Clean up whitespace
-                plain_text = re.sub(r'\s+', ' ', plain_text.strip())
+                plain_text = self._clean_text(plain_text)
                 
                 return plain_text if len(plain_text) > 50 else None
                 
@@ -481,6 +476,7 @@ class DailysunSpider(scrapy.Spider):
         return None
 
     def _extract_from_jsonld(self, response) -> Optional[str]:
+        """Extract from JSON-LD structured data."""
         try:
             scripts = response.xpath("//script[@type='application/ld+json']/text()").getall()
             
@@ -510,6 +506,7 @@ class DailysunSpider(scrapy.Spider):
         return None
 
     def _extract_from_html(self, response) -> Optional[str]:
+        """Extract from HTML with multiple selectors."""
         try:
             # Try multiple content selectors
             content_selectors = [
@@ -539,15 +536,21 @@ class DailysunSpider(scrapy.Spider):
             
         return None
 
-    def _clean_text(self, text: str) -> str:
+    def _clean_text(self, text: Any) -> str:
+        """Clean and validate text content."""
         if not text:
             return ""
+        
+        if isinstance(text, list):
+            text = " ".join(str(t) for t in text if t)
+        
+        text = str(text).strip()
         
         # Remove HTML entities
         text = html.unescape(text)
         
         # Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text.strip())
+        text = re.sub(r'\s+', ' ', text)
         
         # Remove common unwanted patterns
         text = re.sub(r'\[.*?\]', '', text)  # Remove [bracketed] content
@@ -555,7 +558,8 @@ class DailysunSpider(scrapy.Spider):
         
         return text.strip()
 
-    def _validate_article(self, item: ArticleItem, category: str) -> bool:
+    def _validate_article(self, item: ArticleItem) -> bool:
+        """Validate article data."""
         if not item.get('headline') or not item.get('article_body'):
             return False
         
@@ -568,39 +572,39 @@ class DailysunSpider(scrapy.Spider):
         
         return True
 
-    def handle_error(self, failure):
-        request = failure.request
-        category = request.meta.get('category', 'unknown')
+    def handle_request_failure(self, failure):
+        """Enhanced error handling with detailed logging."""
+        self.stats['errors'] += 1
+        url = failure.request.url
+        error_msg = str(failure.value)
         
-        self.logger.error(f"Request failed for {category}: {failure.value}")
-        self.stats['errors'][category] += 1
+        # Log different types of failures differently
+        if "DNS lookup failed" in error_msg:
+            self.logger.warning(f"DNS lookup failed for {url}")
+        elif "Connection refused" in error_msg:
+            self.logger.warning(f"Connection refused for {url}")
+        elif "timeout" in error_msg.lower():
+            self.logger.warning(f"Request timeout for {url}")
+        else:
+            self.logger.error(f"Request failed for {url}: {error_msg}")
 
-    def close(self, reason):
-        self._should_stop_stats = True
+    def closed(self, reason):
+        """Enhanced spider closing with comprehensive statistics."""
+        runtime = datetime.now() - self.stats['start_time']
+        total_articles = self.stats['articles_processed']
+        total_requests = self.stats['api_requests']
         
-        if hasattr(self, '_stats_thread'):
-            self._stats_thread.join(timeout=1)
-        
-        self._log_final_statistics(reason)
-        
-        if hasattr(self, '_local') and hasattr(self._local, 'connection'):
-            try:
-                self._local.connection.close()
-            except Exception as e:
-                self.logger.error(f"Error closing database connection: {e}")
-
-    def _log_final_statistics(self, reason: str) -> None:
-        runtime = datetime.now() - self.start_time
-        total_articles = sum(self.stats['articles_scraped'].values())
-        total_requests = self.stats['total_requests']
-        
-        self.logger.info(f"=== DailySunSpider Final Statistics ===")
+        self.logger.info("=" * 60)
+        self.logger.info("DAILY SUN SPIDER FINAL STATISTICS")
+        self.logger.info("=" * 60)
         self.logger.info(f"Spider closed: {reason}")
         self.logger.info(f"Total Runtime: {runtime}")
-        self.logger.info(f"Total Requests: {total_requests}")
-        self.logger.info(f"Total Articles Scraped: {total_articles}")
-        self.logger.info(f"Total Duplicates Skipped: {self.stats['total_duplicates']}")
-        self.logger.info(f"Categories Completed: {self.stats['categories_completed']}/{len(self.categories)}")
+        self.logger.info(f"API requests made: {self.stats['api_requests']}")
+        self.logger.info(f"Articles found: {self.stats['articles_found']}")
+        self.logger.info(f"Articles processed: {self.stats['articles_processed']}")
+        self.logger.info(f"Duplicates skipped: {self.stats['duplicates_skipped']}")
+        self.logger.info(f"Errors encountered: {self.stats['errors']}")
+        self.logger.info(f"Categories completed: {self.stats['categories_completed']}/{len(self.categories)}")
         
         if total_requests > 0:
             success_rate = (total_articles / total_requests) * 100
@@ -610,13 +614,12 @@ class DailysunSpider(scrapy.Spider):
             rate = total_articles / (runtime.total_seconds() / 60)
             self.logger.info(f"Articles per minute: {rate:.1f}")
         
-        self.logger.info("=== Per-Category Statistics ===")
-        for category in sorted(self.categories):
-            scraped = self.stats['articles_scraped'][category]
-            skipped = self.stats['articles_skipped'][category]
-            errors = self.stats['errors'][category]
-            total_cat = scraped + skipped + errors
-            
-            if total_cat > 0:
-                success_rate = (scraped / total_cat) * 100
-                self.logger.info(f"{category}: {scraped} scraped, {skipped} skipped, {errors} errors ({success_rate:.1f}% success)")
+        self.logger.info(f"Total unique URLs processed: {len(self.processed_urls)}")
+        self.logger.info("=" * 60)
+        
+        # Close database connection
+        if hasattr(self, 'conn') and self.conn:
+            try:
+                self.conn.close()
+            except Exception as e:
+                self.logger.error(f"Error closing database connection: {e}")
