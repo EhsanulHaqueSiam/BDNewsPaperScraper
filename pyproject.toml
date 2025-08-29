@@ -1,0 +1,169 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "bdnewspaper-scraper"
+version = "1.0.0"
+description = "High-performance web scraper for Bangladeshi newspapers using Scrapy"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.9"
+authors = [
+    { name = "BDNewsPaper Team" }
+]
+keywords = ["scrapy", "web-scraping", "bangladesh", "news", "newspapers"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Internet :: WWW/HTTP :: Indexing/Search",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+dependencies = [
+    "scrapy>=2.12.0",
+    "scrapy-playwright>=0.0.42",
+    "playwright>=1.49.0",
+    "pytz>=2024.2",
+    "requests>=2.32.3",
+    "lxml>=5.3.0",
+    "attrs>=24.2.0",
+    "itemadapter>=0.10.0",
+    "itemloaders>=1.3.2",
+    "w3lib>=2.2.1",
+    "cssselect>=1.2.0",
+    "parsel>=1.9.1",
+    "queuelib>=1.7.0",
+    "twisted>=24.11.0",
+    "cryptography>=44.0.0",
+    "pyopenssl>=24.3.0",
+    "service-identity>=24.2.0",
+    "defusedxml>=0.7.1",
+    "protego>=0.3.1",
+    "packaging>=24.2",
+    "tldextract>=5.1.3",
+    "zope.interface>=7.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=23.0.0",
+    "isort>=5.12.0",
+    "flake8>=6.0.0",
+    "mypy>=1.0.0",
+    "pre-commit>=3.0.0",
+]
+performance = [
+    "uvloop>=0.19.0",  # Faster event loop for Linux/macOS
+    "cchardet>=2.1.7",  # Faster character encoding detection
+    "brotli>=1.1.0",    # Better compression
+]
+monitoring = [
+    "psutil>=5.9.0",
+    "memory-profiler>=0.61.0",
+    "py-spy>=0.3.14",
+]
+
+[project.urls]
+Homepage = "https://github.com/your-username/BDNewsPaperScraper"
+Repository = "https://github.com/your-username/BDNewsPaperScraper"
+Issues = "https://github.com/your-username/BDNewsPaperScraper/issues"
+
+[project.scripts]
+bdnews-scrape = "BDNewsPaper.cli:main"
+bdnews-monitor = "performance_monitor:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["BDNewsPaper"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.black]
+line-length = 88
+target-version = ['py39', 'py310', 'py311', 'py312']
+include = '\.pyi?$'
+exclude = '''
+/(
+    \.eggs
+  | \.git
+  | \.hg
+  | \.mypy_cache
+  | \.tox
+  | \.venv
+  | _build
+  | buck-out
+  | build
+  | dist
+  | httpcache
+  | logs
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 88
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+ensure_newline_before_comments = true
+
+[tool.mypy]
+python_version = "3.9"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false  # Scrapy spiders often have untyped methods
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "scrapy.*",
+    "twisted.*",
+    "w3lib.*",
+    "itemadapter.*",
+    "playwright.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = [
+    "--verbose",
+    "--tb=short",
+    "--cov=BDNewsPaper",
+    "--cov-report=term-missing",
+    "--cov-report=html",
+]
+
+[tool.coverage.run]
+source = ["BDNewsPaper"]
+omit = [
+    "*/tests/*",
+    "*/test_*",
+    "setup.py",
+    "*/migrations/*",
+    "*/venv/*",
+    "*/.venv/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]

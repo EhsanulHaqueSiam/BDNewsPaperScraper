@@ -1,0 +1,26 @@
+# UV Configuration for BDNewsPaper Scraper
+# Global UV configuration for this project
+
+# Package resolution settings
+resolution = "highest"
+prerelease = "disallow"
+index-strategy = "unsafe-best-match"
+
+# Performance settings
+concurrent-downloads = 10
+concurrent-builds = 4
+concurrent-installs = 4
+
+# Cache settings
+cache-dir = ".uv-cache"
+
+# Python settings
+python-preference = "managed"
+python-downloads = "automatic"
+
+# Extra index URLs for faster package resolution
+extra-index-url = ["https://pypi.org/simple/"]
+
+# Build settings
+compile-bytecode = true
+no-build-isolation = false
