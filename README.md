@@ -1675,6 +1675,421 @@ sqlite3 news_articles.db "DELETE FROM articles WHERE paper_name = 'ProthomAlo';"
 cp news_articles.db news_articles_backup_$(date +%Y%m%d).db
 ```
 
+## 📝 Comprehensive Logging & Detailed Log Files
+
+This section covers all the ways to create detailed log files and monitor your scraping activities across all platforms and runner methods.
+
+### 🎯 **Quick Logging Reference**
+
+| Platform | Method | Command |
+|----------|---------|---------|
+| **Linux/macOS** | Individual Spider | `uv run scrapy crawl prothomalo -L DEBUG > detailed.log 2>&1` |
+| **Linux/macOS** | Enhanced Runner | `./run_spiders_optimized.sh prothomalo --monitor > full.log 2>&1` |
+| **Windows** | Individual Spider | `uv run scrapy crawl prothomalo -L DEBUG > detailed.log 2>&1` |
+| **Windows** | Python Runner | `python run_spiders_optimized.py prothomalo --monitor > full.log 2>&1` |
+| **Windows** | Batch Runner | `run_spiders_optimized.bat prothomalo > full.log 2>&1` |
+
+### 🔍 **Individual Spider Logging (uv run scrapy crawl)**
+
+#### Basic Logging Levels
+```bash
+# ⭐ RECOMMENDED: INFO level shows scraping progress
+uv run scrapy crawl prothomalo -L INFO
+
+# 🔧 DEBUG level shows detailed technical information
+uv run scrapy crawl prothomalo -L DEBUG
+
+# ⚠️ WARNING level shows only warnings and errors
+uv run scrapy crawl prothomalo -L WARNING
+
+# ❌ ERROR level shows only critical errors
+uv run scrapy crawl prothomalo -L ERROR
+```
+
+#### Save Logs to Files
+```bash
+# 📁 BASIC: Save all output to file
+uv run scrapy crawl prothomalo -L INFO > scraping.log 2>&1
+
+# 📊 DETAILED: Save with timestamps and full debug info
+uv run scrapy crawl prothomalo -L DEBUG > "prothomalo_detailed_$(date +%Y%m%d_%H%M%S).log" 2>&1
+
+# 🎯 PRODUCTION: Save with specific spider and date
+uv run scrapy crawl dailysun -L INFO > "logs/dailysun_$(date +%Y%m%d).log" 2>&1
+
+# 🔀 SPLIT: Save errors separately
+uv run scrapy crawl ittefaq -L INFO > scraping.log 2> errors.log
+```
+
+#### Advanced Logging with Custom Settings
+```bash
+# 📋 COMPREHENSIVE: Full logging with all details
+uv run scrapy crawl prothomalo \
+  -L DEBUG \
+  -s LOG_FILE="logs/prothomalo_full_$(date +%Y%m%d_%H%M%S).log" \
+  -s LOG_LEVEL=DEBUG \
+  -s CLOSESPIDER_ITEMCOUNT=100 \
+  > "console_output_$(date +%Y%m%d_%H%M%S).log" 2>&1
+
+# 🚀 PERFORMANCE: Include performance metrics
+uv run scrapy crawl dailysun \
+  -L INFO \
+  -s STATS_CLASS=scrapy.statscollectors.MemoryStatsCollector \
+  -s LOG_FILE="logs/dailysun_performance_$(date +%Y%m%d).log" \
+  > "dailysun_console_$(date +%Y%m%d).log" 2>&1
+
+# 📈 MONITORING: Real-time progress with detailed stats
+uv run scrapy crawl ittefaq \
+  -L INFO \
+  -s LOGSTATS_INTERVAL=10 \
+  -s STATS_CLASS=scrapy.statscollectors.MemoryStatsCollector \
+  > "ittefaq_realtime_$(date +%Y%m%d_%H%M%S).log" 2>&1
+```
+
+#### Date Range Logging
+```bash
+# 📅 DATE-SPECIFIC: Log scraping for specific periods
+uv run scrapy crawl prothomalo \
+  -a start_date=2024-01-01 \
+  -a end_date=2024-01-31 \
+  -L INFO \
+  > "prothomalo_january2024_$(date +%Y%m%d).log" 2>&1
+
+# 📊 QUARTERLY: Log quarterly data collection
+uv run scrapy crawl bdpratidin \
+  -a start_date=2024-01-01 \
+  -a end_date=2024-03-31 \
+  -L DEBUG \
+  -s LOG_FILE="logs/bdpratidin_Q1_2024.log" \
+  > "bdpratidin_Q1_console.log" 2>&1
+```
+
+### 🚀 **Enhanced Runner Logging (.sh / .py / .bat)**
+
+#### Linux/macOS Enhanced Runner (.sh)
+```bash
+# 📝 BASIC: Standard logging with monitoring
+./run_spiders_optimized.sh prothomalo --monitor > "runner_$(date +%Y%m%d).log" 2>&1
+
+# 🔍 DETAILED: Full debug logging for all spiders
+./run_spiders_optimized.sh --monitor > "full_scrape_$(date +%Y%m%d_%H%M%S).log" 2>&1
+
+# 📊 PERFORMANCE: Detailed performance monitoring
+./run_spiders_optimized.sh prothomalo --monitor > "performance_$(date +%Y%m%d).log" 2>&1
+
+# 📅 DATE-FILTERED: Log specific date range scraping
+./run_spiders_optimized.sh \
+  --start-date 2024-08-01 \
+  --end-date 2024-08-31 \
+  --monitor \
+  > "august2024_scrape_$(date +%Y%m%d).log" 2>&1
+
+# 🎯 SELECTIVE: Log specific spiders only
+./run_spiders_optimized.sh prothomalo --monitor > prothomalo_detailed.log 2>&1
+./run_spiders_optimized.sh dailysun --monitor > dailysun_detailed.log 2>&1
+./run_spiders_optimized.sh ittefaq --monitor > ittefaq_detailed.log 2>&1
+```
+
+#### Windows Python Runner (.py)
+```cmd
+# 📝 BASIC: Standard logging with monitoring
+python run_spiders_optimized.py prothomalo --monitor > runner_%date:~10,4%%date:~4,2%%date:~7,2%.log 2>&1
+
+# 🔍 DETAILED: Full debug logging for all spiders
+python run_spiders_optimized.py --monitor > full_scrape_%date:~10,4%%date:~4,2%%date:~7,2%_%time:~0,2%%time:~3,2%.log 2>&1
+
+# 📊 PERFORMANCE: Detailed performance monitoring
+python run_spiders_optimized.py prothomalo --monitor > performance_%date:~10,4%%date:~4,2%%date:~7,2%.log 2>&1
+
+# 📅 DATE-FILTERED: Log specific date range scraping
+python run_spiders_optimized.py --start-date 2024-08-01 --end-date 2024-08-31 --monitor > august2024_scrape.log 2>&1
+
+# 🎯 SELECTIVE: Log specific spiders only
+python run_spiders_optimized.py prothomalo --monitor > prothomalo_detailed.log 2>&1
+python run_spiders_optimized.py dailysun --monitor > dailysun_detailed.log 2>&1
+python run_spiders_optimized.py ittefaq --monitor > ittefaq_detailed.log 2>&1
+```
+
+#### Windows Batch Runner (.bat)
+```cmd
+# 📝 BASIC: Standard logging with monitoring
+run_spiders_optimized.bat prothomalo --monitor > runner_log.txt 2>&1
+
+# 🔍 DETAILED: Full debug logging for all spiders
+run_spiders_optimized.bat --monitor > full_scrape_log.txt 2>&1
+
+# 📊 PERFORMANCE: Detailed performance monitoring
+run_spiders_optimized.bat prothomalo --monitor > performance_log.txt 2>&1
+
+# 📅 DATE-FILTERED: Log specific date range scraping
+run_spiders_optimized.bat --start-date 2024-08-01 --end-date 2024-08-31 --monitor > august2024_log.txt 2>&1
+```
+
+### 📊 **Real-Time Log Monitoring**
+
+#### Linux/macOS Real-Time Monitoring
+```bash
+# 🔄 REAL-TIME: Monitor logs as they're created
+# Terminal 1: Start scraping
+./run_spiders_optimized.sh prothomalo --monitor > live_scraping.log 2>&1 &
+
+# Terminal 2: Monitor in real-time
+tail -f live_scraping.log
+
+# 🎯 FILTERED: Monitor specific events
+tail -f live_scraping.log | grep -E "(scraped|ERROR|WARNING|Spider opened|Spider closed)"
+
+# 📈 STATS: Monitor statistics only
+tail -f live_scraping.log | grep -E "(Crawled|Scraped|pages/min|items/min)"
+
+# 🔍 DETAILED: Monitor with color highlighting (if you have ccze)
+tail -f live_scraping.log | ccze -A
+```
+
+#### Windows Real-Time Monitoring
+```cmd
+# 🔄 REAL-TIME: Monitor logs as they're created (PowerShell)
+# Terminal 1: Start scraping
+python run_spiders_optimized.py prothomalo --monitor > live_scraping.log 2>&1
+
+# Terminal 2: Monitor in real-time (PowerShell)
+Get-Content live_scraping.log -Wait -Tail 50
+
+# 🎯 FILTERED: Monitor specific events (PowerShell)
+Get-Content live_scraping.log -Wait -Tail 50 | Select-String "scraped|ERROR|WARNING|Spider opened|Spider closed"
+
+# 📈 STATS: Monitor statistics only (PowerShell)
+Get-Content live_scraping.log -Wait -Tail 50 | Select-String "Crawled|Scraped|pages/min|items/min"
+
+# 📋 COMMAND PROMPT: Alternative monitoring
+powershell "Get-Content live_scraping.log -Wait -Tail 30"
+```
+
+### 📁 **Organized Log File Structure**
+
+#### Create Organized Log Directory
+```bash
+# 🗂️ CREATE: Organized logging structure
+mkdir -p logs/{daily,individual,performance,errors,archive}
+
+# 📅 DAILY: Daily organized logging
+./run_spiders_optimized.sh --monitor > "logs/daily/scrape_$(date +%Y%m%d).log" 2>&1
+
+# 🕷️ INDIVIDUAL: Per-spider logging
+uv run scrapy crawl prothomalo -L INFO > "logs/individual/prothomalo_$(date +%Y%m%d_%H%M%S).log" 2>&1
+uv run scrapy crawl dailysun -L INFO > "logs/individual/dailysun_$(date +%Y%m%d_%H%M%S).log" 2>&1
+
+# 📊 PERFORMANCE: Performance-focused logging
+./run_spiders_optimized.sh prothomalo --monitor > "logs/performance/prothomalo_perf_$(date +%Y%m%d).log" 2>&1
+
+# ❌ ERRORS: Error-only logging
+uv run scrapy crawl ittefaq -L ERROR > "logs/errors/ittefaq_errors_$(date +%Y%m%d).log" 2>&1
+```
+
+### 🔧 **Advanced Logging Configurations**
+
+#### Custom Scrapy Logging Settings
+```bash
+# 📋 CUSTOM: Create custom logging configuration
+cat > custom_logging_settings.py << 'EOF'
+# Custom logging settings for detailed output
+LOG_LEVEL = 'DEBUG'
+LOG_FILE = f'logs/custom_scrape_{datetime.now().strftime("%Y%m%d_%H%M%S")}.log'
+LOG_STDOUT = True
+LOG_FORMAT = '%(levelname)s: %(message)s'
+
+# Statistics configuration
+STATS_CLASS = 'scrapy.statscollectors.MemoryStatsCollector'
+LOGSTATS_INTERVAL = 30
+
+# Download statistics
+DOWNLOADER_STATS = True
+DOWNLOAD_DELAY = 1
+CONCURRENT_REQUESTS = 32
+EOF
+
+# 🚀 USE: Apply custom settings
+uv run scrapy crawl prothomalo -s SETTINGS_MODULE=custom_logging_settings > custom_output.log 2>&1
+```
+
+#### Production Logging Template
+```bash
+# 🏭 PRODUCTION: Complete production logging setup
+production_log() {
+    local spider_name=$1
+    local log_dir="logs/production/$(date +%Y/%m)"
+    local timestamp=$(date +%Y%m%d_%H%M%S)
+    
+    # Create directory structure
+    mkdir -p "$log_dir"
+    
+    # Run with comprehensive logging
+    ./run_spiders_optimized.sh "$spider_name" --monitor \
+        > "$log_dir/${spider_name}_${timestamp}_full.log" 2>&1
+    
+    # Create summary log
+    echo "=== Scraping Summary for $spider_name ===" > "$log_dir/${spider_name}_${timestamp}_summary.log"
+    echo "Start time: $(date)" >> "$log_dir/${spider_name}_${timestamp}_summary.log"
+    echo "Log file: $log_dir/${spider_name}_${timestamp}_full.log" >> "$log_dir/${spider_name}_${timestamp}_summary.log"
+}
+
+# 📞 USAGE: Call the function
+production_log prothomalo
+production_log dailysun
+```
+
+### 📈 **Log Analysis and Important Information Extraction**
+
+#### Extract Key Statistics
+```bash
+# 📊 STATS: Extract scraping statistics from logs
+extract_stats() {
+    local log_file=$1
+    echo "=== Scraping Statistics ==="
+    grep -E "(Spider opened|Spider closed|Crawled.*pages|Scraped.*items)" "$log_file"
+    echo ""
+    echo "=== Error Summary ==="
+    grep -E "(ERROR|CRITICAL)" "$log_file" | head -10
+    echo ""
+    echo "=== Performance Metrics ==="
+    grep -E "(pages/min|items/min|items/sec)" "$log_file" | tail -5
+}
+
+# 🔍 ANALYZE: Analyze a log file
+extract_stats "logs/prothomalo_detailed.log"
+```
+
+#### Create Daily Reports
+```bash
+# 📋 REPORT: Generate daily scraping report
+generate_daily_report() {
+    local date_str=$(date +%Y%m%d)
+    local report_file="reports/daily_report_$date_str.txt"
+    
+    mkdir -p reports
+    
+    echo "=== Daily Scraping Report - $(date +%Y-%m-%d) ===" > "$report_file"
+    echo "" >> "$report_file"
+    
+    # Database statistics
+    echo "=== Database Statistics ===" >> "$report_file"
+    sqlite3 news_articles.db "SELECT paper_name, COUNT(*) as articles FROM articles GROUP BY paper_name ORDER BY articles DESC;" >> "$report_file"
+    echo "" >> "$report_file"
+    
+    # Recent logs summary
+    echo "=== Recent Activity ===" >> "$report_file"
+    find logs/ -name "*$date_str*.log" -exec echo "Log: {}" \; -exec tail -5 {} \; >> "$report_file"
+    
+    echo "Report saved: $report_file"
+}
+
+# 📞 USAGE: Generate report
+generate_daily_report
+```
+
+### 🐛 **Error-Specific Logging**
+
+#### Capture and Analyze Errors
+```bash
+# ❌ ERROR-FOCUSED: Log only errors and warnings
+uv run scrapy crawl prothomalo -L WARNING > "errors_only_$(date +%Y%m%d).log" 2>&1
+
+# 🔍 DEBUGGING: Ultra-detailed error debugging
+uv run scrapy crawl dailysun \
+  -L DEBUG \
+  -s DOWNLOAD_DELAY=3 \
+  -s RETRY_TIMES=5 \
+  -s CLOSESPIDER_ITEMCOUNT=10 \
+  > "debug_errors_$(date +%Y%m%d_%H%M%S).log" 2>&1
+
+# 📊 ERROR ANALYSIS: Extract and categorize errors
+analyze_errors() {
+    local log_file=$1
+    echo "=== Error Analysis Report ===" > "${log_file%.log}_error_analysis.txt"
+    echo "Total Errors: $(grep -c ERROR "$log_file")" >> "${log_file%.log}_error_analysis.txt"
+    echo "Total Warnings: $(grep -c WARNING "$log_file")" >> "${log_file%.log}_error_analysis.txt"
+    echo "" >> "${log_file%.log}_error_analysis.txt"
+    echo "=== Most Common Errors ===" >> "${log_file%.log}_error_analysis.txt"
+    grep ERROR "$log_file" | sort | uniq -c | sort -nr | head -10 >> "${log_file%.log}_error_analysis.txt"
+}
+```
+
+### 📱 **Automated Logging Scripts**
+
+#### Complete Logging Script
+```bash
+# 🤖 AUTOMATED: Complete logging script
+cat > complete_logging.sh << 'EOF'
+#!/bin/bash
+
+# Configuration
+LOG_BASE_DIR="logs/$(date +%Y/%m/%d)"
+TIMESTAMP=$(date +%Y%m%d_%H%M%S)
+SPIDERS=("prothomalo" "dailysun" "ittefaq" "bdpratidin")
+
+# Create directory structure
+mkdir -p "$LOG_BASE_DIR"/{individual,combined,errors,performance}
+
+echo "🚀 Starting comprehensive logging session: $TIMESTAMP"
+
+# Log all spiders individually
+for spider in "${SPIDERS[@]}"; do
+    echo "📰 Logging spider: $spider"
+    ./run_spiders_optimized.sh "$spider" --monitor \
+        > "$LOG_BASE_DIR/individual/${spider}_${TIMESTAMP}.log" 2>&1 &
+done
+
+# Wait for all to complete
+wait
+
+# Run combined session
+echo "🔄 Running combined session with monitoring"
+./run_spiders_optimized.sh --monitor \
+    > "$LOG_BASE_DIR/combined/all_spiders_${TIMESTAMP}.log" 2>&1
+
+# Generate summary
+echo "📊 Generating summary report"
+python toxlsx.py --list > "$LOG_BASE_DIR/database_summary_${TIMESTAMP}.txt"
+
+echo "✅ Logging session completed. Logs saved in: $LOG_BASE_DIR"
+EOF
+
+chmod +x complete_logging.sh
+./complete_logging.sh
+```
+
+### 💡 **Pro Tips for Effective Logging**
+
+#### Best Practices
+```bash
+# ✅ RECOMMENDED: Standard production logging
+./run_spiders_optimized.sh prothomalo --monitor > "logs/production_$(date +%Y%m%d).log" 2>&1
+
+# 🎯 DEVELOPMENT: Detailed debugging with limits
+uv run scrapy crawl prothomalo -L DEBUG -s CLOSESPIDER_ITEMCOUNT=20 > "debug_$(date +%Y%m%d_%H%M%S).log" 2>&1
+
+# 📊 MONITORING: Real-time monitoring with statistics
+./run_spiders_optimized.sh --monitor | tee "live_$(date +%Y%m%d_%H%M%S).log"
+
+# 🔄 SCHEDULED: Automated logging for cron jobs
+0 2 * * * cd /path/to/BDNewsPaperScraper && ./run_spiders_optimized.sh --monitor > "logs/daily/auto_$(date +%Y%m%d).log" 2>&1
+```
+
+#### Log File Naming Conventions
+```bash
+# 📂 NAMING: Consistent log file naming
+# Format: [spider]_[purpose]_[date]_[time].log
+
+# Examples:
+prothomalo_production_20240830_143022.log    # Production run
+dailysun_debug_20240830_144530.log           # Debug session
+all_spiders_monitoring_20240830_150000.log   # All spiders with monitoring
+ittefaq_performance_20240830_151234.log      # Performance testing
+quarterly_archive_Q3_2024.log                # Quarterly archive
+```
+
+This comprehensive logging guide covers every possible scenario for detailed logging across all platforms and runner methods. Users can now create detailed log files for analysis, debugging, monitoring, and production use! 🚀
+
 ## ⚙️ Configuration & Customization
 
 ### Spider Settings
