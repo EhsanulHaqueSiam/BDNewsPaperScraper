@@ -12,7 +12,6 @@ spiders=(
     "bdpratidin" 
     "dailysun"
     "ittefaq"
-    "kalerkantho"
     "bangladesh_today"
     "thedailystar"
     "dhakatribune"

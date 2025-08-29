@@ -8,6 +8,7 @@
 
 ## 🚀 Quick Start (TL;DR)
 
+### 🐧 Linux/macOS
 ```bash
 # 1. Clone and setup
 git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
@@ -26,9 +27,33 @@ chmod +x run_spiders_optimized.sh
 
 # 5. Export data
 ./toxlsx.py --output news_data.xlsx
+```
 
-# 🗓️ BONUS: Date filtering (all spiders support this!)
+### 🪟 Windows
+```cmd
+# 1. Clone and setup (Command Prompt or PowerShell)
+git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
+cd BDNewsPaperScraper
+uv sync
+
+# 2. Test with fastest spider
+uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=10
+
+# 3. Run optimized batch (RECOMMENDED) - Use Python script
+python run_spiders_optimized.py prothomalo --monitor
+
+# 4. Check results
+python toxlsx.py --list
+
+# 5. Export data
+python toxlsx.py --output news_data.xlsx
+```
+
+### 🗓️ Date Filtering (All Platforms)
+```bash
+# All spiders support date filtering!
 uv run scrapy crawl prothomalo -a start_date=2024-08-01 -a end_date=2024-08-31
+python run_spiders_optimized.py --start-date 2024-08-01 --end-date 2024-08-31
 ```
 
 ## ✅ Prerequisites
@@ -55,6 +80,8 @@ source ~/.bashrc  # or ~/.zshrc for zsh
 ```
 
 ### 3. Setup Project
+
+#### 🐧 Linux/macOS
 ```bash
 # Automatic setup (recommended)
 chmod +x setup.sh
@@ -64,6 +91,24 @@ chmod +x setup.sh
 uv venv --python 3.11
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 uv sync
+```
+
+#### 🪟 Windows (Command Prompt or PowerShell)
+```cmd
+# Install UV if not already installed (PowerShell - run as administrator)
+# Option 1: Using PowerShell
+powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Option 2: Using Python pip
+pip install uv
+
+# Manual setup (recommended for Windows)
+uv venv --python 3.11
+.venv\Scripts\activate
+uv sync
+
+# OR if you have WSL (Windows Subsystem for Linux)
+# Follow the Linux/macOS instructions in WSL
 ```
 
 ### 4. Verify Installation
@@ -160,7 +205,426 @@ The BDNewsPaper scraper provides **16 different methods** to run the project, co
 # Background service with performance tracking
 ```
 
-## 💡 Different Ways to Run the Project
+## 🪟 Windows Support
+
+This project now provides **full Windows support** with a cross-platform Python runner script (`run_spiders_optimized.py`) that provides all the same features as the Linux/macOS bash script.
+
+### Windows Quick Start
+
+1. **Install Prerequisites**
+   ```cmd
+   # Install Python 3.9+ from python.org
+   # Install Git from git-scm.com
+   # Install UV package manager (PowerShell as administrator):
+   powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
+   ```
+
+2. **Clone and Setup**
+   ```cmd
+   git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
+   cd BDNewsPaperScraper
+   uv sync
+   ```
+
+3. **Test Run**
+   ```cmd
+   # Basic test (minimal output with UV)
+   uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=10
+   
+   # Better visibility (shows scraping progress)
+   uv run scrapy crawl prothomalo -L INFO -s CLOSESPIDER_ITEMCOUNT=10
+   ```
+
+4. **Production Run** 
+   ```cmd
+   # Best option for Windows (full visibility)
+   python run_spiders_optimized.py prothomalo --monitor
+   ```
+
+> **💡 Windows Tip**: If `uv run` shows only "Bytecode compiled" and no scraping info, use `-L INFO` flag or switch to the Python runner for better visibility!
+
+### Windows-Specific Features
+
+#### Enhanced Python Runner (`run_spiders_optimized.py`)
+The Python script provides **identical functionality** to the bash script but works on Windows:
+
+```cmd
+# Cross-platform runner that works on Windows, macOS, and Linux
+python run_spiders_optimized.py [spider_name] [--monitor] [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD]
+```
+
+#### Windows Usage Examples
+
+```cmd
+# Cross-platform runner that works on Windows, macOS, and Linux
+python run_spiders_optimized.py [spider_name] [--monitor] [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD]
+
+# OR use the Windows batch file for easier access
+run_spiders_optimized.bat [spider_name] [--monitor] [--start-date YYYY-MM-DD] [--end-date YYYY-MM-DD]
+```
+
+**Python Script Examples:**
+```cmd
+# Run all spiders with optimized settings
+python run_spiders_optimized.py
+
+# Run specific spider
+python run_spiders_optimized.py prothomalo
+python run_spiders_optimized.py dailysun
+
+# Run with performance monitoring
+python run_spiders_optimized.py --monitor
+python run_spiders_optimized.py prothomalo --monitor
+
+# Date range filtering
+python run_spiders_optimized.py --start-date 2024-01-01 --end-date 2024-01-31
+python run_spiders_optimized.py prothomalo --start-date 2024-08-01 --end-date 2024-08-31
+
+# Combined options
+python run_spiders_optimized.py dailysun --monitor --start-date 2024-08-01
+
+# Get help
+python run_spiders_optimized.py --help
+```
+
+**Windows Batch File Examples:**
+```cmd
+# Easier syntax using the .bat wrapper
+run_spiders_optimized.bat
+run_spiders_optimized.bat prothomalo --monitor
+run_spiders_optimized.bat --start-date 2024-08-01 --end-date 2024-08-31
+```
+
+#### Individual Spider Commands (Windows)
+```cmd
+# Run specific spiders directly
+uv run scrapy crawl prothomalo
+uv run scrapy crawl dailysun
+uv run scrapy crawl ittefaq
+uv run scrapy crawl bdpratidin
+uv run scrapy crawl thebangladeshtoday
+uv run scrapy crawl thedailystar
+
+# 🪟 WINDOWS TIP: Add -L INFO to see scraping progress (UV can be quiet)
+uv run scrapy crawl prothomalo -L INFO
+uv run scrapy crawl dailysun -L INFO -s CLOSESPIDER_ITEMCOUNT=10
+
+# With date filtering
+uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31 -L INFO
+uv run scrapy crawl dailysun -a start_date=2024-08-01 -L INFO
+
+# With custom settings (always include -L INFO for visibility)
+uv run scrapy crawl ittefaq -L INFO -s CLOSESPIDER_ITEMCOUNT=100 -s DOWNLOAD_DELAY=2
+```
+
+#### Data Export (Windows)
+```cmd
+# Check scraped data
+python toxlsx.py --list
+
+# Export to Excel
+python toxlsx.py --output news_data.xlsx
+
+# Export specific newspaper
+python toxlsx.py --paper "ProthomAlo" --output prothomalo.xlsx
+
+# Export to CSV
+python toxlsx.py --format csv --output news_data.csv
+
+# Export with limits
+python toxlsx.py --limit 100 --output recent_news.xlsx
+```
+
+### Windows Installation Options
+
+#### Option 1: PowerShell (Recommended)
+```powershell
+# Run PowerShell as Administrator
+# Install UV
+irm https://astral.sh/uv/install.ps1 | iex
+
+# Clone and setup project
+git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
+cd BDNewsPaperScraper
+uv sync
+
+# Test run
+uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=5
+```
+
+#### Option 2: Command Prompt
+```cmd
+# Install UV via pip (if PowerShell not available)
+pip install uv
+
+# Clone and setup project
+git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
+cd BDNewsPaperScraper
+uv sync
+
+# Test run
+uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=5
+```
+
+#### Option 3: WSL (Windows Subsystem for Linux)
+```bash
+# Install WSL first, then follow Linux instructions
+wsl --install Ubuntu
+# Restart computer
+wsl
+# Follow Linux/macOS instructions inside WSL
+```
+
+### Windows Automation
+
+#### Task Scheduler (Windows equivalent of cron)
+1. Open Task Scheduler
+2. Create Basic Task
+3. Set trigger (daily, weekly, etc.)
+4. Set action to run: `python run_spiders_optimized.py`
+5. Set working directory to project folder
+
+#### PowerShell Script for Automation
+```powershell
+# Save as daily_scrape.ps1
+Set-Location "C:\path\to\BDNewsPaperScraper"
+
+# Run fast spiders
+& python run_spiders_optimized.py prothomalo --monitor
+& python run_spiders_optimized.py dailysun --monitor
+
+# Export data
+& python toxlsx.py --output "daily_news_$(Get-Date -Format 'yyyyMMdd').xlsx"
+
+Write-Output "Daily scraping completed: $(Get-Date)"
+```
+
+### Windows Performance Tips
+
+#### Optimize for Windows
+```cmd
+# Use Windows Defender exclusions for better performance
+# Add project folder to Windows Defender exclusions
+
+# Set high priority for scraping process (CMD as administrator)
+wmic process where name="python.exe" call setpriority "high priority"
+
+# Use SSD storage for better database performance
+# Ensure adequate RAM (8GB+ recommended for all spiders)
+```
+
+#### Windows-Specific Settings
+```cmd
+# Adjust concurrent requests for Windows
+uv run scrapy crawl prothomalo -s CONCURRENT_REQUESTS=32 -s DOWNLOAD_DELAY=0.5
+
+# Use Windows-friendly log levels
+uv run scrapy crawl dailysun -L INFO
+
+# Windows path-safe output files
+python toxlsx.py --output "news_data_%date:~10,4%%date:~4,2%%date:~7,2%.xlsx"
+```
+
+### Windows Logging & Output Issues
+
+#### 🪟 Windows UV Minimal Output Problem
+
+**Issue**: On Windows, `uv run` often shows only "Bytecode compiled" and minimal output, making it hard to see scraping progress.
+
+**Solutions**:
+
+1. **Use Explicit Log Levels** (Recommended)
+   ```cmd
+   # Force INFO level logging to see scraping progress
+   uv run scrapy crawl prothomalo -L INFO
+   uv run scrapy crawl dailysun -L INFO -s CLOSESPIDER_ITEMCOUNT=10
+   
+   # For detailed debugging output
+   uv run scrapy crawl prothomalo -L DEBUG -s CLOSESPIDER_ITEMCOUNT=5
+   
+   # For minimal output (only warnings/errors)
+   uv run scrapy crawl prothomalo -L WARNING
+   ```
+
+2. **Use the Python Runner** (Best for Windows)
+   ```cmd
+   # Python script shows full output by default
+   python run_spiders_optimized.py prothomalo
+   python run_spiders_optimized.py --monitor  # Shows real-time progress
+   
+   # Even better - shows live statistics and progress bars
+   python run_spiders_optimized.py prothomalo --monitor
+   ```
+
+3. **Direct Scrapy Commands** (Without UV)
+   ```cmd
+   # Activate virtual environment first
+   .venv\Scripts\activate
+   
+   # Run scrapy directly (shows full output)
+   scrapy crawl prothomalo -L INFO
+   scrapy crawl dailysun -L INFO -s CLOSESPIDER_ITEMCOUNT=10
+   
+   # Deactivate when done
+   deactivate
+   ```
+
+4. **Force Verbose Output with UV**
+   ```cmd
+   # Use verbose flags to force output
+   uv run --verbose scrapy crawl prothomalo -L INFO
+   
+   # Combine with log level and item count for testing
+   uv run scrapy crawl prothomalo -L INFO -s CLOSESPIDER_ITEMCOUNT=20
+   ```
+
+5. **Monitor Log Files in Real-Time**
+   ```cmd
+   # Windows equivalent of tail -f (PowerShell)
+   # Terminal 1: Start spider
+   uv run scrapy crawl prothomalo -L INFO
+   
+   # Terminal 2: Monitor logs (PowerShell)
+   Get-Content logs\prothomalo_*.log -Wait -Tail 20
+   
+   # OR using Command Prompt with tail equivalent
+   powershell "Get-Content logs\prothomalo_*.log -Wait -Tail 20"
+   ```
+
+#### 📊 Windows Visibility Best Practices
+
+**For Development/Testing:**
+```cmd
+# Always use explicit log levels and limits for testing
+uv run scrapy crawl prothomalo -L INFO -s CLOSESPIDER_ITEMCOUNT=10
+
+# Use Python runner for better Windows experience
+python run_spiders_optimized.py prothomalo --monitor
+
+# Monitor in real-time (separate terminal)
+powershell "Get-Content logs\*.log -Wait -Tail 50"
+```
+
+**For Production:**
+```cmd
+# Use Python runner with monitoring (recommended)
+python run_spiders_optimized.py --monitor
+
+# Or use UV with explicit logging to file
+uv run scrapy crawl prothomalo -L INFO > scraping.log 2>&1
+
+# Monitor progress
+powershell "Get-Content scraping.log -Wait -Tail 30"
+```
+
+**Quick Progress Check:**
+```cmd
+# Check how many articles have been scraped so far
+python toxlsx.py --list
+
+# Check database directly
+sqlite3 news_articles.db "SELECT COUNT(*) FROM articles;"
+sqlite3 news_articles.db "SELECT COUNT(*) FROM articles WHERE paper_name = 'ProthomAlo';"
+```
+
+#### 🔧 Windows UV Workarounds
+
+If UV continues to show minimal output, use these alternatives:
+
+1. **Virtual Environment Method** (Most reliable)
+   ```cmd
+   # One-time setup per session
+   .venv\Scripts\activate
+   
+   # Run commands directly (full output)
+   scrapy crawl prothomalo -L INFO
+   scrapy crawl dailysun -L INFO -s CLOSESPIDER_ITEMCOUNT=50
+   python performance_monitor.py
+   
+   # When done
+   deactivate
+   ```
+
+2. **Python Runner Method** (Recommended)
+   ```cmd
+   # Always shows full output and progress
+   python run_spiders_optimized.py prothomalo
+   python run_spiders_optimized.py --monitor  # Best visibility
+   python run_spiders_optimized.py --help     # See all options
+   ```
+
+3. **Batch File Method** (Easiest)
+   ```cmd
+   # Use the included .bat file
+   run_spiders_optimized.bat prothomalo
+   run_spiders_optimized.bat --monitor
+   ```
+
+### Windows Troubleshooting
+
+#### Common Windows Issues
+
+| Issue | Solution |
+|-------|----------|
+| `UV shows only "Bytecode compiled"` | Use `-L INFO` flag or switch to Python runner |
+| `Can't see scraping progress` | Use `python run_spiders_optimized.py --monitor` |
+| `'uv' is not recognized` | Add UV to PATH or reinstall UV |
+| `Permission denied` | Run Command Prompt/PowerShell as Administrator |
+| `SSL certificate verify failed` | Update certificates: `pip install --upgrade certifi` |
+| `ModuleNotFoundError` | Run `uv sync` in project directory |
+| `Access denied to file` | Close Excel/other programs using the file |
+| `No output visible` | Use explicit log levels: `-L INFO` or `-L DEBUG` |
+
+#### Windows-Specific Commands
+```cmd
+# Check UV installation
+uv --version
+
+# Check Python installation
+python --version
+
+# Check if Scrapy is available
+uv run scrapy version
+
+# Reset virtual environment (if issues)
+rmdir /s .venv
+uv venv --python 3.11
+.venv\Scripts\activate
+uv sync
+
+# View logs (Windows)
+type logs\prothomalo_*.log
+type scrapy.log
+
+# Monitor running processes
+tasklist | findstr python
+```
+
+### Windows vs Linux/macOS Comparison
+
+| Feature | Windows | Linux/macOS | Notes |
+|---------|---------|-------------|-------|
+| **Runner Script** | `python run_spiders_optimized.py` | `./run_spiders_optimized.sh` | Same functionality |
+| **Performance** | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | Slightly slower on Windows |
+| **Automation** | Task Scheduler | Cron jobs | Both work well |
+| **Setup** | UV + Python | UV + bash | UV works on all platforms |
+| **Monitoring** | ✅ Full support | ✅ Full support | Identical features |
+| **Date Filtering** | ✅ Full support | ✅ Full support | Identical syntax |
+| **Export Tools** | ✅ Full support | ✅ Full support | Same output formats |
+
+### Why Use the Python Runner?
+
+The `run_spiders_optimized.py` script provides:
+
+✅ **Cross-platform compatibility** - Works on Windows, macOS, Linux  
+✅ **All bash script features** - Monitoring, logging, progress tracking  
+✅ **Same performance optimizations** - 64 concurrent requests, smart throttling  
+✅ **Windows-native experience** - No need for WSL or bash emulation  
+✅ **Identical command-line interface** - Same arguments and options  
+✅ **Real-time output** - Live progress and logging  
+✅ **Error handling** - Robust error detection and reporting  
+
+Windows users get the **exact same experience** as Linux/macOS users!
 
 ### Method 1: Individual Spider Commands (Best for Development)
 ```bash
@@ -196,6 +660,8 @@ uv run scrapy crawl dailysun -a start_date=2024-06-01 -a categories="national,sp
 ```
 
 ### Method 2: Enhanced Batch Runner (RECOMMENDED for Production)
+
+#### 🐧 Linux/macOS
 ```bash
 # Make executable first
 chmod +x run_spiders_optimized.sh
@@ -225,10 +691,45 @@ chmod +x run_spiders_optimized.sh
 
 # Get help and see all options
 ./run_spiders_optimized.sh --help
-
-# Available spiders for the script:
-# prothomalo, bdpratidin, dailysun, ittefaq, bangladesh_today, thedailystar
 ```
+
+#### 🪟 Windows
+```cmd
+# Run all spiders with optimized settings
+python run_spiders_optimized.py
+
+# Run specific spider only  
+python run_spiders_optimized.py prothomalo
+python run_spiders_optimized.py dailysun
+python run_spiders_optimized.py ittefaq
+
+# Run with performance monitoring
+python run_spiders_optimized.py --monitor
+python run_spiders_optimized.py prothomalo --monitor
+
+# 🗓️ DATE RANGE FILTERING with Enhanced Runner
+# Run all spiders for specific date range
+python run_spiders_optimized.py --start-date 2024-01-01 --end-date 2024-01-31
+
+# Run specific spider with date filtering
+python run_spiders_optimized.py prothomalo --start-date 2024-06-01 --end-date 2024-06-30
+
+# Run with both monitoring and date filtering
+python run_spiders_optimized.py --monitor --start-date 2024-08-01 --end-date 2024-08-31
+python run_spiders_optimized.py prothomalo --monitor --start-date 2024-08-01
+
+# Get help and see all options
+python run_spiders_optimized.py --help
+```
+
+#### Available Spiders
+Both Linux/macOS and Windows versions support the same spiders:
+- `prothomalo` - ProthomAlo (API-based, fastest)
+- `bdpratidin` - BD Pratidin (Bengali handling)
+- `dailysun` - Daily Sun (enhanced extraction)
+- `ittefaq` - Daily Ittefaq (robust pagination)
+- `thebangladeshtoday` - Bangladesh Today (multi-format)
+- `thedailystar` - The Daily Star (legacy support)
 
 
 
@@ -1233,14 +1734,27 @@ BDNewsPaperScraper/
 │   └── bengalidate_to_englishdate.py  # Bengali date conversion utility
 ├── pyproject.toml          # UV project configuration  
 ├── uv.toml                 # UV workspace settings
-├── setup.sh               # Automated setup script
-├── run_spiders_optimized.sh  # Enhanced multi-spider runner (RECOMMENDED)
+├── setup.sh               # Automated setup script (Linux/macOS)
+├── run_spiders_optimized.sh  # Enhanced multi-spider runner (Linux/macOS)
+├── run_spiders_optimized.py  # Cross-platform Python runner (Windows/Linux/macOS) ⭐NEW⭐
+├── run_spiders_optimized.bat # Windows batch file wrapper ⭐NEW⭐
 ├── performance_monitor.py  # Performance monitoring and analytics
 ├── toxlsx.py              # Enhanced data export tool (Excel/CSV)
 ├── news_articles.db       # Shared database for all newspapers
 ├── scrapy.cfg             # Scrapy deployment configuration
 └── README.md              # This comprehensive documentation
 ```
+
+### Cross-Platform Support
+
+| File | Platform | Purpose |
+|------|----------|---------|
+| `run_spiders_optimized.sh` | Linux/macOS | Bash script with full features |
+| `run_spiders_optimized.py` | **All Platforms** ⭐ | Python script with identical features |
+| `run_spiders_optimized.bat` | Windows | Batch wrapper for easier Windows usage |
+| `setup.sh` | Linux/macOS | Automated setup |
+| `toxlsx.py` | **All Platforms** | Data export tool |
+| `performance_monitor.py` | **All Platforms** | Performance monitoring |
 
 ## 🐛 Troubleshooting
 
