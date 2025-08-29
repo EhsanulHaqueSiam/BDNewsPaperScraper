@@ -10,7 +10,7 @@ High-performance web scraper for Bangladeshi newspapers using Scrapy and UV pack
 
 ```bash
 # 1. Clone and setup
-git clone <repository-url>
+git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
 cd BDNewsPaperScraper
 chmod +x setup.sh && ./setup.sh --all
 
@@ -41,7 +41,7 @@ uv run scrapy crawl prothomalo -a start_date=2024-08-01 -a end_date=2024-08-31
 
 ### 1. Clone Repository
 ```bash
-git clone <repository-url>
+git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
 cd BDNewsPaperScraper
 ```
 
