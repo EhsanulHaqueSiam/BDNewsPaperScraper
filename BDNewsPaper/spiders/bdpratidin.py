@@ -34,9 +34,8 @@ class NewsSpider(scrapy.Spider):
     start_page = 1
     last_page = 1000
     
-    # Timezone-aware stop date
+    # Timezone configuration
     dhaka_tz = pytz.timezone('Asia/Dhaka')
-    stop_date = datetime(2024, 6, 1, tzinfo=dhaka_tz)
     
     processed_urls = set()
     should_stop = False
@@ -46,19 +45,17 @@ class NewsSpider(scrapy.Spider):
         
         # Parse date arguments
         try:
+            # Default to scraping from 2025-01-01 to current date
             self.start_date = datetime.strptime(
-                kwargs.get('start_date', '2024-06-01'), '%Y-%m-%d'
+                kwargs.get('start_date', '2025-01-01'), '%Y-%m-%d'
             ).replace(tzinfo=self.dhaka_tz)
             self.end_date = datetime.strptime(
                 kwargs.get('end_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d'
             ).replace(tzinfo=self.dhaka_tz)
         except ValueError as e:
             self.logger.error(f"Invalid date format: {e}")
-            self.start_date = datetime(2024, 6, 1, tzinfo=self.dhaka_tz)
+            self.start_date = datetime(2025, 1, 1, tzinfo=self.dhaka_tz)
             self.end_date = datetime.now().replace(tzinfo=self.dhaka_tz)
-        
-        # Update stop_date to use start_date for consistency
-        self.stop_date = self.start_date
         
         self.logger.info(f"Date range: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}")
         
@@ -162,12 +159,16 @@ class NewsSpider(scrapy.Spider):
                 # Extract and validate date from URL
                 date_obj = self.extract_date_from_url(absolute_link)
                 
-                # Skip if date is not found or older than stop_date
-                if date_obj and date_obj < self.stop_date:
-                    self.logger.info(f"Article date {date_obj} is before stop date {self.stop_date}")
-                    self.should_stop = True
-                    self.crawler.engine.close_spider(self, reason="Reached stop date")
-                    return
+                # Skip if date is not found or outside our date range
+                if date_obj:
+                    if date_obj < self.start_date:
+                        self.logger.info(f"Article date {date_obj} is before start date {self.start_date}")
+                        self.should_stop = True
+                        self.crawler.engine.close_spider(self, reason="Reached start date limit")
+                        return
+                    elif date_obj > self.end_date:
+                        self.logger.debug(f"Article date {date_obj} is after end date {self.end_date}, skipping")
+                        continue
 
                 self.processed_urls.add(absolute_link)
                 valid_links_count += 1

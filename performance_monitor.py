@@ -21,11 +21,28 @@ class PerformanceMonitor:
     def get_scraping_stats(self, hours_back=24):
         """Get scraping statistics for the last N hours."""
         if not os.path.exists(self.db_path):
-            return {"error": "Database not found"}
+            return {
+                "error": "Database not found",
+                "total_articles": 0,
+                "recent_articles": 0,
+                "articles_per_hour": 0,
+                "papers": {}
+            }
         
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
+            
+            # Check if articles table exists
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='articles'")
+            if not cursor.fetchone():
+                return {
+                    "error": "Articles table not found",
+                    "total_articles": 0,
+                    "recent_articles": 0,
+                    "articles_per_hour": 0,
+                    "papers": {}
+                }
             
             # Get articles added in the last N hours
             cutoff_time = datetime.now() - timedelta(hours=hours_back)
@@ -33,17 +50,17 @@ class PerformanceMonitor:
             
             # Total articles in period
             cursor.execute(
-                "SELECT COUNT(*) FROM articles WHERE created_at > ?", 
+                "SELECT COUNT(*) FROM articles WHERE scraped_at > ?", 
                 (cutoff_str,)
             )
-            recent_articles = cursor.fetchone()[0]
+            recent_articles = cursor.fetchone()[0] or 0
             
             # Articles by paper
             cursor.execute(
                 """
                 SELECT paper_name, COUNT(*) as count 
                 FROM articles 
-                WHERE created_at > ? 
+                WHERE scraped_at > ? 
                 GROUP BY paper_name 
                 ORDER BY count DESC
                 """, 
@@ -57,7 +74,7 @@ class PerformanceMonitor:
             
             # Average article length
             cursor.execute(
-                "SELECT AVG(LENGTH(content)) FROM articles WHERE created_at > ?", 
+                "SELECT AVG(LENGTH(article)) FROM articles WHERE scraped_at > ?", 
                 (cutoff_str,)
             )
             avg_length = cursor.fetchone()[0] or 0
@@ -108,7 +125,11 @@ def main():
     """Command line interface for performance monitoring."""
     import sys
     
+    print("Performance monitor main() started")  # Debug line
+    
     monitor = PerformanceMonitor()
+    
+    print(f"Monitor initialized, args: {sys.argv}")  # Debug line
     
     if len(sys.argv) > 1:
         if sys.argv[1] == "report":
@@ -125,20 +146,29 @@ def main():
         # Show real-time monitoring
         print("BDNewsPaper Performance Monitor")
         print("=" * 40)
+        print("Starting monitoring...")
         
         try:
             while True:
                 stats = monitor.get_scraping_stats(1)  # Last hour
                 
-                print(f"\r[{datetime.now().strftime('%H:%M:%S')}] "
-                      f"Articles/hour: {stats.get('articles_per_hour', 0):.1f} | "
-                      f"Total: {stats.get('total_articles', 0)} | "
-                      f"Recent: {stats.get('recent_articles', 0)}", end="")
+                if "error" in stats:
+                    print(f"\r[{datetime.now().strftime('%H:%M:%S')}] "
+                          f"Error: {stats['error']} | "
+                          f"Waiting for scrapers to start...", end="")
+                else:
+                    print(f"\r[{datetime.now().strftime('%H:%M:%S')}] "
+                          f"Articles/hour: {stats.get('articles_per_hour', 0):.1f} | "
+                          f"Total: {stats.get('total_articles', 0)} | "
+                          f"Recent: {stats.get('recent_articles', 0)}", end="")
                 
                 time.sleep(30)  # Update every 30 seconds
                 
         except KeyboardInterrupt:
             print("\nMonitoring stopped.")
+        except Exception as e:
+            print(f"\nMonitoring error: {e}")
+            print("Monitoring stopped.")
 
 
 if __name__ == "__main__":
