@@ -1,0 +1,113 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: bdnews
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bdnews-config
+  namespace: bdnews
+data:
+  DATABASE_PATH: "/app/data/news_articles.db"
+  LOG_LEVEL: "INFO"
+  CHECKPOINT_ENABLED: "true"
+  CHECKPOINT_INTERVAL: "100"
+  LANGUAGE_DETECTION_ENABLED: "true"
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: bdnews-data
+  namespace: bdnews
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bdnews-api
+  namespace: bdnews
+  labels:
+    app: bdnews-api
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bdnews-api
+  template:
+    metadata:
+      labels:
+        app: bdnews-api
+    spec:
+      containers:
+        - name: api
+          image: bdnews-scraper:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: bdnews-config
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: bdnews-data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bdnews-api
+  namespace: bdnews
+spec:
+  selector:
+    app: bdnews-api
+  ports:
+    - port: 80
+      targetPort: 8000
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bdnews-ingress
+  namespace: bdnews
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: api.bdnews.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: bdnews-api
+                port:
+                  number: 80

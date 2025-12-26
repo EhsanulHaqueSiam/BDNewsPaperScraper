@@ -1,19 +1,50 @@
+"""
+Daily Ittefaq Spider
+====================
+Scrapes English news articles from Daily Ittefaq using their AJAX API.
+
+Features:
+    - AJAX API for article listing
+    - Category-based scraping
+    - Keyword search support
+    - Client-side date validation
+"""
+
 import json
-import sqlite3
-import time
 from datetime import datetime
+from typing import Generator, Optional
+from urllib.parse import quote
 
-import pytz
 import scrapy
-from scrapy.http import JsonRequest
+from scrapy.http import JsonRequest, Response
 
-from BDNewsPaper.items import ArticleItem
+from BDNewsPaper.items import NewsArticleItem
+from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 
 
-class IttefaqSpider(scrapy.Spider):
+class IttefaqSpider(BaseNewsSpider):
+    """
+    Daily Ittefaq English edition scraper using AJAX API.
+    
+    Note: Date filtering is performed client-side as the API 
+    doesn't support date range filtering.
+    
+    Usage:
+        scrapy crawl ittefaq -a start_date=2024-12-01 -a end_date=2024-12-25
+        scrapy crawl ittefaq -a categories=Bangladesh,Sports
+        scrapy crawl ittefaq -a search_query="politics"
+    """
+    
     name = "ittefaq"
+    paper_name = "The Daily Ittefaq"
     allowed_domains = ["ittefaq.com.bd", "en.ittefaq.com.bd"]
     
+    # API capabilities
+    supports_api_date_filter = False
+    supports_api_category_filter = True
+    supports_keyword_search = True
+    
+    # Custom settings
     custom_settings = {
         'DOWNLOAD_DELAY': 1,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
@@ -21,244 +52,306 @@ class IttefaqSpider(scrapy.Spider):
         'ROBOTSTXT_OBEY': False,
         'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter',
     }
-
-    base_api_url = "https://en.ittefaq.com.bd/api/theme_engine/get_ajax_contents"
     
-    headers = {
-        "sec-ch-ua-platform": '"Linux"',
-        "Referer": "https://en.ittefaq.com.bd/bangladesh",
-        "X-Requested-With": "XMLHttpRequest",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
-        "Accept": "application/json, text/javascript, */*; q=0.01",
-        "sec-ch-ua": '"Google Chrome";v="131", "Chromium";v="131", "Not_A Brand";v="24"',
-        "sec-ch-ua-mobile": "?0",
+    BASE_URL = "https://en.ittefaq.com.bd"
+    BASE_API_URL = "https://en.ittefaq.com.bd/api/theme_engine/get_ajax_contents"
+    SEARCH_URL = "https://en.ittefaq.com.bd/search"
+    ARTICLES_PER_PAGE = 250
+    MAX_ARTICLES = 5000
+    
+    # Category mappings (widget_id, page_id for API)
+    # Discovered from website structure
+    CATEGORIES = {
+        "Bangladesh": {"widget": 28, "page_id": 1098, "path": "bangladesh"},
+        "International": {"widget": 29, "page_id": 1099, "path": "international"},
+        "Sports": {"widget": 30, "page_id": 1100, "path": "sports"},
+        "Business": {"widget": 31, "page_id": 1101, "path": "business"},
+        "Entertainment": {"widget": 32, "page_id": 1102, "path": "entertainment"},
+        "Opinion": {"widget": 33, "page_id": 1103, "path": "opinion"},
     }
-
-    dhaka_tz = pytz.timezone('Asia/Dhaka')
-    stop_date = datetime(2024, 8, 5, tzinfo=dhaka_tz)
-    stop_timestamp = int(stop_date.timestamp())
-    current_start = 0
-    max_articles = 5000
-    articles_per_page = 250
-    processed_urls = set()
-    should_stop = False
-
+    
+    DEFAULT_CATEGORIES = ["Bangladesh"]
+    
+    API_HEADERS = {
+        "Accept": "application/json, text/javascript, */*; q=0.01",
+        "X-Requested-With": "XMLHttpRequest",
+    }
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.current_start = {}
         
-        # Parse date arguments
-        try:
-            self.start_date = datetime.strptime(
-                kwargs.get('start_date', '2024-06-01'), '%Y-%m-%d'
-            ).replace(tzinfo=self.dhaka_tz)
-            self.end_date = datetime.strptime(
-                kwargs.get('end_date', datetime.now().strftime('%Y-%m-%d')), '%Y-%m-%d'
-            ).replace(tzinfo=self.dhaka_tz)
-        except ValueError as e:
-            self.logger.error(f"Invalid date format: {e}")
-            self.start_date = datetime(2024, 6, 1, tzinfo=self.dhaka_tz)
-            self.end_date = datetime.now().replace(tzinfo=self.dhaka_tz)
+        # Search query support
+        self.search_query = kwargs.get('search_query', '')
         
-        # Update stop_date to use start_date for consistency
-        self.stop_date = self.start_date
+        # Setup categories
+        self._setup_categories()
         
-        self.logger.info(f"Date range: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}")
-        
-        self.db_path = kwargs.get('db_path', 'news_articles.db')
-        self.init_database()
-
-    def init_database(self):
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute('''
-                CREATE TABLE IF NOT EXISTS scraped_urls (
-                    url TEXT PRIMARY KEY,
-                    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
-            conn.commit()
-            conn.close()
-            self.logger.info("Database initialized successfully")
-        except Exception as e:
-            self.logger.error(f"Failed to initialize database: {e}")
-
-    def is_url_scraped(self, url):
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("SELECT 1 FROM scraped_urls WHERE url = ?", (url,))
-            result = cursor.fetchone()
-            conn.close()
-            return result is not None
-        except Exception as e:
-            self.logger.error(f"Database error checking URL {url}: {e}")
-            return False
-
-    def mark_url_scraped(self, url):
-        try:
-            conn = sqlite3.connect(self.db_path)
-            cursor = conn.cursor()
-            cursor.execute("INSERT OR IGNORE INTO scraped_urls (url) VALUES (?)", (url,))
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            self.logger.error(f"Database error marking URL {url}: {e}")
-
-    def start_requests(self):
-        if self.should_stop:
-            return
-        
-        yield JsonRequest(
-            self.get_api_url(self.current_start, self.articles_per_page),
-            headers=self.headers,
-            callback=self.parse_api_response,
-            errback=self.handle_error,
-            meta={'current_start': self.current_start}
+        self.logger.info(f"Categories: {list(self.category_map.keys())}")
+        if self.search_query:
+            self.logger.info(f"Search query: {self.search_query}")
+    
+    def _setup_categories(self) -> None:
+        """Setup category mappings based on filter."""
+        if self.categories:
+            self.category_map = {}
+            for cat in self.categories:
+                for key, value in self.CATEGORIES.items():
+                    if key.lower() == cat.lower():
+                        self.category_map[key] = value
+                        break
+            
+            if not self.category_map:
+                self.logger.warning("No valid categories found, using Bangladesh only")
+                self.category_map = {"Bangladesh": self.CATEGORIES["Bangladesh"]}
+        else:
+            self.category_map = {
+                cat: self.CATEGORIES[cat] 
+                for cat in self.DEFAULT_CATEGORIES
+            }
+    
+    def _get_api_url(self, widget: int, page_id: int, start: int, count: int) -> str:
+        """Build API URL with category support."""
+        return (
+            f"{self.BASE_API_URL}?widget={widget}&start={start}&count={count}"
+            f"&page_id={page_id}&subpage_id=0&author=0&tags=&archive_time=&filter="
         )
-
-    def get_api_url(self, start, count):
-        return (f"{self.base_api_url}?widget=28&start={start}&count={count}"
-                f"&page_id=1098&subpage_id=0&author=0&tags=&archive_time=&filter=")
-
-    def parse_api_response(self, response):
+    
+    # ================================================================
+    # Request Generation
+    # ================================================================
+    
+    def start_requests(self) -> Generator[scrapy.Request, None, None]:
+        """Generate initial requests for all categories or search."""
         if self.should_stop:
             return
-
-        try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse JSON response: {e}")
-            return
-
-        html_content = data.get("html", "")
-        if not html_content:
-            self.logger.warning("No HTML content found in API response")
-            return
-
-        selector = scrapy.Selector(text=html_content)
         
-        links = selector.xpath("//h2[@class='title']//a[@class='link_overlay']/@href").getall()
+        if self.search_query:
+            # Search mode
+            yield self._make_search_request()
+        else:
+            # Category-based scraping
+            for category, info in self.category_map.items():
+                self.current_start[category] = 0
+                yield self._make_category_request(category, info, start=0)
+    
+    def _make_category_request(self, category: str, info: dict, start: int) -> JsonRequest:
+        """Create API request for a category."""
+        widget = info["widget"]
+        page_id = info["page_id"]
+        path = info["path"]
         
-        if not links:
-            self.logger.info("No more article links found, stopping pagination")
-            return
-
-        valid_links_count = 0
-        for link in links:
-            if self.should_stop:
-                break
-                
+        api_url = self._get_api_url(widget, page_id, start, self.ARTICLES_PER_PAGE)
+        self.stats['requests_made'] += 1
+        
+        headers = self.API_HEADERS.copy()
+        headers["Referer"] = f"{self.BASE_URL}/{path}"
+        
+        return JsonRequest(
+            api_url,
+            headers=headers,
+            callback=self.parse_api,
+            errback=self.handle_request_failure,
+            meta={
+                'category': category,
+                'category_info': info,
+                'current_start': start,
+            },
+        )
+    
+    def _make_search_request(self) -> scrapy.Request:
+        """Create search request."""
+        search_url = f"{self.SEARCH_URL}?q={quote(self.search_query)}"
+        self.stats['requests_made'] += 1
+        
+        return scrapy.Request(
+            search_url,
+            callback=self.parse_search_results,
+            errback=self.handle_request_failure,
+            meta={'category': f'search:{self.search_query}'},
+        )
+    
+    # ================================================================
+    # Search Results Parsing
+    # ================================================================
+    
+    def parse_search_results(self, response: Response) -> Generator:
+        """Parse search results page."""
+        articles = response.css('.media, .search-result, article, .news-item')
+        
+        self.logger.info(f"Search results: Found {len(articles)} articles")
+        
+        for article in articles:
+            link = article.css('a::attr(href)').get()
+            if not link:
+                continue
+            
             full_url = response.urljoin(link)
             
             if full_url in self.processed_urls:
-                self.logger.debug(f"URL already processed in current session: {full_url}")
                 continue
-                
-            if self.is_url_scraped(full_url):
-                self.logger.debug(f"URL already scraped in database: {full_url}")
+            
+            if self.is_url_in_db(full_url):
                 continue
             
             self.processed_urls.add(full_url)
-            valid_links_count += 1
+            self.stats['articles_found'] += 1
             
             yield scrapy.Request(
                 full_url,
-                callback=self.parse_news_article,
-                errback=self.handle_error,
-                meta={'url': full_url}
+                callback=self.parse_article,
+                errback=self.handle_request_failure,
+                meta={
+                    'url': full_url,
+                    'category': 'Search',
+                },
             )
-
-        current_start = response.meta.get('current_start', 0)
-        next_start = current_start + self.articles_per_page
-
-        if (not self.should_stop and 
-            next_start < self.max_articles and 
-            valid_links_count > 0):
-            
-            self.current_start = next_start
-            yield JsonRequest(
-                self.get_api_url(self.current_start, self.articles_per_page),
-                headers=self.headers,
-                callback=self.parse_api_response,
-                errback=self.handle_error,
-                meta={'current_start': self.current_start}
-            )
-        else:
-            self.logger.info(f"Pagination stopped. Next start: {next_start}, Should stop: {self.should_stop}, Valid links: {valid_links_count}")
-
-    def parse_news_article(self, response):
+    
+    # ================================================================
+    # API Response Parsing
+    # ================================================================
+    
+    def parse_api(self, response: Response) -> Generator:
+        """Parse API response and extract article links."""
         if self.should_stop:
             return
-
-        item = ArticleItem()
-        url = response.meta.get('url', response.url)
-
-        publication_date_str = response.xpath("//span[@class='tts_time' and @itemprop='datePublished']/@content").get()
         
-        if publication_date_str:
+        category = response.meta.get('category', 'Unknown')
+        category_info = response.meta.get('category_info', {})
+        current_start = response.meta.get('current_start', 0)
+        
+        try:
+            data = json.loads(response.text)
+        except json.JSONDecodeError as e:
+            self.logger.error(f"JSON decode error: {e}")
+            self.stats['errors'] += 1
+            return
+        
+        html_content = data.get("html", "")
+        if not html_content:
+            return
+        
+        selector = scrapy.Selector(text=html_content)
+        links = selector.xpath("//h2[@class='title']//a[@class='link_overlay']/@href").getall()
+        
+        self.logger.info(f"Category '{category}' offset {current_start}: Found {len(links)} articles")
+        
+        if not links:
+            return
+        
+        valid_links = 0
+        for link in links:
+            if self.should_stop:
+                break
+            
+            full_url = response.urljoin(link)
+            
+            if full_url in self.processed_urls:
+                continue
+            
+            if self.is_url_in_db(full_url):
+                continue
+            
+            self.processed_urls.add(full_url)
+            valid_links += 1
+            self.stats['articles_found'] += 1
+            
+            yield scrapy.Request(
+                full_url,
+                callback=self.parse_article,
+                errback=self.handle_request_failure,
+                meta={
+                    'url': full_url,
+                    'category': category,
+                },
+            )
+        
+        # Pagination
+        next_start = current_start + self.ARTICLES_PER_PAGE
+        
+        if not self.should_stop and next_start < self.MAX_ARTICLES and valid_links > 0:
+            self.current_start[category] = next_start
+            yield self._make_category_request(category, category_info, next_start)
+    
+    # ================================================================
+    # Article Parsing
+    # ================================================================
+    
+    def parse_article(self, response: Response) -> Optional[NewsArticleItem]:
+        """Parse article page."""
+        if self.should_stop:
+            return None
+        
+        url = response.meta.get('url', response.url)
+        
+        # Extract publication date
+        pub_date_str = response.xpath(
+            "//span[@class='tts_time' and @itemprop='datePublished']/@content"
+        ).get()
+        
+        pub_date = "Unknown"
+        if pub_date_str:
             try:
-                article_date = datetime.fromisoformat(publication_date_str.replace('Z', '+00:00'))
+                article_date = datetime.fromisoformat(pub_date_str.replace('Z', '+00:00'))
                 
                 if article_date.tzinfo is None:
                     article_date = self.dhaka_tz.localize(article_date)
                 else:
                     article_date = article_date.astimezone(self.dhaka_tz)
                 
-                article_timestamp = int(article_date.timestamp())
-                
-                if article_timestamp < self.stop_timestamp:
-                    self.logger.info(f"Article date {article_date} is before stop date {self.stop_date}")
+                # Date validation
+                if self.is_before_start_date(article_date):
                     self.should_stop = True
-                    self.crawler.engine.close_spider(self, reason="Reached stop date")
-                    return
+                    self.stats['date_filtered'] += 1
+                    return None
                 
-                item["publication_date"] = article_date.strftime("%Y-%m-%d %H:%M:%S")
+                if article_date > self.end_date:
+                    self.stats['date_filtered'] += 1
+                    return None
+                
+                pub_date = article_date.strftime("%Y-%m-%d %H:%M:%S")
                 
             except (ValueError, TypeError) as e:
-                self.logger.error(f"Error parsing publication date '{publication_date_str}': {e}")
-                item["publication_date"] = "Unknown"
-        else:
-            self.logger.warning(f"No publication date found for {url}")
-            item["publication_date"] = "Unknown"
-
-        item["paper_name"] = "The Daily Ittefaq"
+                self.logger.debug(f"Date parse error: {e}")
         
-        category = response.xpath("//h2[@class='secondary_logo']//span/text()").get()
-        item["category"] = category.strip() if category else "Unknown"
+        # Extract category - prefer from meta (request), fallback to page
+        category = response.meta.get('category')
+        if not category or category == 'Unknown':
+            page_category = response.xpath("//h2[@class='secondary_logo']//span/text()").get()
+            category = page_category.strip() if page_category else "Unknown"
         
+        # Extract headline
         headline = response.xpath("//h1/text()").get()
-        item["headline"] = headline.strip() if headline else "Unknown"
+        headline = headline.strip() if headline else "Unknown"
         
+        # Extract subtitle
         sub_title = response.xpath("//h2[@class='subtitle mb10']/text()").get()
-        item["sub_title"] = sub_title.strip() if sub_title else "Unknown"
+        sub_title = sub_title.strip() if sub_title else None
         
-        item["url"] = url
-        
-        article_paragraphs = response.xpath(
-            "//article[@class='jw_detail_content_holder content mb16']//div[@itemprop='articleBody']//p/text()"
+        # Extract article body
+        paragraphs = response.xpath(
+            "//article[@class='jw_detail_content_holder content mb16']"
+            "//div[@itemprop='articleBody']//p/text()"
         ).getall()
         
-        if article_paragraphs:
-            item["article_body"] = " ".join(p.strip() for p in article_paragraphs if p.strip())
-        else:
-            alternative_body = response.xpath(
+        if not paragraphs:
+            paragraphs = response.xpath(
                 "//div[@itemprop='articleBody']//text()[normalize-space()]"
             ).getall()
-            item["article_body"] = " ".join(t.strip() for t in alternative_body if t.strip())
-
-        if not item["article_body"]:
-            self.logger.warning(f"No article body found for {url}")
-            item["article_body"] = "Content not available"
-
-        self.mark_url_scraped(url)
-        yield item
-
-    def handle_error(self, failure):
-        self.logger.error(f"Request failed: {failure.value}")
-        if hasattr(failure.value, 'response') and failure.value.response:
-            self.logger.error(f"Response status: {failure.value.response.status}")
-
-    def closed(self, reason):
-        self.logger.info(f"Spider closed: {reason}")
-        self.logger.info(f"Total unique URLs processed: {len(self.processed_urls)}")
+        
+        article_body = " ".join(t.strip() for t in paragraphs if t.strip())
+        
+        if not article_body or len(article_body) < 50:
+            self.stats['errors'] += 1
+            return None
+        
+        self.stats['articles_processed'] += 1
+        
+        return self.create_article_item(
+            headline=headline,
+            sub_title=sub_title,
+            article_body=article_body,
+            url=url,
+            publication_date=pub_date,
+            category=category,
+        )

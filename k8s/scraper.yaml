@@ -1,0 +1,74 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: bdnews-scraper
+  namespace: bdnews
+spec:
+  schedule: "0 */6 * * *"  # Every 6 hours
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: scraper
+              image: bdnews-scraper:latest
+              command:
+                - /bin/sh
+                - -c
+                - |
+                  scrapy crawl prothomalo -a max_pages=10 || true
+                  scrapy crawl thedailystar -a max_pages=10 || true
+                  scrapy crawl dhakatribune -a max_pages=10 || true
+                  scrapy crawl financialexpress -a max_pages=10 || true
+                  scrapy crawl newage -a max_pages=10 || true
+              envFrom:
+                - configMapRef:
+                    name: bdnews-config
+              volumeMounts:
+                - name: data
+                  mountPath: /app/data
+              resources:
+                requests:
+                  memory: "512Mi"
+                  cpu: "200m"
+                limits:
+                  memory: "1Gi"
+                  cpu: "1000m"
+          volumes:
+            - name: data
+              persistentVolumeClaim:
+                claimName: bdnews-data
+---
+# One-time scraper job (for manual triggering)
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: bdnews-scraper-manual
+  namespace: bdnews
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: scraper
+          image: bdnews-scraper:latest
+          command:
+            - scrapy
+            - crawl
+            - prothomalo
+            - -a
+            - max_pages=5
+          envFrom:
+            - configMapRef:
+                name: bdnews-config
+          volumeMounts:
+            - name: data
+              mountPath: /app/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: bdnews-data

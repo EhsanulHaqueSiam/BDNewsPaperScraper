@@ -1,0 +1,72 @@
+version: '3.8'
+
+services:
+  # API Server
+  api:
+    build: .
+    container_name: bdnews-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+    environment:
+      - DATABASE_PATH=/app/data/news_articles.db
+      - LOG_LEVEL=INFO
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Scraper (run on demand)
+  scraper:
+    build: .
+    container_name: bdnews-scraper
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./httpcache:/app/httpcache
+      - ./.checkpoints:/app/.checkpoints
+    environment:
+      - DATABASE_PATH=/app/data/news_articles.db
+      - LOG_LEVEL=INFO
+      - CHECKPOINT_ENABLED=true
+    command: ["scrapy", "crawl", "prothomalo", "-a", "max_pages=10"]
+    profiles:
+      - scrape
+
+  # Scheduled scraping with cron
+  scheduler:
+    build: .
+    container_name: bdnews-scheduler
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./httpcache:/app/httpcache
+    environment:
+      - DATABASE_PATH=/app/data/news_articles.db
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          echo "Starting scheduled scrape at $$(date)"
+          scrapy crawl prothomalo -a max_pages=5 || true
+          scrapy crawl thedailystar -a max_pages=5 || true
+          scrapy crawl dhakatribune -a max_pages=5 || true
+          echo "Scrape complete, sleeping for 6 hours..."
+          sleep 21600
+        done
+    profiles:
+      - scheduled
+    restart: unless-stopped
+
+volumes:
+  data:
+  logs:
+  httpcache:
+
+networks:
+  default:
+    name: bdnews-network

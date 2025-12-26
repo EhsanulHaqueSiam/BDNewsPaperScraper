@@ -75,16 +75,16 @@ get_articles_count() {
     # Map spider names to their database paper_name values
     case "$spider_name" in
         "prothomalo")
-            paper_name="ProthomAlo"
+            paper_name="Prothom Alo"
             ;;
         "BDpratidin")
             paper_name="BD Pratidin"
             ;;
         "dailysun")
-            paper_name="daily-sun"
+            paper_name="Daily Sun"
             ;;
         "ittefaq")
-            paper_name="Ittefaq"
+            paper_name="The Daily Ittefaq"
             ;;
         "bangladesh_today")
             paper_name="The Bangladesh Today"

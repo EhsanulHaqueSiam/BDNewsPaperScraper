@@ -1,625 +1,731 @@
-import scrapy
+"""
+Daily Sun Spider (Enhanced)
+============================
+Scrapes English news articles from Daily Sun using their AJAX API.
+
+API Endpoints Discovered:
+    - /ajax/load/latestnews/{count}/{type}/{page}?lastID={lastID} - Latest news pagination
+    - /ajax/load/popularnews/{count}/{offset} - Popular news
+    - /ajax/load/categorynews/{categoryID}/{count}/{offset} - Category-specific news
+    - /search?q={query} - Search functionality
+
+Note:
+    - Site has heavy Cloudflare protection
+    - Uses jQuery/AJAX architecture (no Next.js)
+    - Images served from dscdn.daily-sun.com
+
+Features:
+    - AJAX API support with pagination
+    - Multiple extraction strategies (AJAX data, JSON-LD, HTML)
+    - Category-based scraping
+    - Search functionality
+    - Cloudflare-aware request handling
+"""
+
 import json
-import sqlite3
 import re
-import html
-import pytz
-from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Generator, Any
-from scrapy.exceptions import CloseSpider
-from BDNewsPaper.items import ArticleItem
+from datetime import datetime
+from typing import Any, Dict, Generator, List, Optional
+from urllib.parse import urlencode, quote
+
+import scrapy
+from scrapy.http import Response
+
+from BDNewsPaper.items import NewsArticleItem
+from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 
 
-class DailysunSpider(scrapy.Spider):
+class DailySunSpider(BaseNewsSpider):
+    """
+    Daily Sun scraper using their AJAX API.
+    
+    API Endpoints:
+        - Latest News: /ajax/load/latestnews/{count}/{type}/{page}?lastID={lastID}
+        - Category News: /ajax/load/categorynews/{categoryID}/{count}/{offset}
+        - Popular News: /ajax/load/popularnews/{count}/{offset}
+        - Search: /search?q={query}
+    
+    Usage:
+        scrapy crawl dailysun -a start_date=2024-12-01 -a end_date=2024-12-25
+        scrapy crawl dailysun -a categories=Bangladesh,Sports
+        scrapy crawl dailysun -a search_query="politics"
+    """
+    
     name = "dailysun"
-    allowed_domains = ["www.daily-sun.com"]
-
-    # Enhanced custom settings for better performance
+    paper_name = "Daily Sun"
+    allowed_domains = ["daily-sun.com", "www.daily-sun.com"]
+    
+    # API capabilities
+    supports_api_date_filter = False  # Date filtering done client-side
+    supports_api_category_filter = True
+    supports_keyword_search = True
+    
+    # Custom settings for Cloudflare handling
     custom_settings = {
-        'DOWNLOAD_DELAY': 0.5,
+        'DOWNLOAD_DELAY': 1.0,  # Slower due to Cloudflare
         'RANDOMIZE_DOWNLOAD_DELAY': True,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 4,  # Lower concurrency for Cloudflare
         'AUTOTHROTTLE_ENABLED': True,
-        'AUTOTHROTTLE_START_DELAY': 0.25,
-        'AUTOTHROTTLE_MAX_DELAY': 2.0,
-        'AUTOTHROTTLE_TARGET_CONCURRENCY': 4.0,
-        'RETRY_ENABLED': True,
-        'RETRY_TIMES': 3,
-        'RETRY_HTTP_CODES': [500, 502, 503, 504, 408, 429],
-        'ROBOTSTXT_OBEY': False,
+        'AUTOTHROTTLE_START_DELAY': 1.0,
+        'AUTOTHROTTLE_MAX_DELAY': 10.0,
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 2.0,
+        'RETRY_TIMES': 5,  # More retries for Cloudflare blocks
+        'RETRY_HTTP_CODES': [403, 429, 500, 502, 503, 504, 520, 521, 522, 523, 524],
     }
-
-    # Default categories - can be overridden via command line
-    DEFAULT_CATEGORIES = [
-        "national",
-        "economy",
-        "diplomacy",
-        "sports",
-        "bashundhara-shuvosangho",
-        "world",
-        "opinion",
-        "sun-faith",
-        "feature",
-        "sci-tech",
-        "education-online",
-        "health",
-        "entertainment",
-        "corporate",
-    ]
-
-    headers = {
-        "Accept": "application/json, text/plain, */*",
-        "Accept-Language": "en-US,en;q=0.9",
-        "Referer": "https://www.daily-sun.com",
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
+    
+    # Base URLs
+    BASE_URL = "https://www.daily-sun.com"
+    AJAX_LATEST_URL = "https://www.daily-sun.com/ajax/load/latestnews"
+    AJAX_CATEGORY_URL = "https://www.daily-sun.com/ajax/load/categorynews"
+    AJAX_POPULAR_URL = "https://www.daily-sun.com/ajax/load/popularnews"
+    
+    # Category mappings (name -> URL path and category ID if known)
+    CATEGORIES = {
+        "Bangladesh": {"path": "bangladesh", "id": "1"},
+        "Business": {"path": "business", "id": "2"},
+        "World": {"path": "world", "id": "3"},
+        "Entertainment": {"path": "entertainment", "id": "4"},
+        "Sports": {"path": "sports", "id": "5"},
+        "Lifestyle": {"path": "lifestyle", "id": "6"},
+        "Tech": {"path": "tech", "id": "7"},
+        "Opinion": {"path": "opinion", "id": "8"},
     }
-
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
-        # Timezone configuration
-        self.dhaka_tz = pytz.timezone('Asia/Dhaka')
+        # Search query
+        self.search_query = kwargs.get('search_query', '')
         
-        # Parse command-line arguments with proper error handling
-        self._parse_arguments(kwargs)
+        # Items per page
+        self.items_per_page = int(kwargs.get('items_per_page', 30))
         
-        # Initialize database connection with proper error handling
-        self._init_database()
+        # Track last IDs for pagination
+        self.last_ids = {}
         
-        # Initialize statistics tracking
-        self._init_statistics()
+        # Track consecutive empty pages for stopping
+        self.consecutive_empty = {}
+        self.max_consecutive_empty = 3
         
-        # Initialize pagination state
-        self._init_pagination_state()
+        # Setup categories
+        self._setup_categories()
         
-        # Create start URLs based on selected categories
-        self.start_urls = [
-            f"https://www.daily-sun.com/api/catpagination/online/{category}"
-            for category in self.categories
-        ]
-        
-        self.logger.info(f"DailySun Spider initialized")
-        self.logger.info(f"Date range: {self.start_date.strftime('%Y-%m-%d')} to {self.end_date.strftime('%Y-%m-%d')}")
-        self.logger.info(f"Categories: {self.categories}")
-        self.logger.info(f"Max pages per category: {self.max_pages}")
-
-    def _parse_arguments(self, kwargs: Dict[str, Any]) -> None:
-        """Parse and validate command-line arguments."""
-        # Date range parsing with timezone awareness
-        try:
-            start_date_str = kwargs.get('start_date', '2024-06-01')
-            end_date_str = kwargs.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+        self.logger.info(f"Categories: {list(self.category_map.keys())}")
+        if self.search_query:
+            self.logger.info(f"Search query: {self.search_query}")
+    
+    def _setup_categories(self) -> None:
+        """Setup category mappings based on filter."""
+        if self.categories:
+            self.category_map = {}
+            for cat in self.categories:
+                for key, value in self.CATEGORIES.items():
+                    if key.lower() == cat.lower():
+                        self.category_map[key] = value
+                        break
             
-            self.start_date = self._parse_date(start_date_str)
-            self.end_date = self._parse_date(end_date_str, end_of_day=True)
-            
-            if self.start_date > self.end_date:
-                self.logger.warning("Start date is after end date, swapping...")
-                self.start_date, self.end_date = self.end_date, self.start_date
-                
-        except ValueError as e:
-            self.logger.error(f"Invalid date format: {e}")
-            self.start_date = self.dhaka_tz.localize(datetime(2024, 6, 1))
-            self.end_date = self.dhaka_tz.localize(datetime.now())
-
-        # Categories parsing
-        categories_str = kwargs.get('categories', '')
-        if categories_str:
-            requested_categories = [cat.strip() for cat in categories_str.split(',')]
-            self.categories = [
-                cat for cat in requested_categories 
-                if cat in self.DEFAULT_CATEGORIES
-            ]
-            if not self.categories:
-                self.logger.warning("No valid categories found, using all categories")
-                self.categories = self.DEFAULT_CATEGORIES
+            if not self.category_map:
+                self.logger.warning("No valid categories found, using Bangladesh only")
+                self.category_map = {"Bangladesh": self.CATEGORIES["Bangladesh"]}
         else:
-            self.categories = self.DEFAULT_CATEGORIES
-
-        # Pagination settings
-        try:
-            self.max_pages = int(kwargs.get('max_pages', 100))
-            self.max_pages = min(max(self.max_pages, 1), 5000)  # Safety bounds
-        except (ValueError, TypeError):
-            self.max_pages = 100
-
-        # Database path
-        self.db_path = kwargs.get('db_path', 'news_articles.db')
-        
-        # Statistics toggle
-        self.enable_stats = str(kwargs.get('enable_stats', 'true')).lower() == 'true'
-
-    def _parse_date(self, date_str: str, end_of_day: bool = False) -> datetime:
-        """Parse date string and localize to Dhaka timezone."""
-        try:
-            if len(date_str.split()) == 1:  # Only date provided
-                time_part = "23:59:59" if end_of_day else "00:00:00"
-                date_str = f"{date_str} {time_part}"
-            
-            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-            return self.dhaka_tz.localize(dt)
-        except ValueError as e:
-            self.logger.error(f"Invalid date format '{date_str}': {e}")
-            # Fallback to reasonable defaults
-            if end_of_day:
-                return self.dhaka_tz.localize(datetime.now())
-            else:
-                return self.dhaka_tz.localize(datetime.now() - timedelta(days=30))
-
-    def _init_database(self) -> None:
-        """Initialize database connection with proper error handling."""
-        try:
-            self.conn = sqlite3.connect(self.db_path, timeout=30.0)
-            self.cursor = self.conn.cursor()
-            
-            # Enable WAL mode for better concurrent access
-            self.cursor.execute('PRAGMA journal_mode=WAL')
-            self.cursor.execute('PRAGMA synchronous=NORMAL')
-            self.cursor.execute('PRAGMA cache_size=10000')
-            self.cursor.execute('PRAGMA temp_store=MEMORY')
-            
-            # Ensure articles table exists
-            self.cursor.execute("""
-                CREATE TABLE IF NOT EXISTS articles (
-                    id INTEGER PRIMARY KEY,
-                    url TEXT UNIQUE,
-                    scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            self.conn.commit()
-            
-            self.logger.info("Database initialized successfully")
-            
-        except sqlite3.Error as e:
-            self.logger.error(f"Failed to initialize database: {e}")
-            raise
-
-    def _init_statistics(self) -> None:
-        """Initialize statistics tracking."""
-        self.stats = {
-            'api_requests': 0,
-            'articles_found': 0,
-            'articles_processed': 0,
-            'duplicates_skipped': 0,
-            'errors': 0,
-            'categories_completed': 0,
-            'start_time': datetime.now()
-        }
-
-    def _init_pagination_state(self) -> None:
-        """Initialize pagination state tracking."""
-        self.continue_scraping = {category: True for category in self.categories}
-        self.processed_urls = set()
-        self.pagination_state = {
-            category: {'current_page': 1, 'consecutive_empty': 0, 'max_empty': 3}
-            for category in self.categories
-        }
-
-    def is_url_in_db(self, url: str) -> bool:
-        """Check if URL exists in database using a separate connection for thread safety."""
-        try:
-            # Use a separate connection for each check to avoid threading issues
-            with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT 1 FROM articles WHERE url = ? LIMIT 1", (url,))
-                result = cursor.fetchone() is not None
-                
-                if result:
-                    self.stats['duplicates_skipped'] += 1
-                
-                return result
-        except sqlite3.Error as e:
-            self.logger.error(f"Database error checking URL {url}: {e}")
-            return False
-
+            # Default categories
+            self.category_map = {
+                "Bangladesh": self.CATEGORIES["Bangladesh"],
+                "Business": self.CATEGORIES["Business"],
+                "Sports": self.CATEGORIES["Sports"],
+            }
+    
+    # ================================================================
+    # Request Generation
+    # ================================================================
+    
     def start_requests(self) -> Generator[scrapy.Request, None, None]:
-        """Send requests for each category with enhanced error handling."""
-        for start_url in self.start_urls:
-            category = start_url.split("/")[-1]
-            
-            self.stats['api_requests'] += 1
-            
-            yield scrapy.Request(
-                url=start_url,
-                headers=self.headers,
-                callback=self.parse_api,
-                meta={"page": 1, "category": category},
-                errback=self.handle_request_failure,
-                dont_filter=True
-            )
-
-    def parse_api(self, response) -> Generator[scrapy.Request, None, None]:
-        """Parse JSON response and extract articles with enhanced error handling."""
-        category = response.meta["category"]
-        page = response.meta["page"]
+        """Generate initial requests."""
+        if self.search_query:
+            # Search mode
+            yield self._make_search_request()
+        else:
+            # Category-based scraping using AJAX API
+            for category, info in self.category_map.items():
+                self.consecutive_empty[category] = 0
+                self.last_ids[category] = 0
+                yield self._make_ajax_category_request(category, info, page=1)
+    
+    def _make_ajax_category_request(
+        self, category: str, info: Dict, page: int = 1
+    ) -> scrapy.Request:
+        """Create AJAX request for category listing."""
+        category_id = info.get("id", "1")
         
-        try:
-            if response.status != 200:
-                self.logger.warning(f"Non-200 status {response.status} for {category} page {page}")
-                self.stats['errors'] += 1
-                return
-
-            if not response.text.strip():
-                self.logger.warning(f"Empty response for {category} page {page}")
-                self._handle_empty_page(category, page)
-                return
-
-            try:
-                data = json.loads(response.text)
-            except json.JSONDecodeError as e:
-                self.logger.error(f"JSON decode error for {category} page {page}: {e}")
-                self.stats['errors'] += 1
-                return
-
-            articles = data.get("category", {}).get("data", [])
-            
-            if not articles:
-                self.logger.warning(f"No articles found for {category} page {page}")
-                self._handle_empty_page(category, page)
-                return
-
-            if not self.continue_scraping[category]:
-                self.logger.info(f"Skipping category {category} as scraping has stopped")
-                return
-
-            articles_found = 0
-            for article in articles:
-                request = self._process_article(article, category)
-                if request is None:
-                    # Date limit reached, stop this category
-                    self.continue_scraping[category] = False
-                    break
-                elif isinstance(request, scrapy.Request):
-                    articles_found += 1
-                    self.stats['articles_found'] += 1
-                    yield request
-
-            self.logger.debug(f"{category} page {page}: {articles_found} articles processed")
-
-            # Handle pagination with safety limits
-            if (self.continue_scraping[category] and 
-                page < self.max_pages and 
-                articles_found > 0):
-                
-                self.pagination_state[category]['consecutive_empty'] = 0
-                next_page = page + 1
-                self.stats['api_requests'] += 1
-                
-                yield scrapy.Request(
-                    url=response.url,
-                    headers=self.headers,
-                    callback=self.parse_api,
-                    meta={"page": next_page, "category": category},
-                    errback=self.handle_request_failure,
-                    dont_filter=True
-                )
-            else:
-                if articles_found == 0:
-                    self._handle_empty_page(category, page)
-                else:
-                    self.logger.info(f"Completed category '{category}' - processed {page} pages")
-                    self.continue_scraping[category] = False
-                    self.stats['categories_completed'] += 1
-
-        except Exception as e:
-            self.logger.error(f"Unexpected error parsing {category} page {page}: {e}")
-            self.stats['errors'] += 1
-
-    def _process_article(self, article: Dict[str, Any], category: str) -> Optional[scrapy.Request]:
-        """Process individual article with enhanced validation."""
-        try:
-            n_id = article.get("n_id")
-            created_at = article.get("created_at")
-            n_head = article.get("n_head")
-
-            if not n_id or not created_at:
-                self.logger.debug(f"Missing required fields in article: {article}")
-                return None
-
-            # Parse and validate article date with timezone awareness
-            try:
-                publish_date = datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")
-                publish_date = self.dhaka_tz.localize(publish_date)
-                
-                # Check if article is before start date (stop condition)
-                if publish_date < self.start_date:
-                    self.logger.info(f"Stopping {category}: Article date {publish_date} < Start date {self.start_date}")
-                    return None
-                
-                # Check if article is after end date (skip article)
-                if publish_date > self.end_date:
-                    self.logger.debug(f"Skipping future article: {publish_date} > {self.end_date}")
-                    return None  # Continue processing but skip this article
-                    
-            except ValueError as e:
-                self.logger.warning(f"Invalid date format '{created_at}': {e}")
-                return None
-
-            # Construct article URL
-            post_url = f"https://www.daily-sun.com/post/{n_id}"
-
-            # Check for duplicates
-            if self.is_url_in_db(post_url):
-                self.logger.debug(f"Skipping duplicate URL: {post_url}")
-                return None
-
-            # Add to processed URLs set
-            if post_url in self.processed_urls:
-                self.logger.debug(f"URL already processed in session: {post_url}")
-                return None
-            
-            self.processed_urls.add(post_url)
-
-            return scrapy.Request(
-                url=post_url,
-                headers=self.headers,
-                callback=self.parse_post,
+        # Build AJAX URL: /ajax/load/categorynews/{categoryID}/{count}/{offset}
+        offset = (page - 1) * self.items_per_page
+        ajax_url = f"{self.AJAX_CATEGORY_URL}/{category_id}/{self.items_per_page}/{offset}"
+        
+        self.stats['requests_made'] += 1
+        
+        return scrapy.Request(
+            url=ajax_url,
+            callback=self.parse_ajax_response,
+            headers={
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json, text/html, */*',
+                'Referer': f"{self.BASE_URL}/{info['path']}",
+            },
+            meta={
+                "category": category,
+                "category_info": info,
+                "page": page,
+                "request_type": "ajax_category",
+            },
+            errback=self._handle_ajax_error,
+            dont_filter=True,
+        )
+    
+    def _make_ajax_latest_request(self, page: int = 1, last_id: int = 0) -> scrapy.Request:
+        """Create AJAX request for latest news."""
+        # URL format: /ajax/load/latestnews/{count}/{type}/{page}?lastID={lastID}
+        ajax_url = f"{self.AJAX_LATEST_URL}/{self.items_per_page}/1/{page}?lastID={last_id}"
+        
+        self.stats['requests_made'] += 1
+        
+        return scrapy.Request(
+            url=ajax_url,
+            callback=self.parse_ajax_response,
+            headers={
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json, text/html, */*',
+                'Referer': f"{self.BASE_URL}/todays-news",
+            },
+            meta={
+                "category": "Latest",
+                "page": page,
+                "last_id": last_id,
+                "request_type": "ajax_latest",
+            },
+            errback=self._handle_ajax_error,
+            dont_filter=True,
+        )
+    
+    def _make_search_request(self) -> scrapy.Request:
+        """Create search request."""
+        search_url = f"{self.BASE_URL}/search?q={quote(self.search_query)}"
+        
+        self.stats['requests_made'] += 1
+        
+        return scrapy.Request(
+            url=search_url,
+            callback=self.parse_search_results,
+            meta={
+                "category": f"search:{self.search_query}",
+                "request_type": "search",
+            },
+            errback=self.handle_request_failure,
+        )
+    
+    def _handle_ajax_error(self, failure):
+        """Handle AJAX request errors - fallback to HTML scraping."""
+        request = failure.request
+        category = request.meta.get("category")
+        category_info = request.meta.get("category_info", {})
+        page = request.meta.get("page", 1)
+        
+        self.logger.warning(f"AJAX failed for {category}, falling back to HTML")
+        self.stats['errors'] += 1
+        
+        # Fallback to category page HTML scraping
+        if category_info:
+            fallback_url = f"{self.BASE_URL}/{category_info['path']}"
+            yield scrapy.Request(
+                url=fallback_url,
+                callback=self.parse_category_html,
                 meta={
-                    "publish_date": created_at,
                     "category": category,
-                    "post_url": post_url,
-                    "news_id": n_id,
-                    "headline": n_head,
+                    "category_info": category_info,
+                    "page": page,
                 },
                 errback=self.handle_request_failure,
-                dont_filter=False
             )
-
-        except Exception as e:
-            self.logger.error(f"Error processing article {article}: {e}")
-            self.stats['errors'] += 1
-            return None
-
-    def _handle_empty_page(self, category: str, page: int) -> None:
-        """Handle empty pages with consecutive tracking."""
-        self.pagination_state[category]['consecutive_empty'] += 1
+    
+    # ================================================================
+    # AJAX Response Parsing
+    # ================================================================
+    
+    def parse_ajax_response(self, response: Response) -> Generator:
+        """Parse AJAX API response."""
+        category = response.meta["category"]
+        page = response.meta["page"]
+        request_type = response.meta.get("request_type")
         
-        if self.pagination_state[category]['consecutive_empty'] >= self.pagination_state[category]['max_empty']:
-            self.logger.info(f"Stopping {category} after {self.pagination_state[category]['consecutive_empty']} consecutive empty pages")
-            self.continue_scraping[category] = False
-            self.stats['categories_completed'] += 1
-
-    def parse_post(self, response) -> Optional[ArticleItem]:
-        """Parse individual article pages with enhanced extraction."""
-        if response.status != 200:
-            self.logger.warning(f"Non-200 status {response.status} for article: {response.url}")
-            self.stats['errors'] += 1
-            return None
-
+        # Try to parse as JSON first
+        articles = []
         try:
-            item = self._extract_article_data(response)
-            if item and self._validate_article(item):
-                self.stats['articles_processed'] += 1
-                return item
+            # AJAX response might be JSON or HTML fragment
+            content_type = response.headers.get('Content-Type', b'').decode('utf-8', errors='ignore')
+            
+            if 'json' in content_type or response.text.strip().startswith('{'):
+                data = json.loads(response.text)
+                articles = data.get('items', data.get('articles', []))
+                if isinstance(data, list):
+                    articles = data
             else:
-                self.logger.warning(f"Article validation failed for {response.url}")
-                self.stats['errors'] += 1
-                return None
+                # HTML fragment - parse directly
+                yield from self._parse_ajax_html_fragment(response)
+                return
                 
-        except Exception as e:
-            self.logger.error(f"Error parsing article {response.url}: {e}")
-            self.stats['errors'] += 1
-            return None
-
-    def _extract_article_data(self, response) -> Optional[ArticleItem]:
-        """Extract article data with multiple fallback strategies."""
-        item = ArticleItem()
+        except json.JSONDecodeError:
+            # It's HTML, parse as fragment
+            yield from self._parse_ajax_html_fragment(response)
+            return
         
-        # Basic metadata from request meta
-        item["headline"] = self._clean_text(response.meta.get("headline", "No headline"))
-        item["url"] = response.meta["post_url"]
-        item["publication_date"] = response.meta["publish_date"]
-        item["paper_name"] = "daily-sun"
-        item["category"] = response.meta["category"]
+        self.logger.info(f"Category '{category}' page {page}: Found {len(articles)} articles")
         
-        # Extract article body with enhanced fallback strategies
-        item["article_body"] = self._extract_article_body(response)
-        
-        return item
-
-    def _extract_article_body(self, response) -> str:
-        """Extract article body with multiple strategies."""
-        # Strategy 1: Extract from Next.js script data (original method)
-        body = self._extract_from_nextjs_script(response)
-        if body and len(body) > 50:
-            return body
-        
-        # Strategy 2: Extract from JSON-LD structured data
-        body = self._extract_from_jsonld(response)
-        if body and len(body) > 50:
-            return body
-        
-        # Strategy 3: Direct HTML parsing fallback
-        body = self._extract_from_html(response)
-        if body and len(body) > 50:
-            return body
-        
-        # Strategy 4: Meta description fallback
-        meta_desc = response.xpath("//meta[@name='description']/@content").get()
-        if meta_desc and len(meta_desc) > 50:
-            self.logger.warning(f"Using meta description for {response.url}")
-            return self._clean_text(meta_desc)
-        
-        self.logger.warning(f"Could not extract article body from {response.url}")
-        return "No content available"
-
-    def _extract_from_nextjs_script(self, response) -> Optional[str]:
-        """Extract from Next.js script data (original working method)."""
-        try:
-            script_content = response.xpath(
-                "//script[contains(text(), 'self.__next_f.push([1,\"\\u0026lt;')]/text()"
-            ).get()
-
-            if script_content:
-                # Extract JSON-like data from the script content
-                start = script_content.find("[")
-                end = script_content.find("]") + 1
-                data = script_content[start:end]
-
-                # Parse the JSON data
-                parsed_data = json.loads(data)
-
-                # Decode the HTML content
-                html_content = html.unescape(parsed_data[1])
-
-                # Clean HTML tags using regex
-                plain_text = re.sub(r"<[^>]*>", "", html_content)
-                
-                # Clean up whitespace
-                plain_text = self._clean_text(plain_text)
-                
-                return plain_text if len(plain_text) > 50 else None
-                
-        except (json.JSONDecodeError, IndexError, TypeError) as e:
-            self.logger.debug(f"NextJS script extraction failed for {response.url}: {e}")
-            
-        return None
-
-    def _extract_from_jsonld(self, response) -> Optional[str]:
-        """Extract from JSON-LD structured data."""
-        try:
-            scripts = response.xpath("//script[@type='application/ld+json']/text()").getall()
-            
-            for script in scripts:
-                try:
-                    data = json.loads(script)
-                    
-                    # Handle both single objects and arrays
-                    if isinstance(data, list):
-                        data = next((item for item in data if item.get("@type") in ["Article", "NewsArticle"]), None)
-                        if not data:
-                            continue
-                    elif data.get("@type") not in ["Article", "NewsArticle"]:
-                        continue
-                    
-                    article_body = data.get("articleBody") or data.get("description")
-                    if article_body and len(article_body) > 50:
-                        return self._clean_text(article_body)
-                        
-                except (json.JSONDecodeError, KeyError) as e:
-                    self.logger.debug(f"JSON-LD parsing error in {response.url}: {e}")
-                    continue
-                    
-        except Exception as e:
-            self.logger.debug(f"JSON-LD extraction failed for {response.url}: {e}")
-            
-        return None
-
-    def _extract_from_html(self, response) -> Optional[str]:
-        """Extract from HTML with multiple selectors."""
-        try:
-            # Try multiple content selectors
-            content_selectors = [
-                "//div[contains(@class, 'article-content')]//p/text()",
-                "//div[contains(@class, 'post-content')]//p/text()",
-                "//div[contains(@class, 'news-content')]//p/text()",
-                "//article//p/text()",
-                "//main//p/text()",
-                ".post-content p::text",
-                ".article-body p::text",
-                ".content p::text"
-            ]
-            
-            for selector in content_selectors:
-                if selector.startswith("//"):
-                    paragraphs = response.xpath(selector).getall()
-                else:
-                    paragraphs = response.css(selector).getall()
-                
-                if paragraphs:
-                    content = " ".join(p.strip() for p in paragraphs if p.strip())
-                    if len(content) > 50:
-                        return self._clean_text(content)
-                        
-        except Exception as e:
-            self.logger.debug(f"HTML extraction failed for {response.url}: {e}")
-            
-        return None
-
-    def _clean_text(self, text: Any) -> str:
-        """Clean and validate text content."""
-        if not text:
-            return ""
-        
-        if isinstance(text, list):
-            text = " ".join(str(t) for t in text if t)
-        
-        text = str(text).strip()
-        
-        # Remove HTML entities
-        text = html.unescape(text)
-        
-        # Remove extra whitespace
-        text = re.sub(r'\s+', ' ', text)
-        
-        # Remove common unwanted patterns
-        text = re.sub(r'\[.*?\]', '', text)  # Remove [bracketed] content
-        text = re.sub(r'\(.*?\)', '', text)  # Remove (parenthetical) content if too long
-        
-        return text.strip()
-
-    def _validate_article(self, item: ArticleItem) -> bool:
-        """Validate article data."""
-        if not item.get('headline') or not item.get('article_body'):
-            return False
-        
-        if len(item['headline']) < 5 or len(item['article_body']) < 50:
-            return False
-        
-        # Check for placeholder content
-        if item['article_body'] in ['No content available', 'No article body']:
-            return False
-        
-        return True
-
-    def handle_request_failure(self, failure):
-        """Enhanced error handling with detailed logging."""
-        self.stats['errors'] += 1
-        url = failure.request.url
-        error_msg = str(failure.value)
-        
-        # Log different types of failures differently
-        if "DNS lookup failed" in error_msg:
-            self.logger.warning(f"DNS lookup failed for {url}")
-        elif "Connection refused" in error_msg:
-            self.logger.warning(f"Connection refused for {url}")
-        elif "timeout" in error_msg.lower():
-            self.logger.warning(f"Request timeout for {url}")
+        if not articles:
+            self.consecutive_empty[category] = self.consecutive_empty.get(category, 0) + 1
+            if self.consecutive_empty[category] >= self.max_consecutive_empty:
+                self.logger.info(f"Stopping {category}: {self.max_consecutive_empty} consecutive empty pages")
+                return
         else:
-            self.logger.error(f"Request failed for {url}: {error_msg}")
-
-    def closed(self, reason):
-        """Enhanced spider closing with comprehensive statistics."""
-        runtime = datetime.now() - self.stats['start_time']
-        total_articles = self.stats['articles_processed']
-        total_requests = self.stats['api_requests']
+            self.consecutive_empty[category] = 0
         
-        self.logger.info("=" * 60)
-        self.logger.info("DAILY SUN SPIDER FINAL STATISTICS")
-        self.logger.info("=" * 60)
-        self.logger.info(f"Spider closed: {reason}")
-        self.logger.info(f"Total Runtime: {runtime}")
-        self.logger.info(f"API requests made: {self.stats['api_requests']}")
-        self.logger.info(f"Articles found: {self.stats['articles_found']}")
-        self.logger.info(f"Articles processed: {self.stats['articles_processed']}")
-        self.logger.info(f"Duplicates skipped: {self.stats['duplicates_skipped']}")
-        self.logger.info(f"Errors encountered: {self.stats['errors']}")
-        self.logger.info(f"Categories completed: {self.stats['categories_completed']}/{len(self.categories)}")
+        # Process articles from JSON data
+        for article_data in articles:
+            url = article_data.get('url', '')
+            if not url:
+                continue
+            
+            full_url = f"{self.BASE_URL}{url}" if not url.startswith('http') else url
+            
+            # Check date filter if date is available
+            pub_date = article_data.get('date', article_data.get('published_at', ''))
+            if pub_date and not self._is_date_valid(pub_date):
+                if self._is_before_start(pub_date):
+                    self.logger.info(f"Stopping {category}: Article before start date")
+                    return
+                continue
+            
+            if not self.is_url_in_db(full_url):
+                self.stats['articles_found'] += 1
+                
+                # Try to create item from AJAX data
+                item = self._create_item_from_ajax_data(article_data, category)
+                
+                if item and self._has_sufficient_content(item):
+                    yield item
+                else:
+                    # Need to fetch full article
+                    yield scrapy.Request(
+                        url=full_url,
+                        callback=self.parse_article,
+                        meta={
+                            "category": category,
+                            "ajax_data": article_data,
+                        },
+                        errback=self.handle_request_failure,
+                    )
         
-        if total_requests > 0:
-            success_rate = (total_articles / total_requests) * 100
-            self.logger.info(f"Overall Success Rate: {success_rate:.1f}%")
+        # Pagination
+        if articles and page < self.max_pages:
+            next_page = page + 1
+            if request_type == "ajax_latest":
+                # Get last ID from response
+                last_article = articles[-1] if articles else {}
+                last_id = last_article.get('id', 0)
+                yield self._make_ajax_latest_request(next_page, last_id)
+            else:
+                category_info = response.meta.get("category_info", {})
+                yield self._make_ajax_category_request(category, category_info, next_page)
+    
+    def _parse_ajax_html_fragment(self, response: Response) -> Generator:
+        """Parse HTML fragment from AJAX response."""
+        category = response.meta.get("category", "Unknown")
+        page = response.meta.get("page", 1)
         
-        if runtime.total_seconds() > 0:
-            rate = total_articles / (runtime.total_seconds() / 60)
-            self.logger.info(f"Articles per minute: {rate:.1f}")
+        # Parse media items from HTML fragment
+        articles = response.css('.media, .news-item, article')
         
-        self.logger.info(f"Total unique URLs processed: {len(self.processed_urls)}")
-        self.logger.info("=" * 60)
+        self.logger.info(f"Category '{category}' page {page}: Found {len(articles)} HTML articles")
         
-        # Close database connection
-        if hasattr(self, 'conn') and self.conn:
+        for article in articles:
+            # Extract basic info
+            title_el = article.css('h3::text, h4::text, .title::text').get()
+            link_el = article.css('a.linkOverlay::attr(href), a::attr(href)').get()
+            summary_el = article.css('.desktopSummary::text, .summary::text, p::text').get()
+            date_el = article.css('.desktopTime span span::text, .date::text, time::text').get()
+            img_el = article.css('img::attr(src), img::attr(data-src)').get()
+            
+            if not link_el:
+                continue
+            
+            full_url = f"{self.BASE_URL}{link_el}" if not link_el.startswith('http') else link_el
+            
+            # Check date
+            if date_el and not self._is_date_valid(date_el):
+                if self._is_before_start(date_el):
+                    return
+                continue
+            
+            if not self.is_url_in_db(full_url):
+                self.stats['articles_found'] += 1
+                
+                yield scrapy.Request(
+                    url=full_url,
+                    callback=self.parse_article,
+                    meta={
+                        "category": category,
+                        "preview_data": {
+                            "title": title_el,
+                            "summary": summary_el,
+                            "date": date_el,
+                            "image": img_el,
+                        },
+                    },
+                    errback=self.handle_request_failure,
+                )
+        
+        # Pagination for HTML response
+        if len(articles) >= 10 and page < self.max_pages:
+            category_info = response.meta.get("category_info", {})
+            yield self._make_ajax_category_request(category, category_info, page + 1)
+    
+    def _create_item_from_ajax_data(
+        self, data: Dict, category: str
+    ) -> Optional[NewsArticleItem]:
+        """Create item from AJAX data if complete."""
+        title = data.get('title', data.get('headline', ''))
+        body = data.get('content', data.get('body', data.get('summary', '')))
+        url = data.get('url', '')
+        
+        if not url:
+            return None
+        
+        full_url = f"{self.BASE_URL}{url}" if not url.startswith('http') else url
+        
+        # Parse date
+        pub_date = data.get('date', data.get('published_at', 'Unknown'))
+        
+        # Get image
+        image = data.get('image', data.get('thumbnail', ''))
+        if image and not image.startswith('http'):
+            image = f"https://dscdn.daily-sun.com/{image}"
+        
+        return self.create_article_item(
+            headline=title,
+            article_body=body,
+            url=full_url,
+            publication_date=pub_date,
+            category=category,
+            image_url=image if image else None,
+        )
+    
+    def _has_sufficient_content(self, item: NewsArticleItem) -> bool:
+        """Check if item has enough content to skip fetching full article."""
+        body = item.get('article_body', '')
+        return body and len(body) > 200
+    
+    # ================================================================
+    # Date Validation Helpers
+    # ================================================================
+    
+    def _is_date_valid(self, date_str: str) -> bool:
+        """Check if date is within range."""
+        parsed = self._parse_date(date_str)
+        if not parsed:
+            return True  # Unknown date, let it through
+        
+        return self.start_date <= parsed <= self.end_date
+    
+    def _is_before_start(self, date_str: str) -> bool:
+        """Check if date is before start date."""
+        parsed = self._parse_date(date_str)
+        if not parsed:
+            return False
+        
+        return parsed < self.start_date
+    
+    def _parse_date(self, date_str: str) -> Optional[datetime]:
+        """Parse various date formats."""
+        if not date_str:
+            return None
+        
+        formats = [
+            '%d %b %Y, %I:%M %p',  # "26 Dec 2025, 12:28 AM"
+            '%d %B %Y, %I:%M %p',
+            '%Y-%m-%d %H:%M:%S',
+            '%Y-%m-%d',
+            '%d-%m-%Y',
+            '%B %d, %Y',
+        ]
+        
+        for fmt in formats:
             try:
-                self.conn.close()
-            except Exception as e:
-                self.logger.error(f"Error closing database connection: {e}")
+                return datetime.strptime(date_str.strip(), fmt)
+            except ValueError:
+                continue
+        
+        return None
+    
+    # ================================================================
+    # HTML Category Parsing (Fallback)
+    # ================================================================
+    
+    def parse_category_html(self, response: Response) -> Generator:
+        """Parse category page HTML (fallback)."""
+        category = response.meta.get("category", "Unknown")
+        
+        # Check for Cloudflare block
+        if 'Just a moment' in response.text or 'Cloudflare' in response.text:
+            self.logger.warning(f"Cloudflare blocked {response.url}")
+            self.stats['errors'] += 1
+            return
+        
+        articles = response.css('.media, .news-item, article, .story-card')
+        
+        self.logger.info(f"Category '{category}': Found {len(articles)} articles in HTML")
+        
+        for article in articles:
+            link = article.css('a::attr(href)').get()
+            if not link:
+                continue
+            
+            full_url = f"{self.BASE_URL}{link}" if not link.startswith('http') else link
+            
+            if not self.is_url_in_db(full_url):
+                self.stats['articles_found'] += 1
+                
+                yield scrapy.Request(
+                    url=full_url,
+                    callback=self.parse_article,
+                    meta={"category": category},
+                    errback=self.handle_request_failure,
+                )
+    
+    # ================================================================
+    # Search Results Parsing
+    # ================================================================
+    
+    def parse_search_results(self, response: Response) -> Generator:
+        """Parse search results page."""
+        # Check for Cloudflare block
+        if 'Just a moment' in response.text:
+            self.logger.warning("Cloudflare blocked search results")
+            self.stats['errors'] += 1
+            return
+        
+        articles = response.css('.media, .search-result, article')
+        
+        self.logger.info(f"Search results: Found {len(articles)} articles")
+        
+        for article in articles:
+            link = article.css('a::attr(href)').get()
+            if not link:
+                continue
+            
+            full_url = f"{self.BASE_URL}{link}" if not link.startswith('http') else link
+            
+            if not self.is_url_in_db(full_url):
+                self.stats['articles_found'] += 1
+                
+                yield scrapy.Request(
+                    url=full_url,
+                    callback=self.parse_article,
+                    meta={"category": f"search:{self.search_query}"},
+                    errback=self.handle_request_failure,
+                )
+    
+    # ================================================================
+    # Article Parsing
+    # ================================================================
+    
+    def parse_article(self, response: Response) -> Generator[NewsArticleItem, None, None]:
+        """Parse individual article page."""
+        self.stats['articles_processed'] += 1
+        
+        # Check for Cloudflare block
+        if 'Just a moment' in response.text:
+            self.logger.warning(f"Cloudflare blocked {response.url}")
+            self.stats['errors'] += 1
+            return
+        
+        category = response.meta.get("category", "Unknown")
+        
+        # Strategy 1: JSON-LD structured data
+        item = self._extract_from_jsonld(response)
+        
+        # Strategy 2: HTML parsing
+        if not item:
+            item = self._extract_from_html(response)
+        
+        # Strategy 3: Use preview data if available
+        if not item:
+            preview = response.meta.get("preview_data", {})
+            if preview:
+                item = self._extract_from_preview(response, preview)
+        
+        if item:
+            item['category'] = category if not category.startswith('search:') else 'Search'
+            yield item
+        else:
+            self.logger.warning(f"Could not extract data from {response.url}")
+            self.stats['errors'] += 1
+    
+    def _extract_from_jsonld(self, response: Response) -> Optional[NewsArticleItem]:
+        """Extract from JSON-LD structured data."""
+        scripts = response.xpath("//script[@type='application/ld+json']/text()").getall()
+        
+        for script in scripts:
+            try:
+                data = json.loads(script)
+                
+                if isinstance(data, list):
+                    data = next(
+                        (item for item in data if item.get("@type") in ["Article", "NewsArticle"]),
+                        None
+                    )
+                    if not data:
+                        continue
+                elif data.get("@type") not in ["Article", "NewsArticle"]:
+                    continue
+                
+                return self._create_item_from_jsonld(data, response)
+                
+            except (json.JSONDecodeError, KeyError):
+                continue
+        
+        return None
+    
+    def _extract_from_html(self, response: Response) -> Optional[NewsArticleItem]:
+        """Extract from HTML selectors."""
+        try:
+            # Multiple selector strategies
+            headline = (
+                response.css('h1.title::text').get() or
+                response.css('h1::text').get() or
+                response.css('article h1::text').get() or
+                response.css('.article-title::text').get()
+            )
+            
+            # Body extraction - multiple strategies
+            body_parts = []
+            
+            # Strategy 1: Main article content div
+            body_parts.extend(response.css('.fullStory p::text, .article-body p::text').getall())
+            
+            # Strategy 2: Generic article paragraphs
+            if not body_parts:
+                body_parts.extend(response.css('article p::text').getall())
+            
+            # Strategy 3: Any paragraphs in content area
+            if not body_parts:
+                body_parts.extend(response.css('.content p::text, .story p::text').getall())
+            
+            body = " ".join(p.strip() for p in body_parts if p.strip())
+            
+            if not headline or not body or len(body) < 50:
+                return None
+            
+            # Extract other fields
+            pub_date = (
+                response.css('time::attr(datetime)').get() or
+                response.css('.date::text, .published-date::text').get() or
+                response.css('meta[property="article:published_time"]::attr(content)').get() or
+                "Unknown"
+            )
+            
+            author = (
+                response.css('.author::text, .reporter-name::text').get() or
+                response.css('meta[name="author"]::attr(content)').get() or
+                "Unknown"
+            )
+            
+            image_url = (
+                response.css('meta[property="og:image"]::attr(content)').get() or
+                response.css('.featured-image img::attr(src)').get() or
+                response.css('article img::attr(src)').get()
+            )
+            
+            return self.create_article_item(
+                headline=headline.strip(),
+                article_body=body,
+                url=response.url,
+                publication_date=pub_date,
+                author=author.strip() if author != "Unknown" else None,
+                image_url=image_url,
+            )
+            
+        except Exception as e:
+            self.logger.debug(f"HTML extraction error: {e}")
+            return None
+    
+    def _extract_from_preview(
+        self, response: Response, preview: Dict
+    ) -> Optional[NewsArticleItem]:
+        """Extract using preview data as fallback."""
+        headline = preview.get('title', '')
+        if not headline:
+            return None
+        
+        # Try to get body from page
+        body_parts = response.css('article p::text, .content p::text').getall()
+        body = " ".join(p.strip() for p in body_parts if p.strip())
+        
+        if not body:
+            body = preview.get('summary', '')
+        
+        if not body or len(body) < 50:
+            return None
+        
+        return self.create_article_item(
+            headline=headline,
+            article_body=body,
+            url=response.url,
+            publication_date=preview.get('date', 'Unknown'),
+            image_url=preview.get('image'),
+        )
+    
+    def _create_item_from_jsonld(
+        self, data: Dict, response: Response
+    ) -> NewsArticleItem:
+        """Create item from JSON-LD data."""
+        # Extract authors
+        authors = data.get("author", [])
+        if isinstance(authors, list):
+            author_names = [
+                a.get("name", "") if isinstance(a, dict) else str(a)
+                for a in authors
+            ]
+            author = ", ".join(filter(None, author_names)) or "Unknown"
+        elif isinstance(authors, dict):
+            author = authors.get("name", "Unknown")
+        else:
+            author = str(authors) if authors else "Unknown"
+        
+        # Extract image
+        image_data = data.get("image")
+        image_url = None
+        if isinstance(image_data, list) and image_data:
+            if isinstance(image_data[0], dict):
+                image_url = image_data[0].get("url")
+            else:
+                image_url = str(image_data[0])
+        elif isinstance(image_data, dict):
+            image_url = image_data.get("url")
+        elif isinstance(image_data, str):
+            image_url = image_data
+        
+        # Extract keywords
+        keywords = data.get("keywords")
+        if isinstance(keywords, list):
+            keywords = ", ".join(str(k) for k in keywords)
+        
+        return self.create_article_item(
+            headline=data.get("headline", "No headline"),
+            url=data.get("url", response.url),
+            article_body=data.get("articleBody", ""),
+            sub_title=data.get("description", ""),
+            publication_date=data.get("datePublished"),
+            modification_date=data.get("dateModified"),
+            author=author,
+            image_url=image_url,
+            keywords=keywords,
+            publisher=data.get("publisher", {}).get("name", "Daily Sun"),
+        )

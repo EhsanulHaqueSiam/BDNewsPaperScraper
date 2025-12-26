@@ -111,22 +111,48 @@ class UserAgentMiddleware:
 
 
 class SmartRetryMiddleware(RetryMiddleware):
+    """
+    Enhanced retry middleware with exponential backoff and jitter.
+    
+    Features:
+        - Exponential backoff (2^retries * base_delay)
+        - Random jitter to prevent thundering herd
+        - Per-domain retry tracking
+        - Configurable via settings
+    """
+    
     def __init__(self, settings):
         super().__init__(settings)
         self.max_retry_times = settings.getint('RETRY_TIMES', 3)
         self.retry_http_codes = set(int(x) for x in settings.getlist('RETRY_HTTP_CODES', [500, 502, 503, 504, 408, 429]))
         self.backoff_factor = settings.getfloat('RETRY_BACKOFF_FACTOR', 2.0)
         self.max_delay = settings.getfloat('RETRY_MAX_DELAY', 60.0)
+        self.jitter_factor = settings.getfloat('RETRY_JITTER_FACTOR', 0.3)
+        
+        # Per-domain retry statistics
+        self.domain_retries: Dict[str, Dict] = defaultdict(lambda: {
+            'total_retries': 0,
+            'successful_retries': 0,
+            'failed_retries': 0,
+        })
 
     @classmethod
     def from_crawler(cls, crawler):
-        return cls(crawler.settings)
+        middleware = cls(crawler.settings)
+        crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
+        return middleware
 
     def process_response(self, request, response, spider):
         if response.status in self.retry_http_codes:
             reason = response_status_message(response.status)
             spider.logger.warning(f"Retrying {request.url} due to {response.status}: {reason}")
             return self._retry_with_backoff(request, reason, spider) or response
+        
+        # Track successful retry
+        if request.meta.get('retry_times', 0) > 0:
+            from urllib.parse import urlparse
+            domain = urlparse(request.url).netloc
+            self.domain_retries[domain]['successful_retries'] += 1
         
         return response
 
@@ -139,10 +165,20 @@ class SmartRetryMiddleware(RetryMiddleware):
         return None
 
     def _retry_with_backoff(self, request, reason, spider):
+        from urllib.parse import urlparse
+        domain = urlparse(request.url).netloc
+        
         retry_times = request.meta.get('retry_times', 0) + 1
+        self.domain_retries[domain]['total_retries'] += 1
         
         if retry_times <= self.max_retry_times:
-            delay = min(self.backoff_factor ** retry_times, self.max_delay)
+            # Calculate delay with exponential backoff
+            base_delay = self.backoff_factor ** retry_times
+            
+            # Add jitter to prevent thundering herd
+            jitter = random.uniform(-self.jitter_factor, self.jitter_factor) * base_delay
+            delay = min(base_delay + jitter, self.max_delay)
+            delay = max(delay, 0.1)  # Minimum delay
             
             spider.logger.info(f"Retry {retry_times}/{self.max_retry_times} for {request.url} in {delay:.1f}s")
             
@@ -153,8 +189,144 @@ class SmartRetryMiddleware(RetryMiddleware):
             
             return retryreq
         else:
+            self.domain_retries[domain]['failed_retries'] += 1
             spider.logger.error(f"Gave up retrying {request.url} after {self.max_retry_times} attempts")
             return None
+    
+    def spider_closed(self, spider, reason):
+        """Log retry statistics on spider close."""
+        if self.domain_retries:
+            spider.logger.info("=== Retry Statistics ===")
+            for domain, stats in self.domain_retries.items():
+                spider.logger.info(
+                    f"  {domain}: {stats['total_retries']} retries, "
+                    f"{stats['successful_retries']} successful, "
+                    f"{stats['failed_retries']} failed"
+                )
+
+
+class CircuitBreakerMiddleware:
+    """
+    Circuit breaker pattern for handling repeated failures.
+    
+    States:
+        - CLOSED: Normal operation, requests pass through
+        - OPEN: Failing fast, requests are rejected immediately
+        - HALF_OPEN: Testing recovery, limited requests allowed
+    
+    Transitions:
+        - CLOSED -> OPEN: After failure_threshold consecutive failures
+        - OPEN -> HALF_OPEN: After recovery_timeout seconds
+        - HALF_OPEN -> CLOSED: After half_open_max_calls successful requests
+        - HALF_OPEN -> OPEN: On any failure
+    """
+    
+    CLOSED = 'closed'
+    OPEN = 'open'
+    HALF_OPEN = 'half_open'
+    
+    def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 60.0,
+                 half_open_max_calls: int = 3):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.half_open_max_calls = half_open_max_calls
+        
+        # Per-domain circuit breakers
+        self.circuits: Dict[str, Dict] = defaultdict(lambda: {
+            'state': self.CLOSED,
+            'failures': 0,
+            'successes': 0,
+            'last_failure_time': None,
+            'half_open_calls': 0,
+        })
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        settings = crawler.settings
+        return cls(
+            failure_threshold=settings.getint('CIRCUIT_BREAKER_THRESHOLD', 5),
+            recovery_timeout=settings.getfloat('CIRCUIT_BREAKER_RECOVERY_TIMEOUT', 60.0),
+            half_open_max_calls=settings.getint('CIRCUIT_BREAKER_HALF_OPEN_CALLS', 3),
+        )
+    
+    def _get_domain(self, url: str) -> str:
+        from urllib.parse import urlparse
+        return urlparse(url).netloc
+    
+    def _check_half_open_transition(self, circuit: Dict) -> bool:
+        """Check if circuit should transition from OPEN to HALF_OPEN."""
+        if circuit['state'] != self.OPEN:
+            return False
+        
+        if circuit['last_failure_time'] is None:
+            return False
+        
+        elapsed = time.time() - circuit['last_failure_time']
+        return elapsed >= self.recovery_timeout
+    
+    def process_request(self, request, spider):
+        domain = self._get_domain(request.url)
+        circuit = self.circuits[domain]
+        
+        # Check for OPEN -> HALF_OPEN transition
+        if self._check_half_open_transition(circuit):
+            circuit['state'] = self.HALF_OPEN
+            circuit['half_open_calls'] = 0
+            spider.logger.info(f"Circuit for {domain} transitioning to HALF_OPEN")
+        
+        if circuit['state'] == self.OPEN:
+            spider.logger.warning(f"Circuit OPEN for {domain}, rejecting request: {request.url}")
+            raise IgnoreRequest(f"Circuit breaker open for {domain}")
+        
+        if circuit['state'] == self.HALF_OPEN:
+            circuit['half_open_calls'] += 1
+            spider.logger.debug(f"Circuit HALF_OPEN for {domain}, allowing test request {circuit['half_open_calls']}")
+        
+        return None
+    
+    def process_response(self, request, response, spider):
+        domain = self._get_domain(request.url)
+        circuit = self.circuits[domain]
+        
+        if response.status >= 500 or response.status == 429:
+            self._record_failure(domain, spider)
+        else:
+            self._record_success(domain, spider)
+        
+        return response
+    
+    def process_exception(self, request, exception, spider):
+        domain = self._get_domain(request.url)
+        self._record_failure(domain, spider)
+        return None
+    
+    def _record_failure(self, domain: str, spider):
+        circuit = self.circuits[domain]
+        circuit['failures'] += 1
+        circuit['last_failure_time'] = time.time()
+        circuit['successes'] = 0
+        
+        if circuit['state'] == self.HALF_OPEN:
+            # Any failure in half-open trips back to open
+            circuit['state'] = self.OPEN
+            spider.logger.warning(f"Circuit for {domain} tripped back to OPEN after half-open failure")
+        
+        elif circuit['state'] == self.CLOSED:
+            if circuit['failures'] >= self.failure_threshold:
+                circuit['state'] = self.OPEN
+                spider.logger.warning(
+                    f"Circuit for {domain} OPENED after {circuit['failures']} consecutive failures"
+                )
+    
+    def _record_success(self, domain: str, spider):
+        circuit = self.circuits[domain]
+        circuit['successes'] += 1
+        circuit['failures'] = 0
+        
+        if circuit['state'] == self.HALF_OPEN:
+            if circuit['successes'] >= self.half_open_max_calls:
+                circuit['state'] = self.CLOSED
+                spider.logger.info(f"Circuit for {domain} CLOSED after successful recovery")
 
 
 class StatisticsMiddleware:

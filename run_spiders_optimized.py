@@ -125,12 +125,12 @@ class SpiderRunner:
         
         # Map spider names to their database paper_name values
         spider_to_paper_name = {
-            "prothomalo": "ProthomAlo",
+            "prothomalo": "Prothom Alo",
             "BDpratidin": "BD Pratidin", 
-            "dailysun": "daily-sun",
+            "dailysun": "Daily Sun",
             "ittefaq": "The Daily Ittefaq",
-            "thebangladeshtoday": "The Bangladesh Today",
-            "thedailystar": "thedailystar"
+            "bangladesh_today": "The Bangladesh Today",
+            "thedailystar": "The Daily Star"
         }
         
         paper_name = spider_to_paper_name.get(spider_name, spider_name)

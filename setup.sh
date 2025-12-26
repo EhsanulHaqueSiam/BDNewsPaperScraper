@@ -96,6 +96,12 @@ setup_project() {
         uv sync --extra monitoring
     fi
     
+    # Install GUI dependencies (Streamlit)
+    if [ "$1" = "--gui" ] || [ "$1" = "--all" ]; then
+        print_status "Installing GUI dependencies (Streamlit)..."
+        uv sync --extra gui
+    fi
+    
     # Create necessary directories
     print_status "Creating project directories..."
     mkdir -p logs
@@ -130,6 +136,7 @@ show_usage() {
     echo "  --dev         Install development dependencies"
     echo "  --performance Install performance optimization dependencies"
     echo "  --monitoring  Install monitoring dependencies"
+    echo "  --gui         Install GUI dependencies (Streamlit web interface)"
     echo "  --all         Install all optional dependencies"
     echo "  --check       Check installation and requirements"
     echo "  --clean       Clean up virtual environment and reinstall"
@@ -137,9 +144,10 @@ show_usage() {
     echo ""
     echo "Examples:"
     echo "  $0                    # Basic installation"
-    echo "  $0 --dev            # Development setup"
-    echo "  $0 --all            # Full installation with all features"
-    echo "  $0 --check          # Check current installation"
+    echo "  $0 --dev              # Development setup"
+    echo "  $0 --gui              # Install with web GUI support"
+    echo "  $0 --all              # Full installation with all features"
+    echo "  $0 --check            # Check current installation"
 }
 
 # Function to check installation
@@ -239,7 +247,7 @@ main() {
             print_status "Run setup again to reinstall the project"
             exit 0
             ;;
-        --dev|--performance|--monitoring|--all)
+        --dev|--performance|--monitoring|--gui|--all)
             # Valid options, continue
             ;;
         "")
@@ -266,6 +274,10 @@ main() {
     echo "  2. Run a spider: uv run scrapy crawl prothomalo"
     echo "  3. Run all spiders: ./run_spiders_optimized.sh"
     echo "  4. Monitor performance: uv run python performance_monitor.py stats"
+    echo ""
+    echo "Web GUI (if installed with --gui or --all):"
+    echo "  - Launch GUI: uv run streamlit run app.py"
+    echo "  - Open in browser: http://localhost:8501"
     echo ""
     echo "For development:"
     echo "  - Format code: uv run black BDNewsPaper/"

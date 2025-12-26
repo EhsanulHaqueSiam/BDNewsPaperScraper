@@ -54,6 +54,7 @@ SPIDER_MIDDLEWARES = {
 DOWNLOADER_MIDDLEWARES = {
     "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,  # Disable default
     "BDNewsPaper.middlewares.UserAgentMiddleware": 400,  # Custom User-Agent rotation
+    "BDNewsPaper.middlewares.CircuitBreakerMiddleware": 420,  # Circuit breaker (before stats)
     "BDNewsPaper.middlewares.StatisticsMiddleware": 450,  # Statistics tracking
     "BDNewsPaper.middlewares.RateLimitMiddleware": 500,  # Rate limiting
     "BDNewsPaper.middlewares.BdnewspaperDownloaderMiddleware": 543,  # Enhanced downloader
@@ -72,8 +73,34 @@ DOWNLOADER_MIDDLEWARES = {
 ITEM_PIPELINES = {
     "BDNewsPaper.pipelines.ValidationPipeline": 100,
     "BDNewsPaper.pipelines.CleanArticlePipeline": 200,
+    "BDNewsPaper.pipelines.LanguageDetectionPipeline": 210,  # Language detection
+    "BDNewsPaper.pipelines.ContentQualityPipeline": 220,  # Content quality check
+    "BDNewsPaper.pipelines.DateFilterPipeline": 250,  # Optional date filtering
     "BDNewsPaper.pipelines.SharedSQLitePipeline": 300,
 }
+
+# Date filter settings (disabled by default, enabled per-spider)
+DATE_FILTER_ENABLED = False
+# FILTER_START_DATE = '2024-01-01'
+# FILTER_END_DATE = '2024-12-31'
+
+# Language Detection settings
+LANGUAGE_DETECTION_ENABLED = True
+LANGUAGE_DETECTION_STRICT = False  # Set True to drop non-English articles
+EXPECTED_LANGUAGES = ['en']  # Expected article languages
+
+# Content Quality settings
+MIN_ARTICLE_WORDS = 20
+MAX_ARTICLE_WORDS = 50000
+MAX_SPECIAL_CHAR_RATIO = 0.3
+
+# Checkpoint settings
+CHECKPOINT_ENABLED = False  # Enable to save progress periodically
+CHECKPOINT_INTERVAL = 100  # Items between checkpoints
+CHECKPOINT_DIR = '.checkpoints'
+
+# Database settings
+DATABASE_PATH = 'news_articles.db'
 
 # Enable and configure the AutoThrottle extension (disabled by default)
 # See https://docs.scrapy.org/en/latest/topics/autothrottle.html
@@ -135,6 +162,12 @@ RETRY_TIMES = 3
 RETRY_HTTP_CODES = [500, 502, 503, 504, 408, 429]
 RETRY_BACKOFF_FACTOR = 2.0
 RETRY_MAX_DELAY = 60.0
+RETRY_JITTER_FACTOR = 0.3  # Random jitter to prevent thundering herd
+
+# Circuit Breaker Configuration
+CIRCUIT_BREAKER_THRESHOLD = 5  # Failures before opening circuit
+CIRCUIT_BREAKER_RECOVERY_TIMEOUT = 60.0  # Seconds before trying recovery
+CIRCUIT_BREAKER_HALF_OPEN_CALLS = 3  # Successful calls to close circuit
 
 # Rate Limiting Configuration
 RATELIMIT_DELAY = 1.0

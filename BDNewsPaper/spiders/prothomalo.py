@@ -1,128 +1,193 @@
-import scrapy
-from datetime import datetime, timedelta
-import pytz
+"""
+Prothom Alo Spider (Enhanced)
+=============================
+Scrapes English news articles from Prothom Alo using their comprehensive API.
+
+API Endpoints Discovered:
+    - /api/v1/advanced-search - Article listing with filters
+    - /route-data.json?path={slug} - Full article content in JSON
+    - /api/v1/authors - Author information
+
+Features:
+    - Full API support with date and category filtering
+    - Keyword search via 'q' parameter
+    - Multiple extraction strategies (route-data.json, JSON-LD, API data, HTML)
+    - Automatic pagination with offset
+    - Complete article metadata extraction
+"""
+
 import json
-import sqlite3
-from urllib.parse import urlencode
-from typing import Dict, List, Optional, Generator, Any
-from BDNewsPaper.items import ArticleItem
+import re
+from datetime import datetime
+from typing import Any, Dict, Generator, List, Optional
+from urllib.parse import urlencode, quote
+
+import scrapy
+from scrapy.http import Response
+
+from BDNewsPaper.items import NewsArticleItem
+from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 
 
-class ProthomaloSpider(scrapy.Spider):
+class ProthomaloSpider(BaseNewsSpider):
+    """
+    Prothom Alo English edition scraper using their advanced search API.
+    
+    API Parameters Discovered:
+        - q: Search keyword
+        - from-date/to-date: Date range (ISO format with milliseconds)
+        - section-id: Category filter (comma-separated IDs)
+        - sort: latest-published, relevance, oldest-published
+        - offset: Pagination offset
+        - limit: Results per page
+        - tag-name: Filter by tag
+        - type: Story type (text, photo, video, live-blog)
+        - fields: Comma-separated list of fields to return
+    
+    Usage:
+        scrapy crawl prothomalo -a start_date=2024-12-01 -a end_date=2024-12-25
+        scrapy crawl prothomalo -a categories=Bangladesh,Sports
+        scrapy crawl prothomalo -a search_query="Sheikh Hasina"
+    """
+    
     name = "prothomalo"
+    paper_name = "Prothom Alo"
     allowed_domains = ["en.prothomalo.com"]
-    start_urls = ["https://en.prothomalo.com"]
-
-    # Configuration - can be overridden via spider arguments
+    
+    # API capabilities
+    supports_api_date_filter = True
+    supports_api_category_filter = True
+    supports_keyword_search = True
+    
+    # Custom settings
     custom_settings = {
-        'DOWNLOAD_DELAY': 0.5,
+        'DOWNLOAD_DELAY': 0.3,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 8,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 16,
         'AUTOTHROTTLE_ENABLED': True,
-        'AUTOTHROTTLE_START_DELAY': 0.25,
+        'AUTOTHROTTLE_START_DELAY': 0.1,
         'AUTOTHROTTLE_MAX_DELAY': 2.0,
-        'AUTOTHROTTLE_TARGET_CONCURRENCY': 4.0,
+        'AUTOTHROTTLE_TARGET_CONCURRENCY': 8.0,
     }
-
+    
+    # API Endpoints
+    BASE_API_URL = "https://en.prothomalo.com/api/v1/advanced-search"
+    ROUTE_DATA_URL = "https://en.prothomalo.com/route-data.json"
+    AUTHORS_API_URL = "https://en.prothomalo.com/api/v1/authors"
+    
+    # Category Section IDs (comprehensive list)
+    CATEGORY_SECTION_IDS = {
+        # Main Categories
+        "Bangladesh": "16600,16725,16727,16728,17129,17134,17135,17136,17137,17139,35627",
+        "Politics": "16725,17134",
+        "Sports": "16603,16747,16748,17138",
+        "Business": "16602,16735,16736,16737,16738,17132,17141,17203",
+        "Opinion": "16606,16751,16752,17202",
+        "Entertainment": "16604,16762,35629,35639,35640",
+        "Youth": "16622,16756,17140",
+        "World": "16601,16729,16730,16731,16732,16733,17130,17131,17142",
+        "Environment": "16623,16767,16768",
+        "Science & Tech": "16605,16770,16771,17143",
+        "Corporate": "16624,16772,16773",
+        "Lifestyle": "16764,16765,16766",
+        "Photo": "16607,16774,16775",
+        "Video": "16608,16776",
+    }
+    
+    # All fields to request from API
+    API_FIELDS = [
+        'headline', 'subheadline', 'slug', 'url', 'tags', 'sections',
+        'hero-image-s3-key', 'hero-image-caption', 'hero-image-metadata',
+        'hero-image-attribution', 'last-published-at', 'first-published-at',
+        'published-at', 'updated-at', 'alternative', 'authors', 'author-name',
+        'author-id', 'story-template', 'metadata', 'access', 'seo', 'summary',
+        'id', 'content-created-at', 'cards'
+    ]
+    
     def __init__(self, *args, **kwargs):
-        super(ProthomaloSpider, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         
-        # Configuration with command-line argument support
-        self.local_timezone = pytz.timezone("Asia/Dhaka")
+        # Parse search query if provided
+        self.search_query = kwargs.get('search_query', '')
         
-        # Date range configuration - can be overridden via arguments
-        start_date = kwargs.get('start_date', '2024-06-01')
-        end_date = kwargs.get('end_date', datetime.now().strftime('%Y-%m-%d'))
+        # Convert dates to ISO format for API (with milliseconds)
+        self.start_timestamp = self._date_to_api_format(self.start_date)
+        self.end_timestamp = self._date_to_api_format(self.end_date)
         
-        self.start_dt = self._parse_date(start_date)
-        self.end_dt = self._parse_date(end_date, end_of_day=True)
+        # Setup categories
+        self._setup_categories()
         
-        self.startDateTimeUnix = int(self.start_dt.timestamp() * 1000)
-        self.endDateTimeUnix = int(self.end_dt.timestamp() * 1000)
-
-        # Pagination settings
-        self.limit = int(kwargs.get('page_limit', 1000))
-        self.max_pages = int(kwargs.get('max_pages', 50))  # Safety limit
+        # Default limit per page
+        self.page_limit = int(kwargs.get('page_limit', 50))
         
-        # API configuration
-        self.base_url = "https://en.prothomalo.com/api/v1/advanced-search"
+        # Sort order
+        self.sort_order = kwargs.get('sort', 'latest-published')
         
-        # Enhanced categories with better organization
-        self.categories = {
-            "Bangladesh": "16600,16725,16727,16728,17129,17134,17135,17136,17137,17139,35627",
-            "Sports": "16603,16747,16748,17138",
-            "Opinion": "16606,16751,16752,17202",
-            "Entertainment": "16604,16762,35629,35639,35640",
-            "Youth": "16622,16756,17140",
-            "Environment": "16623,16767,16768",
-            "Science & Tech": "16605,16770,16771,17143",
-            "Corporate": "16624,16772,16773",
-        }
+        # Story type filter
+        self.story_type = kwargs.get('story_type', '')  # text, photo, video, live-blog
         
-        # Filter categories if specified
-        selected_categories = kwargs.get('categories')
-        if selected_categories:
-            cat_list = [cat.strip() for cat in selected_categories.split(',')]
-            self.categories = {k: v for k, v in self.categories.items() if k in cat_list}
-        
-        # Statistics tracking
-        self.stats = {
-            'api_requests': 0,
-            'articles_found': 0,
-            'articles_processed': 0,
-            'duplicates_skipped': 0,
-            'errors': 0
-        }
-        
-        # Database connection will be initialized per request to avoid threading issues
-        self.db_path = kwargs.get('db_path', 'news_articles.db')
-        
-        self.logger.info(f"Spider initialized for date range: {start_date} to {end_date}")
-        self.logger.info(f"Categories to scrape: {list(self.categories.keys())}")
-
-    def _parse_date(self, date_str: str, end_of_day: bool = False) -> datetime:
-        """Parse date string and localize to Dhaka timezone."""
-        try:
-            if len(date_str.split()) == 1:  # Only date provided
-                time_part = "23:59:59" if end_of_day else "00:00:00"
-                date_str = f"{date_str} {time_part}"
+        self.logger.info(f"Categories: {list(self.category_map.keys())}")
+        if self.search_query:
+            self.logger.info(f"Search query: {self.search_query}")
+    
+    def _date_to_api_format(self, dt: datetime) -> str:
+        """Convert datetime to API format (ISO with milliseconds)."""
+        return dt.strftime('%Y-%m-%dT%H:%M:%S.000Z')
+    
+    def _setup_categories(self) -> None:
+        """Setup category mappings based on filter."""
+        if self.categories:
+            self.category_map = {}
+            for cat in self.categories:
+                # Match by key (case-insensitive)
+                for key, section_id in self.CATEGORY_SECTION_IDS.items():
+                    if key.lower() == cat.lower():
+                        self.category_map[key] = section_id
+                        break
             
-            dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
-            return self.local_timezone.localize(dt)
-        except ValueError as e:
-            self.logger.error(f"Invalid date format '{date_str}': {e}")
-            # Fallback to reasonable defaults
-            if end_of_day:
-                return self.local_timezone.localize(datetime.now())
-            else:
-                return self.local_timezone.localize(datetime.now() - timedelta(days=30))
-
+            if not self.category_map:
+                self.logger.warning("No valid categories found, using Bangladesh only")
+                self.category_map = {"Bangladesh": self.CATEGORY_SECTION_IDS["Bangladesh"]}
+        else:
+            # Default: scrape main categories
+            self.category_map = {
+                "Bangladesh": self.CATEGORY_SECTION_IDS["Bangladesh"],
+                "Sports": self.CATEGORY_SECTION_IDS["Sports"],
+                "Business": self.CATEGORY_SECTION_IDS["Business"],
+            }
+    
+    # ================================================================
+    # Request Generation
+    # ================================================================
+    
     def start_requests(self) -> Generator[scrapy.Request, None, None]:
-        """Generate initial API requests for each category."""
-        for category, section_id in self.categories.items():
-            self.logger.info(f"Starting requests for category: {category}")
-            yield self.make_api_request(category, section_id, offset=0)
-
-    def make_api_request(self, category: str, section_id: str, offset: int = 0) -> scrapy.Request:
-        """Create optimized API request with proper URL encoding."""
-        # Build query parameters properly
+        """Generate initial API requests."""
+        if self.search_query:
+            # Keyword search mode
+            yield self._make_search_request(offset=0)
+        else:
+            # Category-based scraping
+            for category, section_id in self.category_map.items():
+                self.logger.info(f"Starting requests for category: {category}")
+                yield self._make_category_request(category, section_id, offset=0)
+    
+    def _make_category_request(self, category: str, section_id: str, offset: int = 0) -> scrapy.Request:
+        """Create API request for category listing."""
         params = {
             'section-id': section_id,
-            'published-after': self.startDateTimeUnix,
-            'published-before': self.endDateTimeUnix,
-            'sort': 'latest-published',
+            'from-date': self.start_timestamp,
+            'to-date': self.end_timestamp,
+            'sort': self.sort_order,
             'offset': offset,
-            'limit': self.limit,
-            'fields': ','.join([
-                'headline', 'subheadline', 'slug', 'url', 'tags',
-                'hero-image-s3-key', 'hero-image-caption', 'hero-image-metadata',
-                'last-published-at', 'alternative', 'authors', 'author-name',
-                'author-id', 'sections', 'story-template', 'metadata',
-                'hero-image-attribution', 'access'
-            ])
+            'limit': self.page_limit,
+            'fields': ','.join(self.API_FIELDS),
         }
         
-        api_url = f"{self.base_url}?{urlencode(params)}"
+        if self.story_type:
+            params['type'] = self.story_type
+        
+        api_url = f"{self.BASE_API_URL}?{urlencode(params)}"
+        self.stats['requests_made'] += 1
         
         return scrapy.Request(
             url=api_url,
@@ -131,28 +196,62 @@ class ProthomaloSpider(scrapy.Spider):
                 "category": category,
                 "section_id": section_id,
                 "offset": offset,
-                "page_num": offset // self.limit + 1
+                "page_num": offset // self.page_limit + 1,
+                "request_type": "category",
             },
             errback=self.handle_request_failure,
-            dont_filter=True,  # Allow duplicate requests for pagination
+            dont_filter=True,
         )
-
-    def parse_api_response(self, response: scrapy.http.Response) -> Generator[scrapy.Request, None, None]:
-        """Parse API response and extract article URLs."""
-        self.stats['api_requests'] += 1
+    
+    def _make_search_request(self, offset: int = 0) -> scrapy.Request:
+        """Create API request for keyword search."""
+        params = {
+            'q': self.search_query,
+            'from-date': self.start_timestamp,
+            'to-date': self.end_timestamp,
+            'sort': self.sort_order,
+            'offset': offset,
+            'limit': self.page_limit,
+            'fields': ','.join(self.API_FIELDS),
+        }
         
+        if self.story_type:
+            params['type'] = self.story_type
+        
+        api_url = f"{self.BASE_API_URL}?{urlencode(params)}"
+        self.stats['requests_made'] += 1
+        
+        return scrapy.Request(
+            url=api_url,
+            callback=self.parse_api_response,
+            meta={
+                "category": f"search:{self.search_query}",
+                "offset": offset,
+                "page_num": offset // self.page_limit + 1,
+                "request_type": "search",
+            },
+            errback=self.handle_request_failure,
+            dont_filter=True,
+        )
+    
+    # ================================================================
+    # API Response Parsing
+    # ================================================================
+    
+    def parse_api_response(self, response: Response) -> Generator:
+        """Parse API response and extract article URLs."""
         try:
             data = json.loads(response.text)
         except json.JSONDecodeError as e:
-            self.logger.error(f"Failed to parse JSON from {response.url}: {e}")
+            self.logger.error(f"JSON decode error: {e}")
             self.stats['errors'] += 1
             return
-
+        
         category = response.meta["category"]
-        section_id = response.meta["section_id"]
         offset = response.meta["offset"]
         page_num = response.meta["page_num"]
-
+        request_type = response.meta.get("request_type", "category")
+        
         total_results = data.get("total", 0)
         items = data.get("items", [])
         
@@ -160,295 +259,353 @@ class ProthomaloSpider(scrapy.Spider):
             f"Category '{category}' page {page_num}: "
             f"Found {len(items)} articles (Total: {total_results})"
         )
-
+        
         # Process articles
         for item in items:
+            slug = item.get("slug")
             url = item.get("url")
-            if url:
-                full_url = response.urljoin(url)
-                
-                # Check for duplicates using a separate connection
-                if not self._is_url_in_db(full_url):
-                    self.stats['articles_found'] += 1
-                    yield scrapy.Request(
-                        url=full_url,
-                        callback=self.parse_news_article,
-                        meta={
-                            "category": category,
-                            "api_data": item  # Pass API data for fallback
-                        },
-                        errback=self.handle_request_failure,
-                    )
-                else:
-                    self.stats['duplicates_skipped'] += 1
-
-        # Smart pagination with safety limits
-        if (offset + self.limit < total_results and 
-            page_num < self.max_pages and 
-            len(items) > 0):  # Don't paginate if no items returned
             
-            next_offset = offset + self.limit
-            self.logger.info(f"Requesting next page for {category}: page {page_num + 1}")
-            yield self.make_api_request(category, section_id, offset=next_offset)
-        else:
-            self.logger.info(f"Completed category '{category}' - processed {page_num} pages")
-
-    def _is_url_in_db(self, url: str) -> bool:
-        """Check if URL exists in database using a separate connection."""
-        try:
-            # Use a separate connection for each check to avoid threading issues
-            with sqlite3.connect(self.db_path, timeout=10.0) as conn:
-                cursor = conn.cursor()
-                cursor.execute("SELECT 1 FROM articles WHERE url = ? LIMIT 1", (url,))
-                return cursor.fetchone() is not None
-        except sqlite3.Error as e:
-            self.logger.warning(f"Database check failed for {url}: {e}")
-            return False  # Assume not duplicate if check fails
-
-    def parse_news_article(self, response: scrapy.http.Response) -> Generator[ArticleItem, None, None]:
-        """Enhanced article parsing with multiple extraction strategies."""
-        self.stats['articles_processed'] += 1
-        self.logger.debug(f"Processing article: {response.url}")
+            if not url:
+                continue
+            
+            full_url = f"https://en.prothomalo.com{url}" if not url.startswith('http') else url
+            
+            if not self.is_url_in_db(full_url):
+                self.stats['articles_found'] += 1
+                
+                # Use route-data.json API for full article content
+                route_data_url = f"{self.ROUTE_DATA_URL}?path={quote(url)}"
+                
+                yield scrapy.Request(
+                    url=route_data_url,
+                    callback=self.parse_route_data,
+                    meta={
+                        "category": category,
+                        "api_data": item,
+                        "article_url": full_url,
+                    },
+                    errback=self._handle_route_data_error,
+                )
         
-        # Strategy 1: JSON-LD structured data (primary)
+        # Handle pagination
+        if request_type == "category":
+            section_id = response.meta.get("section_id")
+            if (offset + self.page_limit < total_results and 
+                page_num < self.max_pages and 
+                len(items) > 0):
+                
+                next_offset = offset + self.page_limit
+                yield self._make_category_request(category, section_id, offset=next_offset)
+        else:
+            # Search pagination
+            if (offset + self.page_limit < total_results and 
+                page_num < self.max_pages and 
+                len(items) > 0):
+                
+                next_offset = offset + self.page_limit
+                yield self._make_search_request(offset=next_offset)
+    
+    def _handle_route_data_error(self, failure):
+        """Handle route-data.json errors - fallback to HTML parsing."""
+        request = failure.request
+        article_url = request.meta.get("article_url")
+        api_data = request.meta.get("api_data")
+        category = request.meta.get("category")
+        
+        self.logger.warning(f"Route data failed for {article_url}, falling back to HTML")
+        
+        yield scrapy.Request(
+            url=article_url,
+            callback=self.parse_article_html,
+            meta={
+                "category": category,
+                "api_data": api_data,
+            },
+            errback=self.handle_request_failure,
+        )
+    
+    # ================================================================
+    # Route Data Parsing (Preferred Method)
+    # ================================================================
+    
+    def parse_route_data(self, response: Response) -> Optional[NewsArticleItem]:
+        """Parse route-data.json for complete article content."""
+        try:
+            data = json.loads(response.text)
+        except json.JSONDecodeError:
+            # Fallback to HTML
+            yield scrapy.Request(
+                url=response.meta["article_url"],
+                callback=self.parse_article_html,
+                meta=response.meta,
+                errback=self.handle_request_failure,
+            )
+            return
+        
+        self.stats['articles_processed'] += 1
+        
+        # Get page data
+        page_data = data.get("data", {})
+        story = page_data.get("story", {})
+        
+        if not story:
+            self.logger.warning(f"No story data in route-data for {response.meta['article_url']}")
+            return None
+        
+        # Extract all available fields
+        item = self._extract_from_story(story, response.meta)
+        
+        if item:
+            yield item
+    
+    def _extract_from_story(self, story: Dict, meta: Dict) -> NewsArticleItem:
+        """Extract all fields from story data."""
+        # Basic info
+        headline = story.get("headline", "")
+        subheadline = story.get("subheadline", "")
+        url = meta.get("article_url", "")
+        category = meta.get("category", "Unknown")
+        
+        # Extract article body from cards
+        article_body = self._extract_body_from_cards(story.get("cards", []))
+        
+        # Dates (convert from Unix timestamp)
+        pub_timestamp = story.get("published-at") or story.get("first-published-at")
+        mod_timestamp = story.get("updated-at") or story.get("last-published-at")
+        
+        publication_date = self._timestamp_to_date(pub_timestamp)
+        modification_date = self._timestamp_to_date(mod_timestamp)
+        
+        # Authors
+        authors = story.get("authors", [])
+        author_names = []
+        for author in authors:
+            if isinstance(author, dict):
+                name = author.get("name", "")
+                if name:
+                    author_names.append(name)
+        author = ", ".join(author_names) if author_names else "Unknown"
+        
+        # Hero image
+        hero_image = story.get("hero-image-s3-key", "")
+        image_url = f"https://images.prothomalo.com/{hero_image}" if hero_image else None
+        image_caption = story.get("hero-image-caption", "")
+        image_attribution = story.get("hero-image-attribution", "")
+        
+        # Tags
+        tags = story.get("tags", [])
+        tag_names = [t.get("name", "") for t in tags if isinstance(t, dict)]
+        keywords = ", ".join(tag_names) if tag_names else None
+        
+        # Sections (subcategories)
+        sections = story.get("sections", [])
+        section_names = [s.get("name", "") for s in sections if isinstance(s, dict)]
+        subcategory = ", ".join(section_names) if section_names else None
+        
+        # SEO metadata
+        seo = story.get("seo", {})
+        meta_description = seo.get("meta-description", "") or story.get("summary", "")
+        meta_keywords = seo.get("meta-keywords", [])
+        if meta_keywords and isinstance(meta_keywords, list):
+            if not keywords:
+                keywords = ", ".join(meta_keywords)
+        
+        # Access type
+        access_type = story.get("access", "free")  # free, subscription, etc.
+        
+        # Story type
+        story_template = story.get("story-template", "text")  # text, photo, video, live-blog
+        
+        # Create item with all extracted fields
+        return self.create_article_item(
+            headline=headline,
+            sub_title=subheadline,
+            article_body=article_body,
+            url=url,
+            publication_date=publication_date,
+            modification_date=modification_date,
+            author=author,
+            category=category if category and not category.startswith("search:") else subcategory,
+            image_url=image_url,
+            keywords=keywords,
+            publisher="Prothom Alo",
+        )
+    
+    def _extract_body_from_cards(self, cards: List[Dict]) -> str:
+        """Extract article body from cards structure."""
+        body_parts = []
+        
+        for card in cards:
+            story_elements = card.get("story-elements", [])
+            for element in story_elements:
+                element_type = element.get("type", "")
+                
+                if element_type == "text":
+                    text = element.get("text", "")
+                    # Remove HTML tags
+                    clean_text = re.sub(r'<[^>]+>', '', text)
+                    if clean_text.strip():
+                        body_parts.append(clean_text.strip())
+                
+                elif element_type == "title":
+                    text = element.get("text", "")
+                    if text.strip():
+                        body_parts.append(f"\n{text.strip()}\n")
+                
+                elif element_type == "blockquote":
+                    text = element.get("text", "")
+                    if text.strip():
+                        body_parts.append(f'"{text.strip()}"')
+        
+        return " ".join(body_parts)
+    
+    def _timestamp_to_date(self, timestamp: Optional[int]) -> str:
+        """Convert Unix timestamp (milliseconds) to ISO date string."""
+        if not timestamp:
+            return "Unknown"
+        
+        try:
+            # Timestamp is in milliseconds
+            dt = datetime.fromtimestamp(timestamp / 1000, tz=self.dhaka_tz)
+            return dt.strftime("%Y-%m-%d %H:%M:%S")
+        except (ValueError, OSError):
+            return "Unknown"
+    
+    # ================================================================
+    # HTML Parsing (Fallback)
+    # ================================================================
+    
+    def parse_article_html(self, response: Response) -> Generator[NewsArticleItem, None, None]:
+        """Parse article page with HTML parsing (fallback)."""
+        self.stats['articles_processed'] += 1
+        
+        # Strategy 1: JSON-LD structured data
         item = self._extract_from_jsonld(response)
         
-        # Strategy 2: Fallback to API data if JSON-LD fails
+        # Strategy 2: API data fallback
         if not item:
             api_data = response.meta.get('api_data')
             if api_data:
                 item = self._extract_from_api_data(api_data, response)
         
-        # Strategy 3: HTML parsing fallback (last resort)
+        # Strategy 3: HTML parsing fallback
         if not item:
             item = self._extract_from_html(response)
         
         if item:
-            # Add category from meta
             item['category'] = response.meta.get('category', 'Unknown')
             yield item
         else:
             self.logger.warning(f"Could not extract data from {response.url}")
             self.stats['errors'] += 1
-
-    def _extract_from_jsonld(self, response: scrapy.http.Response) -> Optional[ArticleItem]:
-        """Extract data from JSON-LD structured data."""
+    
+    def _extract_from_jsonld(self, response: Response) -> Optional[NewsArticleItem]:
+        """Extract from JSON-LD structured data."""
         scripts = response.xpath("//script[@type='application/ld+json']/text()").getall()
         
         for script in scripts:
             try:
                 data = json.loads(script)
                 
-                # Handle both single objects and arrays
                 if isinstance(data, list):
-                    data = next((item for item in data if item.get("@type") in ["Article", "NewsArticle"]), None)
+                    data = next(
+                        (item for item in data if item.get("@type") in ["Article", "NewsArticle"]),
+                        None
+                    )
                     if not data:
                         continue
                 elif data.get("@type") not in ["Article", "NewsArticle"]:
                     continue
                 
-                return self._create_article_item(data, response)
+                return self._create_item_from_jsonld(data, response)
                 
-            except (json.JSONDecodeError, KeyError) as e:
-                self.logger.debug(f"JSON-LD parsing error in {response.url}: {e}")
+            except (json.JSONDecodeError, KeyError):
                 continue
         
         return None
-
-    def _extract_from_api_data(self, api_data: Dict[str, Any], response: scrapy.http.Response) -> Optional[ArticleItem]:
-        """Extract data from API response as fallback."""
+    
+    def _extract_from_api_data(self, api_data: Dict, response: Response) -> Optional[NewsArticleItem]:
+        """Extract from API data as fallback."""
         try:
-            # Convert API data to JSON-LD-like structure
-            converted_data = {
-                "headline": api_data.get("headline"),
-                "url": response.url,
-                "datePublished": api_data.get("last-published-at"),
-                "author": api_data.get("authors", []),
-                "image": api_data.get("hero-image-s3-key"),
-            }
-            return self._create_article_item(converted_data, response)
-        except Exception as e:
-            self.logger.debug(f"API data extraction error for {response.url}: {e}")
-            return None
-
-    def _extract_from_html(self, response: scrapy.http.Response) -> Optional[ArticleItem]:
-        """HTML parsing fallback method."""
-        try:
-            item = ArticleItem()
+            # Try to get body from HTML
+            body = " ".join(response.css('div.story-content p::text, article p::text').getall())
             
-            # Extract basic fields from HTML
-            item["headline"] = response.css('h1::text').get() or "No headline available"
-            item["url"] = response.url
-            item["paper_name"] = "ProthomAlo"
-            item["publication_date"] = "Unknown date"
-            item["article_body"] = " ".join(response.css('div.story-content p::text').getall()) or "No content"
-            
-            # Only return if we have meaningful content
-            if len(item["article_body"]) > 50:
-                return item
+            if body and len(body) > 50:
+                pub_date = self._timestamp_to_date(api_data.get("last-published-at"))
+                
+                return self.create_article_item(
+                    headline=api_data.get("headline"),
+                    sub_title=api_data.get("subheadline"),
+                    url=response.url,
+                    article_body=body,
+                    publication_date=pub_date,
+                )
                 
         except Exception as e:
-            self.logger.debug(f"HTML extraction error for {response.url}: {e}")
+            self.logger.debug(f"API data extraction error: {e}")
         
         return None
-
-    def _create_article_item(self, data: Dict[str, Any], response: scrapy.http.Response) -> ArticleItem:
-        """Create ArticleItem with enhanced data validation."""
-        item = ArticleItem()
-        
-        # Basic fields with validation
-        item["headline"] = self._clean_text(data.get("headline", "No headline available"))
-        item["url"] = data.get("url", response.url)
-        item["paper_name"] = "ProthomAlo"
-        
-        # Date handling with better parsing
-        item["publication_date"] = self._parse_article_date(data.get("datePublished"))
-        item["modification_date"] = self._parse_article_date(data.get("dateModified"))
-        
-        # Content with validation
-        article_body = self._clean_text(data.get("articleBody", ""))
-        item["article_body"] = article_body if len(article_body) > 20 else "No article body"
-        
-        # Enhanced image handling
-        item["image_url"] = self._extract_image_urls(data.get("image"))
-        
-        # Keywords processing
-        item["keywords"] = self._process_keywords(data.get("keywords"))
-        
-        # Publisher information
-        publisher_data = data.get("publisher", {})
-        item["publisher"] = self._clean_text(publisher_data.get("name", "ProthomAlo"))
-        
-        # Enhanced author extraction
-        item["author"] = self._extract_authors(data.get("author"))
-        
-        return item
-
-    def _clean_text(self, text: Any) -> str:
-        """Clean and validate text content."""
-        if not text:
-            return ""
-        
-        if isinstance(text, list):
-            text = " ".join(str(t) for t in text if t)
-        
-        text = str(text).strip()
-        # Remove excessive whitespace
-        import re
-        text = re.sub(r'\s+', ' ', text)
-        
-        return text
-
-    def _parse_article_date(self, date_str: Any) -> str:
-        """Parse article date with better error handling."""
-        if not date_str:
-            return "Unknown date"
-        
+    
+    def _extract_from_html(self, response: Response) -> Optional[NewsArticleItem]:
+        """HTML parsing fallback."""
         try:
-            # Handle various date formats
-            if isinstance(date_str, str):
-                # Try ISO format first
-                if 'T' in date_str:
-                    dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                    return dt.isoformat()
-                return date_str
-            return str(date_str)
-        except Exception:
-            return "Unknown date"
-
-    def _extract_image_urls(self, image_data: Any) -> Optional[List[str]]:
-        """Extract and validate image URLs."""
-        if not image_data:
-            return None
-        
-        urls = []
-        
-        if isinstance(image_data, list):
-            for img in image_data:
-                if isinstance(img, dict) and img.get("url"):
-                    urls.append(img["url"])
-                elif isinstance(img, str) and img.startswith(('http://', 'https://')):
-                    urls.append(img)
-        elif isinstance(image_data, dict) and image_data.get("url"):
-            urls.append(image_data["url"])
-        elif isinstance(image_data, str) and image_data.startswith(('http://', 'https://')):
-            urls.append(image_data)
-        
-        return urls if urls else None
-
-    def _process_keywords(self, keywords: Any) -> Optional[str]:
-        """Process keywords with better validation."""
-        if not keywords:
-            return None
-        
-        if isinstance(keywords, list):
-            # Filter and clean keywords
-            clean_keywords = [
-                self._clean_text(kw) for kw in keywords 
-                if kw and isinstance(kw, (str, dict))
-            ]
-            # Handle dict keywords (extract name or value)
-            processed = []
-            for kw in clean_keywords:
-                if isinstance(kw, dict):
-                    processed.append(kw.get('name', kw.get('value', str(kw))))
-                else:
-                    processed.append(str(kw))
+            headline = response.css('h1::text').get()
+            body = " ".join(response.css('div.story-content p::text, article p::text').getall())
             
-            return ", ".join(processed) if processed else None
+            if headline and body and len(body) > 50:
+                return self.create_article_item(
+                    headline=headline,
+                    url=response.url,
+                    article_body=body,
+                    publication_date="Unknown",
+                )
+        except Exception as e:
+            self.logger.debug(f"HTML extraction error: {e}")
         
-        return self._clean_text(keywords) if keywords else None
-
-    def _extract_authors(self, authors: Any) -> List[str]:
-        """Enhanced author extraction with better validation."""
-        if not authors:
-            return ["Unknown"]
-        
-        author_list = []
-        
+        return None
+    
+    def _create_item_from_jsonld(self, data: Dict, response: Response) -> NewsArticleItem:
+        """Create item from JSON-LD data."""
+        # Extract authors
+        authors = data.get("author", [])
         if isinstance(authors, list):
-            for author in authors:
-                if isinstance(author, dict):
-                    name = author.get("name") or author.get("author-name", "Unknown")
-                    author_list.append(self._clean_text(name))
-                elif isinstance(author, str):
-                    author_list.append(self._clean_text(author))
+            author_names = [
+                a.get("name", "Unknown") if isinstance(a, dict) else str(a)
+                for a in authors
+            ]
+            author = ", ".join(author_names) if author_names else "Unknown"
         elif isinstance(authors, dict):
-            name = authors.get("name") or authors.get("author-name", "Unknown")
-            author_list.append(self._clean_text(name))
-        elif isinstance(authors, str):
-            author_list.append(self._clean_text(authors))
-        
-        # Filter out empty names
-        author_list = [author for author in author_list if author and author != "Unknown"]
-        
-        return author_list if author_list else ["Unknown"]
-
-    def handle_request_failure(self, failure):
-        """Enhanced error handling with more details."""
-        self.stats['errors'] += 1
-        url = failure.request.url
-        error_msg = str(failure.value)
-        
-        # Log different types of failures differently
-        if "DNS lookup failed" in error_msg:
-            self.logger.warning(f"DNS lookup failed for {url}")
-        elif "Connection refused" in error_msg:
-            self.logger.warning(f"Connection refused for {url}")
-        elif "timeout" in error_msg.lower():
-            self.logger.warning(f"Request timeout for {url}")
+            author = authors.get("name", "Unknown")
         else:
-            self.logger.error(f"Request failed for {url}: {error_msg}")
-
-    def closed(self, reason):
-        """Enhanced spider closing with statistics."""
-        self.logger.info("=" * 50)
-        self.logger.info("PROTHOMALO SPIDER STATISTICS")
-        self.logger.info("=" * 50)
-        self.logger.info(f"API requests made: {self.stats['api_requests']}")
-        self.logger.info(f"Articles found: {self.stats['articles_found']}")
-        self.logger.info(f"Articles processed: {self.stats['articles_processed']}")
-        self.logger.info(f"Duplicates skipped: {self.stats['duplicates_skipped']}")
-        self.logger.info(f"Errors encountered: {self.stats['errors']}")
-        self.logger.info(f"Spider closed: {reason}")
-        self.logger.info("=" * 50)
+            author = str(authors) if authors else "Unknown"
+        
+        # Extract image URL
+        image_data = data.get("image")
+        image_url = None
+        if isinstance(image_data, list) and image_data:
+            if isinstance(image_data[0], dict):
+                image_url = image_data[0].get("url")
+            elif isinstance(image_data[0], str):
+                image_url = image_data[0]
+        elif isinstance(image_data, dict):
+            image_url = image_data.get("url")
+        elif isinstance(image_data, str):
+            image_url = image_data
+        
+        # Extract keywords
+        keywords = data.get("keywords")
+        if isinstance(keywords, list):
+            keywords = ", ".join(str(k) for k in keywords)
+        
+        return self.create_article_item(
+            headline=data.get("headline", "No headline"),
+            url=data.get("url", response.url),
+            article_body=data.get("articleBody", ""),
+            sub_title=data.get("description", ""),
+            publication_date=data.get("datePublished"),
+            modification_date=data.get("dateModified"),
+            author=author,
+            image_url=image_url,
+            keywords=keywords,
+            publisher=data.get("publisher", {}).get("name", "Prothom Alo"),
+        )
