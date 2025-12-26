@@ -16,12 +16,18 @@ NEWSPIDER_MODULE = "BDNewsPaper.spiders"
 # PLAYWRIGHT CONFIGURATION
 # =============================================================================
 # Enable Playwright for JavaScript rendering and Cloudflare bypass
-DOWNLOAD_HANDLERS = {
-    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
-}
+# 
+# IMPORTANT: Do NOT set global DOWNLOAD_HANDLERS for Playwright!
+# This would route ALL requests through Playwright and break HTTP spiders
+# (causes "Response content isn't text" error).
+#
+# Instead, Playwright is activated per-request when spider sets:
+#   meta={'playwright': True}
+#
+# The scrapy-playwright handler is automatically available when installed.
+# See: https://github.com/scrapy-plugins/scrapy-playwright
 
-# Playwright launch options
+# Playwright launch options (used when playwright=True in request meta)
 PLAYWRIGHT_BROWSER_TYPE = "chromium"
 PLAYWRIGHT_LAUNCH_OPTIONS = {
     "headless": True,
@@ -46,7 +52,10 @@ PLAYWRIGHT_CONTEXTS = {
 }
 
 # Twisted reactor for async Playwright
-TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+# NOTE: Only uncomment when running Playwright spiders specifically.
+# Having this enabled globally can interfere with normal HTTP spiders.
+# TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
 
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
