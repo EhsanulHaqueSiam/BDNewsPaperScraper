@@ -69,6 +69,26 @@ jobs:
             echo "✅ Loaded existing database"
           fi
       
+      - name: Pre-flight Canary Health Check
+        id: canary
+        continue-on-error: true
+        run: |
+          echo "🔍 Running canary health check..."
+          python scripts/canary_check.py --all --format json --output canary_report.json || true
+          
+          # Check if any healthy spiders exist
+          if [ -f canary_report.json ]; then
+            HEALTHY=$(python -c "import json; r=json.load(open('canary_report.json')); print(r['summary']['healthy'])")
+            TOTAL=$(python -c "import json; r=json.load(open('canary_report.json')); print(r['summary']['total_checked'])")
+            echo "canary_healthy=$HEALTHY" >> $GITHUB_OUTPUT
+            echo "canary_total=$TOTAL" >> $GITHUB_OUTPUT
+            echo "📊 Canary Results: $HEALTHY/$TOTAL healthy"
+          else
+            echo "canary_healthy=0" >> $GITHUB_OUTPUT
+            echo "canary_total=0" >> $GITHUB_OUTPUT
+            echo "⚠️ Canary check failed"
+          fi
+      
       # Default: Run top 20 most reliable spiders (scheduled or manual without run_all)
       - name: Run top spiders (default)
         if: (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'true' && github.event.inputs.spiders == '')
