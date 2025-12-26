@@ -483,3 +483,139 @@ class BdnewspaperDownloaderMiddleware:
 
 class BdnewspaperRetryMiddleware(SmartRetryMiddleware):
     pass
+
+
+# ============================================================================
+# Archive Fallback Middleware
+# ============================================================================
+
+class ArchiveFallbackMiddleware:
+    """
+    Fallback to Internet Archive (Wayback Machine) for failed article requests.
+    
+    When an article URL returns 404/403/410, this middleware attempts to fetch
+    an archived version from the Wayback Machine.
+    
+    Features:
+        - Automatic Wayback Machine lookup for failed URLs
+        - Configurable retry codes (default: 404, 403, 410)
+        - Caches failed URLs to avoid repeated lookups
+        - Adds metadata to indicate archived version
+    
+    Settings:
+        - ARCHIVE_FALLBACK_ENABLED: Enable/disable (default: False)
+        - ARCHIVE_FALLBACK_CODES: HTTP codes to trigger fallback (default: [404, 403, 410])
+        - ARCHIVE_FALLBACK_TIMEOUT: Wayback API timeout (default: 10)
+    """
+    
+    WAYBACK_API = "https://archive.org/wayback/available?url={url}"
+    
+    def __init__(
+        self,
+        enabled: bool = False,
+        fallback_codes: list = None,
+        timeout: int = 10,
+    ):
+        self.enabled = enabled
+        self.fallback_codes = fallback_codes or [404, 403, 410]
+        self.timeout = timeout
+        self.failed_lookups = set()  # Cache of URLs with no archive
+        self.stats = {
+            'lookups': 0,
+            'found': 0,
+            'not_found': 0,
+        }
+        self.logger = logging.getLogger(__name__)
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        enabled = crawler.settings.getbool('ARCHIVE_FALLBACK_ENABLED', False)
+        if not enabled:
+            raise NotConfigured("Archive fallback disabled")
+        
+        return cls(
+            enabled=True,
+            fallback_codes=crawler.settings.getlist('ARCHIVE_FALLBACK_CODES', [404, 403, 410]),
+            timeout=crawler.settings.getint('ARCHIVE_FALLBACK_TIMEOUT', 10),
+        )
+    
+    def process_response(self, request, response, spider):
+        """Check response and try archive fallback if needed."""
+        if not self.enabled:
+            return response
+            
+        # Only process article URLs (not API endpoints)
+        if '/api/' in request.url or '/ajax/' in request.url:
+            return response
+        
+        # Check if we should try archive
+        if response.status not in self.fallback_codes:
+            return response
+        
+        original_url = request.url
+        
+        # Skip if already tried archive for this URL
+        if original_url in self.failed_lookups:
+            return response
+        
+        # Skip if this is already an archive request
+        if 'web.archive.org' in original_url:
+            return response
+        
+        self.stats['lookups'] += 1
+        spider.logger.info(f"Trying Wayback Machine for: {original_url}")
+        
+        # Look up archive version
+        archive_url = self._get_archive_url(original_url)
+        
+        if archive_url:
+            self.stats['found'] += 1
+            spider.logger.info(f"Found archive: {archive_url}")
+            
+            # Create new request with archive URL
+            new_request = request.replace(
+                url=archive_url,
+                meta={
+                    **request.meta,
+                    'original_url': original_url,
+                    'is_archived': True,
+                },
+                dont_filter=True,
+            )
+            return new_request
+        else:
+            self.stats['not_found'] += 1
+            self.failed_lookups.add(original_url)
+            spider.logger.debug(f"No archive found for: {original_url}")
+            return response
+    
+    def _get_archive_url(self, url: str) -> Optional[str]:
+        """Query Wayback Machine for archived URL."""
+        try:
+            import requests
+            
+            api_url = self.WAYBACK_API.format(url=url)
+            response = requests.get(api_url, timeout=self.timeout)
+            
+            if response.status_code != 200:
+                return None
+            
+            data = response.json()
+            
+            if data.get('archived_snapshots', {}).get('closest', {}).get('available'):
+                return data['archived_snapshots']['closest']['url']
+                
+        except Exception as e:
+            self.logger.debug(f"Wayback lookup failed for {url}: {e}")
+        
+        return None
+    
+    def spider_closed(self, spider, reason):
+        """Log archive fallback statistics."""
+        if self.stats['lookups'] > 0:
+            spider.logger.info(
+                f"Archive Fallback Stats: "
+                f"Lookups={self.stats['lookups']}, "
+                f"Found={self.stats['found']}, "
+                f"NotFound={self.stats['not_found']}"
+            )

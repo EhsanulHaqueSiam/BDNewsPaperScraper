@@ -52,6 +52,7 @@ dependencies = [
     "langdetect>=1.0.9",
     "python-dotenv>=1.0.1",
     "httpx>=0.28.1",  # Modern async HTTP client
+    "trafilatura>=1.6.0",  # Article extraction fallback
 ]
 
 [project.optional-dependencies]

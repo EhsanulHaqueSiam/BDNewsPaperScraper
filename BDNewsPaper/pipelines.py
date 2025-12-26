@@ -89,6 +89,129 @@ class ValidationPipeline:
 
 
 # ============================================================================
+# Fallback Extraction Pipeline
+# ============================================================================
+
+class FallbackExtractionPipeline:
+    """
+    Smart fallback extraction pipeline.
+    
+    If an item has missing or insufficient content, attempts to extract
+    content using the fallback extraction chain (JSON-LD, trafilatura, heuristics).
+    
+    Enable by adding to ITEM_PIPELINES before ValidationPipeline with lower priority.
+    Configurable via settings:
+        - FALLBACK_EXTRACTION_ENABLED: Enable/disable (default: True)
+        - FALLBACK_MIN_BODY_LENGTH: Minimum body to trigger fallback (default: 50)
+    """
+    
+    def __init__(self, enabled: bool = True, min_body_length: int = 50):
+        self.enabled = enabled
+        self.min_body_length = min_body_length
+        self.extractor = None
+        self.stats = {
+            'fallback_triggered': 0,
+            'fallback_success': 0,
+            'fallback_failed': 0,
+        }
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        return cls(
+            enabled=crawler.settings.getbool('FALLBACK_EXTRACTION_ENABLED', True),
+            min_body_length=crawler.settings.getint('FALLBACK_MIN_BODY_LENGTH', 50),
+        )
+    
+    def _get_extractor(self):
+        """Lazy load the extractor to avoid import issues."""
+        if self.extractor is None:
+            try:
+                from BDNewsPaper.extractors import FallbackExtractor
+                self.extractor = FallbackExtractor(min_body_length=self.min_body_length)
+            except ImportError as e:
+                logger.warning(f"Could not import FallbackExtractor: {e}")
+                return None
+        return self.extractor
+    
+    def process_item(self, item, spider):
+        if not self.enabled:
+            return item
+            
+        adapter = ItemAdapter(item)
+        article_body = adapter.get('article_body', '')
+        headline = adapter.get('headline', '')
+        
+        # Check if content needs fallback extraction
+        needs_body = not article_body or len(article_body.strip()) < self.min_body_length
+        needs_headline = not headline or len(headline.strip()) < 5
+        
+        if not (needs_body or needs_headline):
+            return item  # Content is sufficient
+        
+        # Get the raw HTML if available
+        raw_html = adapter.get('_raw_html', '')
+        url = adapter.get('url', '')
+        
+        if not raw_html:
+            # Try to get from response if stored
+            raw_html = adapter.get('response_body', '')
+            
+        if not raw_html:
+            return item  # No HTML to extract from
+        
+        self.stats['fallback_triggered'] += 1
+        spider.logger.debug(f"Fallback extraction triggered for: {url}")
+        
+        extractor = self._get_extractor()
+        if not extractor:
+            return item
+            
+        try:
+            result = extractor.extract(raw_html, url)
+            
+            if result.is_valid(self.min_body_length):
+                self.stats['fallback_success'] += 1
+                spider.logger.info(
+                    f"Fallback extraction success ({result.source}): {url}"
+                )
+                
+                # Update item with extracted content
+                if needs_body and result.body:
+                    adapter['article_body'] = result.body
+                    adapter['_extraction_source'] = result.source
+                    
+                if needs_headline and result.headline:
+                    adapter['headline'] = result.headline
+                    
+                # Update other fields if missing
+                if not adapter.get('author') and result.author:
+                    adapter['author'] = result.author
+                if not adapter.get('publication_date') and result.publication_date:
+                    adapter['publication_date'] = result.publication_date
+                if not adapter.get('image_url') and result.image_url:
+                    adapter['image_url'] = result.image_url
+            else:
+                self.stats['fallback_failed'] += 1
+                spider.logger.debug(f"Fallback extraction failed for: {url}")
+                
+        except Exception as e:
+            self.stats['fallback_failed'] += 1
+            spider.logger.warning(f"Fallback extraction error for {url}: {e}")
+        
+        return item
+    
+    def close_spider(self, spider):
+        """Log fallback statistics."""
+        if self.stats['fallback_triggered'] > 0:
+            spider.logger.info(
+                f"Fallback Extraction Stats: "
+                f"Triggered={self.stats['fallback_triggered']}, "
+                f"Success={self.stats['fallback_success']}, "
+                f"Failed={self.stats['fallback_failed']}"
+            )
+
+
+# ============================================================================
 # Content Cleaning Pipeline
 # ============================================================================
 
