@@ -3,17 +3,18 @@
 
 name: CI
 
+# DISABLED - Enable when user requests
+# on:
+#   push:
+#     branches: [main, master]
+#     paths:
+#       - 'BDNewsPaper/**'
+#       - 'tests/**'
+#       - 'pyproject.toml'
+#   pull_request:
+#     branches: [main, master]
 on:
-  push:
-    branches: [main, master]
-    paths:
-      - 'BDNewsPaper/**'
-      - 'tests/**'
-      - 'pyproject.toml'
-  pull_request:
-    branches: [main, master]
-  workflow_dispatch:  # Manual trigger also available
-
+  workflow_dispatch:  # Manual trigger only
 
 concurrency:
   group: ci-${{ github.ref }}

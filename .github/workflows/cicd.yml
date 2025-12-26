@@ -4,18 +4,19 @@
 
 name: CI/CD
 
+# DISABLED - Enable when user requests
+# on:
+#   push:
+#     branches: [main]
+#     paths-ignore:
+#       - '*.md'
+#       - 'docs/**'
+#       - '.github/workflows/pages.yml'
+#       - '.github/workflows/daily-scrape.yml'
+#   pull_request:
+#     branches: [main]
 on:
-  push:
-    branches: [main]
-    paths-ignore:
-      - '*.md'
-      - 'docs/**'
-      - '.github/workflows/pages.yml'
-      - '.github/workflows/daily-scrape.yml'
-  pull_request:
-    branches: [main]
-  workflow_dispatch:  # Manual trigger also available
-
+  workflow_dispatch:  # Manual trigger only
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
