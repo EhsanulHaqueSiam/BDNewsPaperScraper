@@ -40,17 +40,17 @@
 - [x] **Relax Validation:** Added `VALIDATION_STRICT_MODE` setting to log warnings instead of dropping items for short content.
 - [x] **Spider-Specific Fixes:**
   - [x] `prothomalo`: ✅ **WORKING** - URL validation added, successfully scrapes articles.
-  - [ ] `dailysun`: ⚠️ **BLOCKED BY CLOUDFLARE** - URL validation added but site returns Cloudflare JS challenge. Needs Playwright/curl_cffi bypass.
+  - [x] `dailysun`: ✅ Created `dailysun_playwright` spider to bypass Cloudflare (needs testing with Playwright installed)
 - [ ] **Monitor Drops:** Enable `LOG_LEVEL=DEBUG` globally for a test run to catch `DropItem` exceptions.
 
-### 🚨 Cloudflare-Protected Sites (Need Bypass)
-- **dailysun** - AJAX API returns Cloudflare challenge page. Options:
-  1. Convert to Playwright spider (like `kalerkantho_playwright`)
-  2. Use `curl_cffi` for TLS mimicry
-  3. Integrate Flaresolverr Docker container
+### 🚨 Cloudflare-Protected Sites
+- **dailysun** - ✅ Created `dailysun_playwright` spider
+  - Run: `uv run playwright install chromium` (one-time setup)
+  - Test: `uv run scrapy crawl dailysun_playwright -s CLOSESPIDER_ITEMCOUNT=5`
 
 - [ ] **Test Playwright Scripts**
-  - [ ] Verify `kalerkantho_playwright`
+  - [ ] Verify `kalerkantho_playwright` works
+  - [x] Created `dailysun_playwright` spider
   - [ ] Check `GenericPlaywrightSpider` functionality
   - [ ] Ensure browser installation is correct (`uv run playwright install`)
 

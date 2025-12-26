@@ -534,3 +534,240 @@ class GenericPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         """Log statistics."""
         self.logger.info(f"Spider closed: {reason}")
         self.logger.info(f"Total articles scraped: {self.articles_scraped}")
+
+
+class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
+    """
+    Playwright spider for Daily Sun (Cloudflare protected).
+    
+    Daily Sun uses Cloudflare protection which blocks regular HTTP requests.
+    This spider uses Playwright to render the JavaScript and bypass the protection.
+    
+    Usage:
+        scrapy crawl dailysun_playwright
+        scrapy crawl dailysun_playwright -a category=bangladesh
+        scrapy crawl dailysun_playwright -s CLOSESPIDER_ITEMCOUNT=10
+    """
+    
+    name = "dailysun_playwright"
+    allowed_domains = ["daily-sun.com", "www.daily-sun.com"]
+    
+    paper_name = "Daily Sun"
+    source_language = "en"  # English newspaper
+    
+    # Custom settings for Playwright
+    custom_settings = {
+        "DOWNLOAD_HANDLERS": {
+            "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+            "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+        },
+        "TWISTED_REACTOR": "twisted.internet.asyncioreactor.AsyncioSelectorReactor",
+        "PLAYWRIGHT_BROWSER_TYPE": "chromium",
+        "PLAYWRIGHT_LAUNCH_OPTIONS": {
+            "headless": True,
+            "args": [
+                "--disable-blink-features=AutomationControlled",
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-gpu",
+            ]
+        },
+        "PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT": 60000,
+        "PLAYWRIGHT_CONTEXTS": {
+            "default": {
+                "viewport": {"width": 1920, "height": 1080},
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            }
+        },
+        "CONCURRENT_REQUESTS": 2,
+        "DOWNLOAD_DELAY": 5,
+        "AUTOTHROTTLE_ENABLED": True,
+        "AUTOTHROTTLE_START_DELAY": 5,
+        "AUTOTHROTTLE_MAX_DELAY": 30,
+    }
+    
+    # News categories with their URL paths
+    categories = {
+        "bangladesh": "/bangladesh",
+        "business": "/business",
+        "world": "/world",
+        "entertainment": "/entertainment",
+        "sports": "/sports",
+        "lifestyle": "/lifestyle",
+        "tech": "/tech",
+        "opinion": "/opinion",
+    }
+    
+    BASE_URL = "https://www.daily-sun.com"
+    
+    def __init__(self, category: str = None, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.target_category = category
+        self.articles_scraped = 0
+        self.processed_urls = set()
+        
+    def start_requests(self) -> Generator[Request, None, None]:
+        """Generate initial requests with Playwright for category pages."""
+        
+        # Filter categories if specified
+        if self.target_category:
+            if self.target_category.lower() in self.categories:
+                cats = {self.target_category.lower(): self.categories[self.target_category.lower()]}
+            else:
+                self.logger.error(f"Unknown category: {self.target_category}")
+                return
+        else:
+            # Default to a few main categories
+            cats = {k: v for k, v in list(self.categories.items())[:3]}
+        
+        for cat_name, cat_path in cats.items():
+            url = f"{self.BASE_URL}{cat_path}"
+            self.logger.info(f"📰 Starting category: {cat_name} ({url})")
+            
+            yield Request(
+                url=url,
+                callback=self.parse_category,
+                errback=self.errback_playwright,
+                meta={
+                    **self.get_playwright_meta(wait_for=".news-list, .media, article, .latest-news"),
+                    "category": cat_name,
+                }
+            )
+    
+    async def parse_category(self, response) -> Generator:
+        """Parse category page for article links."""
+        category = response.meta.get("category", "Unknown")
+        
+        self.logger.info(f"📑 Parsing category: {category}")
+        
+        # Close the page after getting content
+        page = response.meta.get("playwright_page")
+        if page:
+            try:
+                await page.close()
+            except:
+                pass
+        
+        # Extract article links from various possible containers
+        articles = response.css('article a::attr(href), .media a.linkOverlay::attr(href), .news-list a::attr(href), .latest-news a::attr(href)').getall()
+        
+        # Filter and deduplicate
+        valid_articles = []
+        for href in articles:
+            if not href or href in self.processed_urls:
+                continue
+            if href.startswith('#') or href.startswith('javascript:'):
+                continue
+            
+            full_url = response.urljoin(href)
+            
+            # Only process article URLs (typically /post/ or /detail/)
+            if '/post/' in full_url or full_url.count('/') > 3:
+                if full_url not in self.processed_urls:
+                    valid_articles.append(full_url)
+                    self.processed_urls.add(full_url)
+        
+        self.logger.info(f"Found {len(valid_articles)} article links in {category}")
+        
+        for article_url in valid_articles[:20]:  # Limit per category
+            yield Request(
+                url=article_url,
+                callback=self.parse_article,
+                errback=self.errback_playwright,
+                meta={
+                    **self.get_playwright_meta(wait_for=".article-content, .post-content, .detail-content, .news-details"),
+                    "category": category,
+                }
+            )
+    
+    async def parse_article(self, response) -> Generator:
+        """Parse individual article with Playwright."""
+        category = response.meta.get("category", "Unknown")
+        
+        # Close the page
+        page = response.meta.get("playwright_page")
+        if page:
+            try:
+                await page.close()
+            except:
+                pass
+        
+        # Extract headline
+        headline = (
+            response.css('h1.post-title::text').get() or
+            response.css('h1.detail-title::text').get() or
+            response.css('h1::text').get() or
+            response.css('.article-headline::text').get() or
+            ""
+        ).strip()
+        
+        if not headline:
+            self.logger.warning(f"No headline found: {response.url}")
+            return
+        
+        # Extract article body
+        body_parts = response.css('.article-content p::text, .post-content p::text, .detail-content p::text, .news-details p::text').getall()
+        article_body = ' '.join([p.strip() for p in body_parts if p.strip()])
+        
+        if not article_body or len(article_body) < 50:
+            self.logger.warning(f"Article too short: {response.url}")
+            return
+        
+        # Extract date
+        pub_date = (
+            response.css('.post-date::text').get() or
+            response.css('.article-date::text').get() or
+            response.css('time::attr(datetime)').get() or
+            response.css('.date::text').get() or
+            "Unknown"
+        )
+        
+        # Extract author
+        author = (
+            response.css('.author::text').get() or
+            response.css('.post-author::text').get() or
+            "Daily Sun"
+        )
+        
+        # Extract image
+        image_url = (
+            response.css('.article-image img::attr(src)').get() or
+            response.css('.post-image img::attr(src)').get() or
+            response.css('article img::attr(src)').get()
+        )
+        
+        self.articles_scraped += 1
+        self.logger.info(f"✅ [{self.articles_scraped}] Scraped: {headline[:50]}...")
+        
+        yield {
+            "paper_name": self.paper_name,
+            "url": response.url,
+            "headline": headline,
+            "article_body": article_body,
+            "category": category,
+            "author": author,
+            "publication_date": pub_date,
+            "image_url": image_url,
+            "source_language": self.source_language,
+        }
+    
+    async def errback_playwright(self, failure):
+        """Handle Playwright errors gracefully."""
+        self.logger.error(f"❌ Playwright error: {failure}")
+        
+        try:
+            page = failure.request.meta.get("playwright_page")
+            if page:
+                await page.close()
+        except:
+            pass
+    
+    def closed(self, reason):
+        """Log statistics when spider closes."""
+        self.logger.info("=" * 50)
+        self.logger.info(f"DAILY SUN PLAYWRIGHT SPIDER STATISTICS")
+        self.logger.info("=" * 50)
+        self.logger.info(f"Spider closed: {reason}")
+        self.logger.info(f"Total articles scraped: {self.articles_scraped}")
+        self.logger.info(f"URLs processed: {len(self.processed_urls)}")
+        self.logger.info("=" * 50)
