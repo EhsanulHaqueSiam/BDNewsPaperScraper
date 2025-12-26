@@ -477,14 +477,14 @@ class SpiderRunner:
     
     def _generate_performance_report(self):
         """Generate performance report if monitor script exists"""
-        monitor_script = Path("performance_monitor.py")
+        monitor_script = Path("scripts/performance_monitor.py")
         if monitor_script.exists():
             print("📊 Generating performance report...")
             try:
                 cmd = []
                 if self.uv_cmd:
                     cmd.extend(self.uv_cmd)
-                cmd.extend(["python", "performance_monitor.py", "report"])
+                cmd.extend(["python", "scripts/performance_monitor.py", "report"])
                 
                 subprocess.run(cmd, check=True)
             except subprocess.CalledProcessError as e:
@@ -492,14 +492,14 @@ class SpiderRunner:
     
     def start_monitoring(self):
         """Start performance monitoring in background"""
-        monitor_script = Path("performance_monitor.py")
+        monitor_script = Path("scripts/performance_monitor.py")
         if monitor_script.exists():
             print("📊 Starting performance monitor...")
             try:
                 cmd = []
                 if self.uv_cmd:
                     cmd.extend(self.uv_cmd)
-                cmd.extend(["python", "performance_monitor.py"])
+                cmd.extend(["python", "scripts/performance_monitor.py"])
                 
                 # Redirect output to avoid interference with main script
                 with open("logs/monitor.log", "w") as log_file:

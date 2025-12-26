@@ -1,7 +1,10 @@
 version: '3.8'
 
 services:
-  # API Server
+  # =============================================================================
+  # Core Services
+  # =============================================================================
+  
   api:
     build: .
     container_name: bdnews-api
@@ -9,64 +12,129 @@ services:
       - "8000:8000"
     volumes:
       - ./data:/app/data
-      - ./logs:/app/logs
+      - ./news_articles.db:/app/news_articles.db
     environment:
-      - DATABASE_PATH=/app/data/news_articles.db
-      - LOG_LEVEL=INFO
+      - DATABASE_PATH=/app/news_articles.db
+      - REDIS_URL=redis://redis:6379/0
+      - RATE_LIMIT_REQUESTS=100
+    depends_on:
+      - redis
+    networks:
+      - bdnews-network
     restart: unless-stopped
+    command: ["uvicorn", "BDNewsPaper.api:app", "--host", "0.0.0.0", "--port", "8000"]
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
 
-  # Scraper (run on demand)
+  dashboard:
+    build: .
+    container_name: bdnews-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./news_articles.db:/app/news_articles.db:ro
+      - ./dashboard_enhanced.py:/app/dashboard_enhanced.py:ro
+    environment:
+      - DATABASE_PATH=/app/news_articles.db
+    networks:
+      - bdnews-network
+    restart: unless-stopped
+    command: ["streamlit", "run", "dashboard_enhanced.py", "--server.port=8501", "--server.address=0.0.0.0", "--theme.base=dark"]
+
   scraper:
     build: .
     container_name: bdnews-scraper
     volumes:
       - ./data:/app/data
+      - ./news_articles.db:/app/news_articles.db
       - ./logs:/app/logs
-      - ./httpcache:/app/httpcache
-      - ./.checkpoints:/app/.checkpoints
     environment:
-      - DATABASE_PATH=/app/data/news_articles.db
-      - LOG_LEVEL=INFO
-      - CHECKPOINT_ENABLED=true
-    command: ["scrapy", "crawl", "prothomalo", "-a", "max_pages=10"]
+      - DATABASE_PATH=/app/news_articles.db
+      - PLAYWRIGHT_BROWSERS_PATH=/app/browsers
+    networks:
+      - bdnews-network
     profiles:
       - scrape
+    command: ["scrapy", "crawl", "prothomalo", "-a", "max_pages=10"]
 
-  # Scheduled scraping with cron
-  scheduler:
-    build: .
-    container_name: bdnews-scheduler
+  # =============================================================================
+  # Cache & Database
+  # =============================================================================
+  
+  redis:
+    image: redis:7-alpine
+    container_name: bdnews-redis
+    ports:
+      - "6379:6379"
     volumes:
-      - ./data:/app/data
-      - ./logs:/app/logs
-      - ./httpcache:/app/httpcache
-    environment:
-      - DATABASE_PATH=/app/data/news_articles.db
-    entrypoint: ["/bin/sh", "-c"]
-    command:
-      - |
-        while true; do
-          echo "Starting scheduled scrape at $$(date)"
-          scrapy crawl prothomalo -a max_pages=5 || true
-          scrapy crawl thedailystar -a max_pages=5 || true
-          scrapy crawl dhakatribune -a max_pages=5 || true
-          echo "Scrape complete, sleeping for 6 hours..."
-          sleep 21600
-        done
-    profiles:
-      - scheduled
+      - redis-data:/data
+    networks:
+      - bdnews-network
     restart: unless-stopped
+    command: redis-server --appendonly yes
 
-volumes:
-  data:
-  logs:
-  httpcache:
+  postgres:
+    image: postgres:16-alpine
+    container_name: bdnews-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-bdnews}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bdnews123}
+      - POSTGRES_DB=${POSTGRES_DB:-bdnews}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - bdnews-network
+    restart: unless-stopped
+    profiles:
+      - production
+
+  # =============================================================================
+  # Monitoring
+  # =============================================================================
+  
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: bdnews-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - bdnews-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: bdnews-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-admin}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - bdnews-network
+    restart: unless-stopped
+    profiles:
+      - monitoring
 
 networks:
-  default:
-    name: bdnews-network
+  bdnews-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:
+  prometheus-data:
+  grafana-data:

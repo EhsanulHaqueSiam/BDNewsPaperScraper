@@ -54,6 +54,7 @@ SPIDER_MIDDLEWARES = {
 DOWNLOADER_MIDDLEWARES = {
     "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,  # Disable default
     "BDNewsPaper.middlewares.UserAgentMiddleware": 400,  # Custom User-Agent rotation
+    "BDNewsPaper.proxy.ProxyMiddleware": 410,  # Proxy rotation (optional - enable via PROXY_ENABLED)
     "BDNewsPaper.middlewares.CircuitBreakerMiddleware": 420,  # Circuit breaker (before stats)
     "BDNewsPaper.middlewares.StatisticsMiddleware": 450,  # Statistics tracking
     "BDNewsPaper.middlewares.RateLimitMiddleware": 500,  # Rate limiting
@@ -61,6 +62,43 @@ DOWNLOADER_MIDDLEWARES = {
     "BDNewsPaper.middlewares.SmartRetryMiddleware": 550,  # Smart retry with backoff
     "scrapy.downloadermiddlewares.retry.RetryMiddleware": None,  # Disable default retry
 }
+
+# =============================================================================
+# Proxy Configuration (Optional)
+# =============================================================================
+# Enable to use proxies. Set PROXY_ENABLED=true via env or command line.
+# See BDNewsPaper/proxy.py for full documentation.
+
+# Enable proxy middleware
+PROXY_ENABLED = False  # Set True to enable, or via -s PROXY_ENABLED=true
+
+# Proxy type: single, rotating, residential, socks5
+PROXY_TYPE = 'single'
+
+# Single proxy URL (format: http://user:pass@host:port)
+PROXY_URL = ''
+
+# Proxy list file (one per line for rotating)
+PROXY_LIST = ''
+
+# Rotation strategy: round_robin, random, smart
+PROXY_ROTATION = 'round_robin'
+
+# Authentication (if not in URL)
+PROXY_USER = ''
+PROXY_PASS = ''
+
+# Residential proxy provider: brightdata, oxylabs, smartproxy, webshare
+RESIDENTIAL_PROVIDER = ''
+RESIDENTIAL_COUNTRY = 'bd'
+
+# SOCKS5 / VPN configuration
+SOCKS5_HOST = '127.0.0.1'
+SOCKS5_PORT = '1080'
+
+# Proxy retry settings
+PROXY_MAX_RETRIES = 3
+PROXY_BAN_THRESHOLD = 5
 
 # Enable or disable extensions
 # See https://docs.scrapy.org/en/latest/topics/extensions.html

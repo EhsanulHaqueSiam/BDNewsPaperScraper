@@ -1,0 +1,48 @@
+# Prometheus configuration for BD Newspaper Scraper
+# Place this file alongside docker-compose.yml
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: []
+
+rule_files: []
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # API Server metrics
+  - job_name: 'bdnews-api'
+    static_configs:
+      - targets: ['api:8000']
+    metrics_path: /metrics
+    scrape_interval: 30s
+
+  # Redis metrics (using redis_exporter)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  # PostgreSQL metrics (using postgres_exporter)
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres:5432']
+
+  # Node metrics (system)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+
+  # Custom scraper metrics endpoint
+  - job_name: 'scraper-metrics'
+    static_configs:
+      - targets: ['api:8000']
+    metrics_path: /scraper/metrics
+    scrape_interval: 60s

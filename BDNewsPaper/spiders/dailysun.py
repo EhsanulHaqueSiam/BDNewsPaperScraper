@@ -442,7 +442,7 @@ class DailySunSpider(BaseNewsSpider):
         
         return parsed < self.start_date
     
-    def _parse_date(self, date_str: str) -> Optional[datetime]:
+    def _parse_date(self, date_str: str, end_of_day: bool = False) -> Optional[datetime]:
         """Parse various date formats."""
         if not date_str:
             return None

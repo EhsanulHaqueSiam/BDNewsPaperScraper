@@ -102,6 +102,19 @@ all = [
     "streamlit>=1.29.0",
     "pandas>=2.0.0",
 ]
+analytics = [
+    "textblob>=0.18.0",
+    "wordcloud>=1.9.0",
+    "matplotlib>=3.8.0",
+    "plotly>=5.18.0",
+]
+dashboard = [
+    "streamlit>=1.29.0",
+    "pandas>=2.0.0",
+    "plotly>=5.18.0",
+    "wordcloud>=1.9.0",
+    "matplotlib>=3.8.0",
+]
 
 [project.urls]
 Homepage = "https://github.com/your-username/BDNewsPaperScraper"

@@ -1,22 +1,141 @@
 # 🗞️ BD Newspaper Scraper
 
-A high-performance web scraper for Bangladeshi newspapers built with [Scrapy](https://scrapy.org/). Collects English news articles from major Bangladeshi news sources and stores them in a SQLite database.
+<div align="center">
 
-![Python](https://img.shields.io/badge/Python-3.9+-blue?logo=python&logoColor=white)
-![Scrapy](https://img.shields.io/badge/Scrapy-2.12+-green?logo=scrapy&logoColor=white)
-![Streamlit](https://img.shields.io/badge/Streamlit-GUI-FF4B4B?logo=streamlit&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-yellow)
-![Platform](https://img.shields.io/badge/Platform-Linux%20%7C%20macOS%20%7C%20Windows-lightgrey)
+[![CI](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper/actions/workflows/ci.yml/badge.svg)](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper/actions/workflows/ci.yml)
+[![Daily Scrape](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper/actions/workflows/daily-scrape.yml/badge.svg)](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper/actions/workflows/daily-scrape.yml)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Scrapy](https://img.shields.io/badge/Scrapy-2.12+-60A839?logo=scrapy&logoColor=white)](https://scrapy.org/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Spiders](https://img.shields.io/badge/Spiders-74-blue)](./todo.md)
+
+**A high-performance web scraper for Bangladeshi newspapers built with [Scrapy](https://scrapy.org/).**
+
+Collects news articles from **74+ major Bangladeshi news sources** (English & Bangla) and stores them in SQLite, PostgreSQL, or exports to various formats.
+
+[Quick Start](#-quick-start) • [Usage](#%EF%B8%8F-usage) • [Spiders](#-available-spiders) • [API](#-api--integrations) • [Dashboard](#-dashboard--analytics) • [Deploy](#%EF%B8%8F-deployment)
+
+</div>
+
+---
+
+## 📑 Table of Contents
+
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Available Spiders](#-available-spiders)
+- [Usage](#%EF%B8%8F-usage)
+  - [Basic Commands](#basic-commands)
+  - [Date Range Filtering](#date-range-filtering)
+  - [Category Filtering](#category-filtering)
+  - [Keyword Search](#keyword-search)
+  - [Pagination Control](#pagination-control)
+  - [Performance Settings](#performance-settings)
+  - [CLI Interface](#cli-interface)
+  - [Batch Running](#batch-running)
+- [Data Export](#-data-export)
+- [Database Schema](#%EF%B8%8F-database-schema)
+- [Dashboard & Analytics](#-dashboard--analytics)
+- [API & Integrations](#-api--integrations)
+- [Bot Integrations](#-bot-integrations)
+- [Cloud & Storage](#%EF%B8%8F-cloud--storage)
+- [Deployment](#%EF%B8%8F-deployment)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Configuration](#%EF%B8%8F-configuration)
+- [Project Structure](#-project-structure-1)
+- [Troubleshooting](#-troubleshooting)
+- [Contributing](#-contributing)
+
+---
 
 ## ✨ Features
 
-- **65 Active Spiders** — Scrape from 21 English + 44 Bangla newspapers with API-based scrapers for optimal speed
-- **Web GUI** — User-friendly Streamlit interface for controlling scrapers and browsing articles
-- **Date Range Filtering** — Scrape articles from specific time periods
-- **Unified Database** — All articles stored in a single SQLite database with duplicate prevention
-- **High Performance** — Optimized concurrent requests with smart throttling
-- **Cross-Platform** — Full support for Linux, macOS, and Windows
-- **Export Tools** — Export to Excel/CSV with filtering options
+### 🕷️ Web Scraping
+
+| Feature | Description | Usage |
+|---------|-------------|-------|
+| **75+ Spiders** | English & Bangla newspapers | `scrapy crawl prothomalo` |
+| **API-Based Scrapers** | Fast JSON API scraping | ProthomAlo, DailyStar, Jugantor |
+| **Playwright Spider** | Cloudflare bypass | `scrapy crawl kalerkantho_playwright` |
+| **Proxy Support** | Rotating, residential, SOCKS5 | `-s PROXY_ENABLED=true` |
+| **Date Filtering** | Scrape by date range | `-a start_date=2024-01-01` |
+| **Category Filtering** | Filter by news category | `-a categories=Sports,Politics` |
+
+### 📊 Dashboards & Visualization
+
+| Tool | Description | Command |
+|------|-------------|---------|
+| **Web GUI** | Streamlit control panel | `streamlit run app.py` |
+| **Enhanced Dashboard** | Dark mode, mobile-friendly | `streamlit run scripts/dashboard_enhanced.py` |
+| **Geo Mapping** | Leaflet.js Bangladesh maps | `python scripts/geo_mapping.py --generate` |
+| **News Timeline** | Interactive timeline | `python scripts/news_timeline.py --generate` |
+| **Status Page** | Spider health monitoring | `python scripts/status_page.py --serve` |
+
+### 🔍 API & Search
+
+| Tool | Description | Command |
+|------|-------------|---------|
+| **REST API** | FastAPI with rate limiting | `uvicorn BDNewsPaper.api:app` |
+| **GraphQL API** | Flexible queries | `python scripts/graphql_api.py` |
+| **Full-Text Search** | SQLite FTS5 | `python -m BDNewsPaper.search --query "..."` |
+| **Elasticsearch** | Advanced search | `python scripts/elasticsearch_search.py --search "query"` |
+
+### 🤖 ML & Analytics
+
+| Tool | Description | Command |
+|------|-------------|---------|
+| **Topic Clustering** | K-Means, TF-IDF | `python scripts/topic_clustering.py --cluster` |
+| **Sentiment Analysis** | Positive/negative | `python scripts/analytics.py --report` |
+| **Bias Detection** | Political lean scoring | `python scripts/bias_detection.py --compare` |
+| **Content Similarity** | Find duplicates | `python scripts/content_similarity.py --duplicates` |
+| **Breaking News** | Spike detection | `python scripts/breaking_news.py --monitor` |
+
+### 📡 Notifications & Bots
+
+| Tool | Description | Command |
+|------|-------------|---------|
+| **Telegram Bot** | Daily summaries | `python scripts/telegram_bot.py --send` |
+| **Slack Bot** | Slack notifications | `python scripts/slack_bot.py --send` |
+| **Discord Bot** | Discord embeds | `python scripts/discord_bot.py --send` |
+| **Webhook Alerts** | Custom webhooks | `python scripts/webhooks.py --monitor` |
+| **Email Reports** | HTML email summaries | `python scripts/email_reports.py --send` |
+
+### ☁️ Cloud & Storage
+
+| Tool | Description | Command |
+|------|-------------|---------|
+| **S3 Backup** | AWS/DO Spaces | `python scripts/s3_storage.py --backup` |
+| **Archive.org** | Wayback Machine | `python scripts/archive_org.py --archive-recent` |
+| **Kaggle Upload** | Dataset publishing | `python scripts/kaggle_upload.py --upload` |
+| **Hugging Face** | HF Hub dataset | `python scripts/huggingface_upload.py --upload` |
+| **Redis Caching** | API response cache | Docker profile |
+| **PostgreSQL** | Production database | Docker profile |
+
+### 📧 Export & Reports
+
+| Tool | Description | Command |
+|------|-------------|---------|
+| **Excel Export** | XLSX with filtering | `python scripts/toxlsx.py --all` |
+| **RSS Feeds** | Generate RSS | `python scripts/rss_feed.py --generate` |
+| **Performance Monitor** | Scraping metrics | `python scripts/performance_monitor.py` |
+
+### 🏗️ Deployment
+
+| Tool | Description | Command |
+|------|-------------|---------|
+| **Docker** | Container image | `docker build -t bdnews .` |
+| **Docker Compose** | Full stack | `docker-compose up -d` |
+| **Kubernetes** | K8s deployment | `kubectl apply -f kubernetes.yml` |
+| **GitHub Pages** | Demo site | Auto-deployed |
+| **CI/CD** | Auto test & deploy | On push to main |
+
+### 🔧 Developer Tools
+
+| Tool | Description | Location |
+|------|-------------|----------|
+| **Chrome Extension** | Clip articles | `chrome_extension/` |
+| **CLI Tool** | Command-line | `python -m BDNewsPaper.cli` |
+| **Batch Runner** | Run all spiders | `python run_spiders_optimized.py` |
 
 ---
 
@@ -55,7 +174,7 @@ python run_spiders_optimized.py prothomalo --monitor   # Windows/All platforms
 python toxlsx.py --list
 ```
 
-### 🖥️ Launch Web GUI (Optional)
+### 🖥️ Launch Web GUI
 
 ```bash
 # Install GUI dependencies
@@ -65,71 +184,169 @@ uv sync --extra gui
 uv run streamlit run app.py
 ```
 
-Open http://localhost:8501 in your browser to access the GUI.
+Open http://localhost:8501 in your browser.
 
 ---
 
 ## 📰 Available Spiders
 
-### English Newspapers (20)
+### English Newspapers (22)
 
-| Spider | Command | Source | Method | Speed |
-|--------|---------|--------|--------|-------|
-| `prothomalo` | `scrapy crawl prothomalo` | [ProthomAlo](https://en.prothomalo.com/) | API-based | ⚡ Fast |
-| `thedailystar` | `scrapy crawl thedailystar` | [The Daily Star](https://www.thedailystar.net/) | API | ⚡ Fast |
-| `dailysun` | `scrapy crawl dailysun` | [Daily Sun](https://www.daily-sun.com/) | API | ⚡ Fast |
-| `tbsnews` | `scrapy crawl tbsnews` | [TBS News](https://www.tbsnews.net/) | Drupal AJAX | ⚡ Fast |
-| `unb` | `scrapy crawl unb` | [UNB](https://unb.com.bd/) | API | ⚡ Fast |
-| `bssnews` | `scrapy crawl bssnews` | [BSS News](https://www.bssnews.net/) | HTML | 🔄 Medium |
-| `ittefaq` | `scrapy crawl ittefaq` | [Daily Ittefaq](https://en.ittefaq.com.bd/) | API | 🔄 Medium |
-| `dhakatribune` | `scrapy crawl dhakatribune` | [Dhaka Tribune](https://www.dhakatribune.com/) | HTML | 🔄 Medium |
-| `financialexpress` | `scrapy crawl financialexpress` | [Financial Express](https://thefinancialexpress.com.bd/) | HTML | 🔄 Medium |
-| `newage` | `scrapy crawl newage` | [New Age](https://www.newagebd.net/) | HTML | 🔄 Medium |
-| `bdnews24` | `scrapy crawl bdnews24` | [bdnews24](https://bdnews24.com/) | HTML | 🔄 Medium |
-| `BDpratidin` | `scrapy crawl BDpratidin` | [BD Pratidin](https://en.bd-pratidin.com/) | HTML | 🔄 Medium |
-| `bangladesh_today` | `scrapy crawl bangladesh_today` | [Bangladesh Today](https://thebangladeshtoday.com/) | HTML | 🔄 Medium |
-| `theindependent` | `scrapy crawl theindependent` | [The Independent](https://theindependentbd.com/) | RSS | 🔄 Medium |
-| `observerbd` | `scrapy crawl observerbd` | [Observer BD](https://observerbd.com/) | HTML | 🔄 Medium |
-| `bangladeshpost` | `scrapy crawl bangladeshpost` | [Bangladesh Post](https://bangladeshpost.net/) | HTML | 🔄 Medium |
-| `dailyasianage` | `scrapy crawl dailyasianage` | [Asian Age](https://dailyasianage.com/) | HTML | 🔄 Medium |
-| `dhakacourier` | `scrapy crawl dhakacourier` | [Dhaka Courier](https://dhakacourier.com.bd/) | HTML | 🔄 Medium |
-| `bd24live` | `scrapy crawl bd24live` | [BD24Live](https://bd24live.com/) | HTML | 🔄 Medium |
-| `ntvbd` | `scrapy crawl ntvbd` | [NTV BD](https://en.ntvbd.com/) | HTML | 🔄 Medium |
+| Spider | Source | Method | Speed |
+|--------|--------|--------|-------|
+| `prothomalo` | [ProthomAlo](https://en.prothomalo.com/) | API | ⚡ Fast |
+| `thedailystar` | [The Daily Star](https://www.thedailystar.net/) | API | ⚡ Fast |
+| `dailysun` | [Daily Sun](https://www.daily-sun.com/) | AJAX | ⚡ Fast |
+| `tbsnews` | [TBS News](https://www.tbsnews.net/) | Drupal AJAX | ⚡ Fast |
+| `unb` | [UNB](https://unb.com.bd/) | API | ⚡ Fast |
+| `ittefaq` | [Daily Ittefaq](https://en.ittefaq.com.bd/) | AJAX | ⚡ Fast |
+| `bssnews` | [BSS News](https://www.bssnews.net/) | HTML | 🔄 Medium |
+| `ntvbd` | [NTV BD](https://en.ntvbd.com/) | HTML | 🔄 Medium |
+| `dhakatribune` | [Dhaka Tribune](https://www.dhakatribune.com/) | HTML | 🔄 Medium |
+| `financialexpress` | [Financial Express](https://thefinancialexpress.com.bd/) | HTML | 🔄 Medium |
+| `newage` | [New Age](https://www.newagebd.net/) | HTML | 🔄 Medium |
+| `bdnews24` | [bdnews24](https://bdnews24.com/) | HTML | 🔄 Medium |
+| `BDpratidin` | [BD Pratidin](https://en.bd-pratidin.com/) | HTML | 🔄 Medium |
+| `bangladesh_today` | [Bangladesh Today](https://thebangladeshtoday.com/) | HTML | 🔄 Medium |
+| `theindependent` | [The Independent](https://theindependentbd.com/) | RSS | 🔄 Medium |
+| `observerbd` | [Observer BD](https://observerbd.com/) | HTML | 🔄 Medium |
+| `bangladeshpost` | [Bangladesh Post](https://bangladeshpost.net/) | HTML | 🔄 Medium |
+| `dailyasianage` | [Asian Age](https://dailyasianage.com/) | HTML | 🔄 Medium |
+| `dhakacourier` | [Dhaka Courier](https://dhakacourier.com.bd/) | HTML | 🔄 Medium |
+| `bd24live` | [BD24Live](https://bd24live.com/) | HTML | 🔄 Medium |
+| `sylhetmirror` | [Sylhet Mirror](https://sylhetmirror.com/) | HTML | 🔄 Medium |
+| `thedhakatimes` | [The Dhaka Times](https://thedhakatimes.com/) | WP API | ⚡ Fast |
 
-### Bangla Newspapers (34)
+### Bangla Newspapers (52)
 
-| Spider | Command | Source | Method | Speed |
-|--------|---------|--------|--------|-------|
-| `jugantor` | `scrapy crawl jugantor` | [Jugantor](https://www.jugantor.com/) | **JSON API** | ⚡ Fast |
-| `banglatribune` | `scrapy crawl banglatribune` | [Bangla Tribune](https://www.banglatribune.com/) | HTML | 🔄 Medium |
-| `samakal` | `scrapy crawl samakal` | [Samakal](https://samakal.com/) | HTML | 🔄 Medium |
-| `jagonews24` | `scrapy crawl jagonews24` | [Jago News 24](https://www.jagonews24.com/) | HTML | 🔄 Medium |
-| `risingbd` | `scrapy crawl risingbd` | [Rising BD](https://www.risingbd.com/) | HTML | 🔄 Medium |
-| `bdnews24_bangla` | `scrapy crawl bdnews24_bangla` | [bdnews24 Bangla](https://bangla.bdnews24.com/) | HTML | 🔄 Medium |
-| `nayadiganta` | `scrapy crawl nayadiganta` | [Naya Diganta](https://dailynayadiganta.com/) | HTML | 🔄 Medium |
-| `bdpratidin_bangla` | `scrapy crawl bdpratidin_bangla` | [BD Pratidin](https://www.bd-pratidin.com/) | HTML | 🔄 Medium |
-| `manabzamin` | `scrapy crawl manabzamin` | [Manab Zamin](https://www.mzamin.com/) | HTML | 🔄 Medium |
-| `bonikbarta` | `scrapy crawl bonikbarta` | [Bonik Barta](https://www.bonikbarta.net/) | HTML | 🔄 Medium |
-| `deshrupantor` | `scrapy crawl deshrupantor` | [Desh Rupantor](https://www.deshrupantor.com/) | HTML | 🔄 Medium |
-| `janakantha` | `scrapy crawl janakantha` | [Janakantha](https://www.dailyjanakantha.com/) | HTML | 🔄 Medium |
-| `bhorerkagoj` | `scrapy crawl bhorerkagoj` | [Bhorer Kagoj](https://bhorerkagoj.com/) | HTML | 🔄 Medium |
-| `dailyinqilab` | `scrapy crawl dailyinqilab` | [Daily Inqilab](https://dailyinqilab.com/) | HTML | 🔄 Medium |
-| `sangbad` | `scrapy crawl sangbad` | [Sangbad](https://sangbad.net.bd/) | HTML | 🔄 Medium |
-| `ntvbd_bangla` | `scrapy crawl ntvbd_bangla` | [NTV Bangla](https://www.ntvbd.com/) | HTML | 🔄 Medium |
-| `alokitobangladesh` | `scrapy crawl alokitobangladesh` | [Alokito Bangladesh](https://alokitobangladesh.com/) | HTML | 🔄 Medium |
-| `dainikbangla` | `scrapy crawl dainikbangla` | [Dainik Bangla](https://dainikbangla.com.bd/) | HTML | 🔄 Medium |
-| `dhakapost` | `scrapy crawl dhakapost` | [Dhaka Post](https://dhakapost.com/) | HTML | 🔄 Medium |
-| `sarabangla` | `scrapy crawl sarabangla` | [Sara Bangla](https://sarabangla.net/) | HTML | 🔄 Medium |
-| `rtvonline` | `scrapy crawl rtvonline` | [RTV Online](https://rtvonline.com/) | HTML | 🔄 Medium |
-| `ekattor` | `scrapy crawl ekattor` | [Ekattor TV](https://ekattor.tv/) | HTML | 🔄 Medium |
-| `news24bd` | `scrapy crawl news24bd` | [News24 BD](https://news24bd.tv/) | HTML | 🔄 Medium |
-| `channeli` | `scrapy crawl channeli` | [Channel I](https://channelionline.com/) | HTML | 🔄 Medium |
-| `banglavision` | `scrapy crawl banglavision` | [Bangla Vision](https://banglavision.tv/) | HTML | 🔄 Medium |
-| `maasranga` | `scrapy crawl maasranga` | [Maasranga TV](https://maasranga.tv/) | **WP API** | ⚡ Fast |
-| `dbcnews` | `scrapy crawl dbcnews` | [DBC News](https://dbcnews.tv/) | HTML | 🔄 Medium |
-| `itvbd` | `scrapy crawl itvbd` | [ITV BD](https://itvbd.com/) | HTML | 🔄 Medium |
+<details>
+<summary>Click to expand full list</summary>
 
-> ⚠️ **Note**: Kaler Kantho is Cloudflare protected. Spider file is disabled (`kalerkantho.py.disabled`).
+| Spider | Source | Type |
+|--------|--------|------|
+| `jugantor` | [Jugantor](https://www.jugantor.com/) | JSON API ⚡ |
+| `banglatribune` | [Bangla Tribune](https://www.banglatribune.com/) | HTML |
+| `samakal` | [Samakal](https://samakal.com/) | HTML |
+| `jagonews24` | [Jago News 24](https://www.jagonews24.com/) | HTML |
+| `risingbd` | [Rising BD](https://www.risingbd.com/) | HTML |
+| `bdnews24_bangla` | [bdnews24 Bangla](https://bangla.bdnews24.com/) | HTML |
+| `nayadiganta` | [Naya Diganta](https://dailynayadiganta.com/) | HTML |
+| `bdpratidin_bangla` | [BD Pratidin](https://www.bd-pratidin.com/) | HTML |
+| `manabzamin` | [Manab Zamin](https://www.mzamin.com/) | HTML |
+| `bonikbarta` | [Bonik Barta](https://www.bonikbarta.net/) | HTML |
+| `deshrupantor` | [Desh Rupantor](https://www.deshrupantor.com/) | HTML |
+| `janakantha` | [Janakantha](https://www.dailyjanakantha.com/) | HTML |
+| `bhorerkagoj` | [Bhorer Kagoj](https://bhorerkagoj.com/) | HTML |
+| `dailyinqilab` | [Daily Inqilab](https://dailyinqilab.com/) | HTML |
+| `sangbad` | [Sangbad](https://sangbad.net.bd/) | HTML |
+| `ntvbd_bangla` | [NTV Bangla](https://www.ntvbd.com/) | HTML |
+| `alokitobangladesh` | [Alokito Bangladesh](https://alokitobangladesh.com/) | HTML |
+| `dainikbangla` | [Dainik Bangla](https://dainikbangla.com.bd/) | HTML |
+| `dhakapost` | [Dhaka Post](https://dhakapost.com/) | HTML |
+| `sarabangla` | [Sara Bangla](https://sarabangla.net/) | HTML |
+| `maasranga` | [Maasranga TV](https://maasranga.tv/) | WP API ⚡ |
+| `dbcnews` | [DBC News](https://dbcnews.tv/) | HTML |
+| `itvbd` | [ITV BD](https://itvbd.com/) | HTML |
+| `ajkerpatrika` | [Ajker Patrika](https://ajkerpatrika.com/) | API ⚡ |
+| `dailysangram` | [Daily Sangram](https://dailysangram.com/) | HTML |
+| `amadershomoy` | [Amader Shomoy](https://dainikamadershomoy.com/) | HTML |
+| `rtvonline` | [RTV Online](https://rtvonline.com/) | HTML |
+| `channeli` | [Channel I](https://channelionline.com/) | HTML |
+| `ekattor` | [Ekattor TV](https://ekattor.tv/) | HTML |
+| `banglavision` | [Bangla Vision](https://banglavision.tv/) | HTML |
+| `news24bd` | [News 24](https://news24bd.tv/) | HTML |
+| `unbbangla` | [UNB Bangla](https://unb.com.bd/bangla) | API ⚡ |
+| `bssbangla` | [BSS Bangla](https://bssnews.net/bangla) | HTML |
+| `bbcbangla` | [BBC Bangla](https://bbc.com/bengali) | JSON ⚡ |
+| `dwbangla` | [DW Bangla](https://dw.com/bn) | JSON ⚡ |
+| `voabangla` | [VOA Bangla](https://voabangla.com/) | RSS ⚡ |
+| `barta24` | [Barta24](https://barta24.com/) | API ⚡ |
+| `coxsbazarnews` | [Coxsbazar News](https://coxsbazarnews.com/) | HTML |
+| `dailysylhet` | [Daily Sylhet](https://dailysylhet.com/) | WP API ⚡ |
+| `sylhetexpress` | [Sylhet Express](https://sylhetexpress.net/) | HTML |
+| `khulnagazette` | [Khulna Gazette](https://khulnagazette.com/) | WP API ⚡ |
+| `barishaltimes` | [Barishal Times](https://barishaltimes.com/) | HTML |
+| `narayanganjtimes` | [Narayanganj Times](https://narayanganjtimes.com/) | HTML |
+| `techshohor` | [Tech Shohor](https://techshohor.com/) | HTML |
+| `ekusheytv` | [Ekushey TV](https://ekushey-tv.com/) | HTML |
+| `arthosuchak` | [Artho Suchak](https://arthosuchak.com/) | HTML |
+| `sharebiz` | [Share Biz](https://sharebiz.net/) | HTML |
+| `dhakatimes24` | [Dhaka Times 24](https://dhakatimes24.com/) | HTML |
+| `ctgtimes` | [CTG Times](https://ctgtimes.com/) | HTML |
+| `gramerkagoj` | [Gramer Kagoj](https://gramerkagoj.com/) | HTML |
+| `comillarkagoj` | [Comillar Kagoj](https://comillarkagoj.com/) | HTML |
+| `netrokona24` | [Netrokona 24](https://netrokona24.com/) | HTML |
+
+</details>
+
+> ⚠️ **Note**: Kaler Kantho is Cloudflare protected. Use the Playwright spider for browser automation (see below).
+
+### Playwright Spider (Cloudflare Bypass)
+
+For Cloudflare-protected or JavaScript-heavy sites, use the Playwright spider with browser automation.
+
+#### Setup
+
+```bash
+# Install Playwright dependencies
+pip install scrapy-playwright playwright
+
+# Install browser (Chromium)
+playwright install chromium
+```
+
+#### Usage
+
+```bash
+# Run Kaler Kantho spider with Playwright
+uv run scrapy crawl kalerkantho_playwright
+
+# Generic Playwright spider for any URL
+uv run scrapy crawl generic_playwright -a url="https://example.com" -a selector="article"
+
+# With custom content selector
+uv run scrapy crawl generic_playwright -a url="https://kalerkantho.com/online/national" -a selector=".news-item"
+```
+
+#### Available Playwright Spiders
+
+| Spider | Description | Usage |
+|--------|-------------|-------|
+| `kalerkantho_playwright` | Kaler Kantho (all categories) | `scrapy crawl kalerkantho_playwright` |
+| `generic_playwright` | Any Cloudflare-protected site | `scrapy crawl generic_playwright -a url=... -a selector=...` |
+
+#### Configuration Options
+
+```bash
+# Headless mode (default: true)
+uv run scrapy crawl kalerkantho_playwright -s PLAYWRIGHT_LAUNCH_OPTIONS='{"headless": true}'
+
+# With visible browser for debugging
+uv run scrapy crawl kalerkantho_playwright -s PLAYWRIGHT_LAUNCH_OPTIONS='{"headless": false}'
+
+# Increase timeout for slow pages (default: 60 seconds)
+uv run scrapy crawl kalerkantho_playwright -s PLAYWRIGHT_DEFAULT_NAVIGATION_TIMEOUT=120000
+
+# Reduce concurrent requests (recommended for Playwright)
+uv run scrapy crawl kalerkantho_playwright -s CONCURRENT_REQUESTS=4 -s DOWNLOAD_DELAY=3
+```
+
+#### How It Works
+
+1. **Browser Automation**: Uses headless Chromium to render JavaScript
+2. **Cloudflare Bypass**: Waits for Cloudflare challenge to complete (~5 seconds)
+3. **Dynamic Content**: Scrolls page and waits for AJAX content to load
+4. **Anti-Detection**: Disables automation flags to avoid bot detection
+
+#### Troubleshooting Playwright
+
+| Issue | Solution |
+|-------|----------|
+| `playwright not installed` | Run `pip install scrapy-playwright playwright && playwright install chromium` |
+| `Browser launch failed` | Ensure Chromium dependencies are installed: `playwright install-deps chromium` |
+| `Timeout waiting for selector` | Increase timeout or check if selector is correct |
+| `Cloudflare still blocking` | Try adding more delay with `-s DOWNLOAD_DELAY=5` |
+| `Memory issues` | Reduce `CONCURRENT_REQUESTS` to 2-4 |
 
 ---
 
@@ -138,85 +355,242 @@ Open http://localhost:8501 in your browser to access the GUI.
 ### Basic Commands
 
 ```bash
+# List all available spiders
+uv run scrapy list
+
 # Run a specific spider
 uv run scrapy crawl prothomalo
 
 # Limit number of articles
 uv run scrapy crawl dailysun -s CLOSESPIDER_ITEMCOUNT=100
 
-# Add delay between requests
-uv run scrapy crawl ittefaq -s DOWNLOAD_DELAY=2
-
-# Increase verbosity
+# Enable debug logging
 uv run scrapy crawl BDpratidin -L DEBUG
 ```
 
+---
+
 ### Date Range Filtering
 
-All spiders support date filtering in `YYYY-MM-DD` format:
+All spiders support date filtering using the `start_date` and `end_date` arguments in `YYYY-MM-DD` format.
 
 ```bash
-# Scrape January 2024
+# Scrape articles from a specific month
 uv run scrapy crawl prothomalo -a start_date=2024-01-01 -a end_date=2024-01-31
 
-# From specific date to today
+# Scrape from a specific date to today
 uv run scrapy crawl dailysun -a start_date=2024-08-01
+
+# Scrape only end date (from default start to specific end)
+uv run scrapy crawl thedailystar -a end_date=2024-06-30
 
 # Combine with item limit
 uv run scrapy crawl thedailystar -a start_date=2024-06-01 -a end_date=2024-06-30 -s CLOSESPIDER_ITEMCOUNT=500
 ```
 
+**How Date Filtering Works:**
+- **API-based spiders** (prothomalo, dailysun, jugantor): Dates are sent directly to the API for efficient server-side filtering
+- **HTML-based spiders**: Client-side filtering; articles outside the date range are skipped during parsing
+- **Default**: If no dates specified, scrapes from 30 days ago to today
+
+---
+
 ### Category Filtering
 
-All spiders support category filtering. Available categories per spider:
+Filter articles by category using the `-a categories=` argument. Categories are comma-separated.
 
+#### ProthomAlo Categories
 ```bash
-# ProthomAlo: Bangladesh, Politics, Sports, Business, Opinion, Entertainment, Youth, World, Environment, Science & Tech
+# Available: Bangladesh, Politics, Sports, Business, Opinion, Entertainment, Youth, World, Environment, Science & Tech, Corporate, Lifestyle, Photo, Video
 uv run scrapy crawl prothomalo -a categories=Bangladesh,Sports
-
-# Daily Sun: Bangladesh, Business, World, Entertainment, Sports, Lifestyle, Tech, Opinion
-uv run scrapy crawl dailysun -a categories=Bangladesh,Sports
-
-# Ittefaq: Bangladesh, International, Sports, Business, Entertainment, Opinion
-uv run scrapy crawl ittefaq -a categories=Bangladesh,Sports
-
-# BD Pratidin: national, international, sports, showbiz, economy, shuvosangho
-uv run scrapy crawl BDpratidin -a categories=national,sports
-
-# Bangladesh Today: Bangladesh (1), Nationwide (93), Entertainment (94), International (97), Sports (95)
-uv run scrapy crawl bangladesh_today -a categories=Bangladesh,Sports
-
-# The Daily Star: Bangladesh, Politics, World, Business, Sports, Opinion, Entertainment, Tech
-uv run scrapy crawl thedailystar -a categories=Bangladesh,Sports
+uv run scrapy crawl prothomalo -a categories=Politics,Business,Opinion
 ```
+
+#### Daily Sun Categories
+```bash
+# Available: Bangladesh, Business, World, Entertainment, Sports, Lifestyle, Tech, Opinion
+uv run scrapy crawl dailysun -a categories=Bangladesh,Sports
+uv run scrapy crawl dailysun -a categories=Business,Tech
+```
+
+#### The Daily Star Categories
+```bash
+# Available: Bangladesh, Politics, World, Business, Sports, Opinion, Entertainment, Tech
+uv run scrapy crawl thedailystar -a categories=Bangladesh,Sports,Politics
+```
+
+#### Ittefaq Categories
+```bash
+# Available: Bangladesh, International, Sports, Business, Entertainment, Opinion
+uv run scrapy crawl ittefaq -a categories=Bangladesh,Sports
+```
+
+#### BD Pratidin Categories
+```bash
+# Available: national, international, sports, showbiz, economy, shuvosangho
+uv run scrapy crawl BDpratidin -a categories=national,sports
+```
+
+#### Bangladesh Today Categories
+```bash
+# Available: Bangladesh, Nationwide, Entertainment, International, Sports
+uv run scrapy crawl bangladesh_today -a categories=Bangladesh,Sports
+```
+
+**Combine with date filtering:**
+```bash
+uv run scrapy crawl prothomalo -a categories=Sports,Politics -a start_date=2024-12-01 -a end_date=2024-12-25
+```
+
+---
 
 ### Keyword Search
 
-Some spiders support keyword search:
+Search for articles containing specific keywords. Supported by API-based spiders.
 
 ```bash
-# Search in ProthomAlo
-uv run scrapy crawl prothomalo -a search_query="Bangladesh politics"
+# Search in ProthomAlo (API-level search)
+uv run scrapy crawl prothomalo -a search_query="Sheikh Hasina"
+uv run scrapy crawl prothomalo -a search_query="Bangladesh election"
 
 # Search in Daily Sun
 uv run scrapy crawl dailysun -a search_query="cricket"
+uv run scrapy crawl dailysun -a search_query="economy budget"
 
 # Search in Ittefaq
-uv run scrapy crawl ittefaq -a search_query="economy"
+uv run scrapy crawl ittefaq -a search_query="politics"
+
+# Combine search with date range
+uv run scrapy crawl prothomalo -a search_query="BNP" -a start_date=2024-01-01 -a end_date=2024-06-30
+
+# Multiple keywords (OR logic for some spiders)
+uv run scrapy crawl prothomalo -a search_query="election,politics,vote"
 ```
 
-### Batch Running (Recommended for Production)
+**Search Support by Spider:**
+
+| Spider | API Search | Notes |
+|--------|------------|-------|
+| `prothomalo` | ✅ Yes | Full API search with date/category filters |
+| `dailysun` | ✅ Yes | Search via `/search?q=` endpoint |
+| `ittefaq` | ✅ Yes | AJAX search |
+| `jugantor` | ✅ Yes | JSON API search |
+| Others | ⚠️ Client-side | Keywords matched during HTML parsing |
+
+---
+
+### Pagination Control
+
+Control how many pages of articles to scrape.
+
+```bash
+# Limit maximum pages per category (default: 50)
+uv run scrapy crawl prothomalo -a max_pages=10
+
+# Items per page (for supported spiders)
+uv run scrapy crawl dailysun -a items_per_page=50
+
+# Page limit for API spiders
+uv run scrapy crawl prothomalo -a page_limit=100
+
+# Sort order (for prothomalo)
+uv run scrapy crawl prothomalo -a sort=latest-published    # default
+uv run scrapy crawl prothomalo -a sort=oldest-published
+uv run scrapy crawl prothomalo -a sort=relevance           # for search
+
+# Story type filter (for prothomalo)
+uv run scrapy crawl prothomalo -a story_type=text          # text, photo, video, live-blog
+```
+
+---
+
+### Performance Settings
+
+Control request speed and concurrency via Scrapy settings.
+
+```bash
+# Add delay between requests (seconds)
+uv run scrapy crawl ittefaq -s DOWNLOAD_DELAY=2
+
+# Limit concurrent requests
+uv run scrapy crawl dhakatribune -s CONCURRENT_REQUESTS=4
+
+# Concurrent requests per domain
+uv run scrapy crawl prothomalo -s CONCURRENT_REQUESTS_PER_DOMAIN=8
+
+# Enable autothrottle (adaptive delay)
+uv run scrapy crawl dailysun -s AUTOTHROTTLE_ENABLED=true
+
+# High-speed aggressive scraping (use with caution)
+uv run scrapy crawl prothomalo -s CONCURRENT_REQUESTS=32 -s DOWNLOAD_DELAY=0.25
+
+# Conservative/polite scraping
+uv run scrapy crawl dailysun -s CONCURRENT_REQUESTS=2 -s DOWNLOAD_DELAY=3
+
+# Retry settings
+uv run scrapy crawl bdnews24 -s RETRY_TIMES=5 -s RETRY_HTTP_CODES=403,429,500,502,503
+```
+
+---
+
+### CLI Interface
+
+Use the built-in CLI for easier scraping:
+
+```bash
+# List available spiders with capabilities
+uv run python -m BDNewsPaper.cli list
+uv run python -m BDNewsPaper.cli list --verbose
+
+# Scrape specific newspapers
+uv run python -m BDNewsPaper.cli scrape --newspapers prothomalo dailysun
+
+# Scrape with date range
+uv run python -m BDNewsPaper.cli scrape --from 2024-12-01 --to 2024-12-25
+
+# Scrape with category filter
+uv run python -m BDNewsPaper.cli scrape --newspapers prothomalo --categories Bangladesh Sports
+
+# Search for keywords
+uv run python -m BDNewsPaper.cli scrape --newspapers prothomalo --search "Sheikh Hasina"
+
+# Combine all options
+uv run python -m BDNewsPaper.cli scrape \
+  --newspapers prothomalo dailysun \
+  --from 2024-12-01 \
+  --to 2024-12-25 \
+  --categories Bangladesh Politics \
+  --search "election" \
+  --max-pages 20 \
+  --output articles.json
+
+# Output to file (JSON or CSV based on extension)
+uv run python -m BDNewsPaper.cli scrape --newspapers prothomalo --output news.json
+uv run python -m BDNewsPaper.cli scrape --newspapers prothomalo --output news.csv
+```
+
+**CLI Help:**
+```bash
+uv run python -m BDNewsPaper.cli --help
+uv run python -m BDNewsPaper.cli scrape --help
+```
+
+---
+
+### Batch Running
+
+Run multiple spiders efficiently:
 
 ```bash
 # Linux/macOS
-./run_spiders_optimized.sh                # Run all spiders
-./run_spiders_optimized.sh prothomalo     # Run specific spider
-./run_spiders_optimized.sh --monitor      # Run with performance monitoring
+./run_spiders_optimized.sh                              # Run all spiders
+./run_spiders_optimized.sh prothomalo dailysun          # Run specific spiders
+./run_spiders_optimized.sh --monitor                    # With performance monitoring
 ./run_spiders_optimized.sh --start-date 2024-01-01 --end-date 2024-01-31
 
 # Windows / Cross-platform
 python run_spiders_optimized.py
-python run_spiders_optimized.py prothomalo --monitor
+python run_spiders_optimized.py prothomalo dailysun --monitor
 python run_spiders_optimized.py --start-date 2024-01-01 --end-date 2024-01-31
 ```
 
@@ -230,40 +604,68 @@ python run_spiders_optimized.py --start-date 2024-01-01 --end-date 2024-01-31
 python toxlsx.py --list
 ```
 
-### Export to Excel/CSV
+**Output:**
+```
+Shared News Articles Database
+========================================
+Database file: news_articles.db
+Total articles: 15,432
+
+Articles by newspaper:
+------------------------------
+  Prothom Alo: 3,421 articles
+  Daily Sun: 2,156 articles
+  ...
+```
+
+### Export to Excel
 
 ```bash
 # Export all articles to Excel
 python toxlsx.py --output all_news.xlsx
 
 # Export specific newspaper
-python toxlsx.py --paper "ProthomAlo" --output prothomalo.xlsx
+python toxlsx.py --paper "Prothom Alo" --output prothomalo.xlsx
 
-# Export as CSV
+# Export with limit (most recent first)
+python toxlsx.py --limit 500 --output recent.xlsx
+
+# Combine filters
+python toxlsx.py --paper "Daily Sun" --limit 100 --output dailysun_100.xlsx
+```
+
+### Export to CSV
+
+```bash
+# Export all to CSV
 python toxlsx.py --format csv --output news_data.csv
 
-# Export with limit
-python toxlsx.py --limit 100 --output recent_news.xlsx
+# Export specific newspaper to CSV
+python toxlsx.py --paper "Prothom Alo" --format csv --output prothomalo.csv
 ```
 
 ### Direct Database Queries
 
 ```bash
 # Count articles by newspaper
-sqlite3 news_articles.db "SELECT paper_name, COUNT(*) FROM articles GROUP BY paper_name;"
+sqlite3 news_articles.db "SELECT paper_name, COUNT(*) FROM articles GROUP BY paper_name ORDER BY COUNT(*) DESC;"
 
 # View recent headlines
-sqlite3 news_articles.db "SELECT headline, paper_name FROM articles ORDER BY scraped_at DESC LIMIT 10;"
+sqlite3 news_articles.db "SELECT headline, paper_name, publication_date FROM articles ORDER BY scraped_at DESC LIMIT 10;"
 
-# Export to CSV
-sqlite3 -header -csv news_articles.db "SELECT * FROM articles LIMIT 100;" > export.csv
+# Search articles
+sqlite3 news_articles.db "SELECT headline, url FROM articles WHERE headline LIKE '%cricket%' LIMIT 20;"
+
+# Export specific columns to CSV
+sqlite3 -header -csv news_articles.db "SELECT url, headline, paper_name, publication_date FROM articles LIMIT 1000;" > export.csv
+
+# Get date range
+sqlite3 news_articles.db "SELECT MIN(publication_date), MAX(publication_date) FROM articles;"
 ```
 
 ---
 
 ## 🗄️ Database Schema
-
-All articles are stored in a single `news_articles.db` SQLite database:
 
 ```sql
 CREATE TABLE articles (
@@ -275,6 +677,716 @@ CREATE TABLE articles (
     publication_date TEXT,           -- Publication date
     scraped_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+-- Index for faster queries
+CREATE INDEX idx_paper_name ON articles(paper_name);
+CREATE INDEX idx_publication_date ON articles(publication_date);
+CREATE INDEX idx_scraped_at ON articles(scraped_at);
+
+-- Full-text search index (if enabled)
+CREATE VIRTUAL TABLE articles_fts USING fts5(
+    headline, article, content='articles'
+);
+```
+
+---
+
+## 📊 Dashboard & Analytics
+
+### Web Dashboard
+
+```bash
+# Install dashboard dependencies
+uv sync --extra dashboard
+
+# Launch basic dashboard
+uv run streamlit run dashboard.py
+
+# Launch enhanced dashboard with more features
+uv run streamlit run dashboard_enhanced.py
+```
+
+**Features:**
+- 📊 Article statistics and charts
+- 📈 Daily trend analysis
+- ☁️ Word cloud from headlines
+- 🔥 Trending keywords
+- 🔍 Advanced search
+- 📰 Latest headlines viewer
+
+### Analytics Tools
+
+```bash
+# Install analytics dependencies
+uv sync --extra analytics
+
+# Generate full analytics report
+python analytics.py --report
+
+# Sentiment analysis only
+python analytics.py --sentiment
+
+# Extract entities (people, organizations)
+python analytics.py --entities
+
+# Trending keywords
+python analytics.py --trends
+
+# Find duplicate articles
+python analytics.py --duplicates
+```
+
+### Topic Clustering
+
+```bash
+# ML-based article clustering
+python topic_clustering.py --cluster
+
+# Cluster with custom number of clusters
+python topic_clustering.py --cluster --n-clusters 15
+
+# Cluster articles from specific days
+python topic_clustering.py --cluster --days 14
+
+# Find articles similar to a query
+python topic_clustering.py --similar "Bangladesh election"
+
+# Get trending topics
+python topic_clustering.py --trending
+
+# Save clusters to JSON
+python topic_clustering.py --cluster --output clusters.json
+```
+
+**Dependencies:** `pip install scikit-learn numpy`
+
+### Breaking News Detection
+
+```bash
+# Real-time spike detection (continuous monitoring)
+python breaking_news.py --monitor
+
+# Get current breaking news
+python breaking_news.py --breaking
+
+# Get trending topics
+python breaking_news.py --trending
+
+# Save breaking news report
+python breaking_news.py --report
+
+# Set custom monitoring interval (seconds)
+python breaking_news.py --monitor --interval 300
+```
+
+**Features:**
+- Spike detection (keyword velocity tracking)
+- Multi-source correlation
+- Configurable thresholds (2x baseline = breaking)
+
+### Content Similarity & Duplicates
+
+Find duplicate and similar articles using TF-IDF similarity.
+
+```bash
+# Find duplicate articles (default threshold: 85%)
+python content_similarity.py --duplicates
+
+# Find duplicates with custom threshold
+python content_similarity.py --duplicates --threshold 0.9
+
+# Find articles similar to a query
+python content_similarity.py --similar "Bangladesh election"
+
+# Generate duplicate analysis report
+python content_similarity.py --report
+
+# Analyze duplicates from last N days
+python content_similarity.py --duplicates --days 7
+```
+
+**Dependencies:** `pip install scikit-learn numpy`
+
+### Bias Detection
+
+Analyze political bias and sentiment in news reporting.
+
+```bash
+# Compare bias across all sources
+python bias_detection.py --compare
+
+# Analyze specific newspaper
+python bias_detection.py --source "Prothom Alo"
+
+# Analyze topic coverage across sources
+python bias_detection.py --topic "election"
+
+# Generate full bias report
+python bias_detection.py --report
+
+# Analyze articles from last N days
+python bias_detection.py --compare --days 30
+```
+
+**Metrics:**
+- Left/right lean scoring (lexicon-based)
+- Positive/negative sentiment ratio
+- Neutral content percentage
+
+### News Timeline
+
+```bash
+# Generate interactive timeline visualization
+python news_timeline.py --generate
+
+# Generate timeline for specific days
+python news_timeline.py --generate --days 7
+
+# Filter by topic
+python news_timeline.py --generate --topic "politics"
+
+# Serve timeline via HTTP
+python news_timeline.py --serve --port 8080
+
+# Generate JSON for API
+python news_timeline.py --json
+```
+
+### Geographical Mapping
+
+Plot news articles on a Bangladesh map based on location mentions.
+
+```bash
+# Generate interactive map (last 30 days)
+python geo_mapping.py --generate
+
+# Generate map for specific days
+python geo_mapping.py --generate --days 7
+
+# Generate heatmap visualization
+python geo_mapping.py --generate --heatmap
+
+# Generate JSON for API consumption
+python geo_mapping.py --json
+
+# Show location statistics
+python geo_mapping.py --stats
+```
+
+**Output Files:**
+- `maps/news_map.html` - Interactive Leaflet.js map
+- `maps/news_heatmap.html` - Heatmap visualization
+- `maps/locations.json` - JSON data for API
+
+### Status Page & Health Monitor
+
+Monitor the health and status of all spiders.
+
+```bash
+# Generate status page
+python status_page.py --generate
+
+# Test all spiders and generate status
+python status_page.py --test
+
+# Test specific number of spiders
+python status_page.py --test --limit 10
+
+# Serve status page
+python status_page.py --serve --port 8081
+```
+
+**Output Files:**
+- `status/index.html` - Spider status dashboard
+- Shows: Last run time, article counts, success rate
+
+### Performance Monitor
+
+Track scraping performance and generate reports.
+
+```bash
+# Start real-time monitoring (updates every 30 seconds)
+python performance_monitor.py
+
+# Generate performance report (JSON)
+python performance_monitor.py report
+
+# Show quick stats
+python performance_monitor.py stats
+```
+
+**Report Includes:**
+- Articles per hour
+- Articles by newspaper
+- Average article length
+- Last 24 hours / 1 hour stats
+
+### Testing Spiders
+
+Quick test all spiders with minimal items.
+
+```bash
+# Test all spiders (2 items each, ~2 min timeout)
+python test_all_spiders.py
+```
+
+**Features:**
+- Tests each spider with 2 item limit
+- 2 minute timeout per spider
+- Skips Playwright spiders (require special setup)
+- Summary of successful/failed spiders
+
+---
+
+## 📡 API & Integrations
+
+### REST API
+
+```bash
+# Install API dependencies
+uv sync --extra api
+
+# Start API server
+uvicorn BDNewsPaper.api:app --reload
+
+# Custom host/port
+uvicorn BDNewsPaper.api:app --host 0.0.0.0 --port 8000
+```
+
+**Endpoints:**
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/articles` | List articles with pagination (`?limit=20&offset=0`) |
+| `GET` | `/articles/{id}` | Get article by ID |
+| `GET` | `/articles/search?q=keyword` | Full-text search |
+| `GET` | `/newspapers` | List all newspapers with counts |
+| `GET` | `/stats` | Database statistics |
+| `GET` | `/health` | Health check |
+
+**Example Requests:**
+```bash
+# Get latest 10 articles
+curl http://localhost:8000/articles?limit=10
+
+# Search articles
+curl "http://localhost:8000/articles/search?q=cricket"
+
+# Get stats
+curl http://localhost:8000/stats
+```
+
+### GraphQL API
+
+```bash
+# Install GraphQL dependencies
+uv sync --extra graphql
+
+# Start GraphQL server
+uvicorn BDNewsPaper.graphql_api:app --reload
+```
+
+**GraphQL Playground:** http://localhost:8000/graphql
+
+### Full-Text Search
+
+```bash
+# Search articles via CLI
+python -m BDNewsPaper.search --query "Bangladesh economy"
+python -m BDNewsPaper.search --query "cricket" --limit 50
+```
+
+### Elasticsearch Search
+
+For advanced search capabilities with relevance scoring, fuzzy matching, and faceted search.
+
+#### Setup
+
+```bash
+# Start Elasticsearch (via Docker)
+docker run -d --name elasticsearch \
+  -p 9200:9200 \
+  -e "discovery.type=single-node" \
+  -e "xpack.security.enabled=false" \
+  elasticsearch:8.11.0
+
+# Install Python client
+pip install elasticsearch
+```
+
+#### Usage
+
+```bash
+# Create index and import articles
+python elasticsearch_search.py --index
+
+# Search articles
+python elasticsearch_search.py --search "Bangladesh election"
+
+# Search with filters
+python elasticsearch_search.py --search "cricket" --paper "Prothom Alo"
+
+# Get autocomplete suggestions
+python elasticsearch_search.py --suggest "bangla"
+
+# Show facets (newspapers, categories)
+python elasticsearch_search.py --facets
+
+# Get index statistics
+python elasticsearch_search.py --stats
+```
+
+#### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `ES_HOST` | `http://localhost:9200` | Elasticsearch server URL |
+| `ES_INDEX` | `bdnews_articles` | Index name |
+
+### Redis Caching
+
+Add caching layer to API for faster response times.
+
+#### Setup
+
+```bash
+# Start Redis (via Docker)
+docker run -d --name redis -p 6379:6379 redis:alpine
+
+# Install Python client
+pip install redis
+```
+
+#### Usage
+
+Redis caching is integrated with the FastAPI application. Set the environment variable to enable:
+
+```bash
+# Set Redis URL
+export REDIS_URL="redis://localhost:6379/0"
+
+# Start API with caching enabled
+uvicorn BDNewsPaper.api:app --reload
+```
+
+#### Cache Configuration
+
+| Cache Type | TTL | Description |
+|------------|-----|-------------|
+| `articles_list` | 5 min | Article list endpoints |
+| `article_detail` | 1 hour | Individual article pages |
+| `stats` | 10 min | Database statistics |
+| `search` | 5 min | Search results |
+| `papers` | 1 hour | Newspaper list |
+
+### RSS Feed Generator
+
+```bash
+# Generate all feeds
+python rss_feed.py --all
+
+# Generate for specific newspaper
+python rss_feed.py --paper "Prothom Alo"
+
+# Generate for last 7 days only
+python rss_feed.py --days 7
+
+# Serve feeds via HTTP server
+python rss_feed.py --serve --port 8080
+```
+
+**Feed URLs (after generation):**
+- `feeds/all.xml` - All newspapers combined
+- `feeds/prothom_alo.xml` - Prothom Alo only
+- `feeds/index.html` - Feed directory
+
+---
+
+## 🤖 Bot Integrations
+
+### Telegram Bot
+
+```bash
+# Setup environment variables
+export TELEGRAM_BOT_TOKEN="your-bot-token"
+export TELEGRAM_CHAT_ID="your-chat-id"
+
+# Send today's summary
+python telegram_bot.py
+
+# Send last 7 days summary
+python telegram_bot.py --days 7
+
+# Send specific newspaper summary
+python telegram_bot.py --paper "Prothom Alo"
+
+# Run as scheduled service (every 24 hours)
+python telegram_bot.py --schedule --interval 24
+
+# Test without sending
+python telegram_bot.py --test
+```
+
+### Slack Bot
+
+```bash
+# Setup
+export SLACK_WEBHOOK_URL="your-webhook-url"
+
+# Send alerts
+python slack_bot.py --send
+
+# Send daily digest
+python slack_bot.py --digest
+```
+
+### Discord Bot
+
+```bash
+# Setup
+export DISCORD_WEBHOOK_URL="your-webhook-url"
+
+# Send news embeds
+python discord_bot.py --send
+```
+
+### Webhook Alerts
+
+```bash
+# Interactive setup
+python alerts.py --setup
+
+# Set alert keywords
+python alerts.py --keywords "politics,cricket,breaking,election"
+
+# Start monitoring for breaking news
+python alerts.py --monitor
+
+# Test alert
+python alerts.py --test
+
+# Check alert status
+python alerts.py --status
+```
+
+### Webhooks for New Articles
+
+Push notifications when new articles are scraped.
+
+```bash
+# Add a webhook endpoint
+python webhooks.py --add-webhook "https://discord.com/api/webhooks/..." --type discord
+
+# Add a Slack webhook
+python webhooks.py --add-webhook "https://hooks.slack.com/..." --type slack
+
+# Add keyword filter
+python webhooks.py --add-keyword "breaking"
+
+# Monitor for new articles and push to webhooks
+python webhooks.py --monitor
+
+# Set monitoring interval (seconds)
+python webhooks.py --monitor --interval 60
+
+# Test webhook with sample data
+python webhooks.py --test
+
+# Show current webhook configuration
+python webhooks.py --status
+```
+
+**Webhook Types:**
+- `discord` - Discord embed formatting
+- `slack` - Slack block formatting
+- `generic` - JSON payload to any endpoint
+
+### Email Reports
+
+```bash
+# Send daily email report
+python email_reports.py --send
+
+# Generate HTML report
+python email_reports.py --generate --output report.html
+```
+
+---
+
+## ☁️ Cloud & Storage
+
+### AWS S3 / DigitalOcean Spaces
+
+```bash
+# Setup environment
+export AWS_ACCESS_KEY_ID="your-access-key"
+export AWS_SECRET_ACCESS_KEY="your-secret-key"
+export S3_BUCKET="your-bucket-name"
+export S3_ENDPOINT="https://nyc3.digitaloceanspaces.com"  # For DO Spaces
+
+# Backup database
+python s3_storage.py --backup
+
+# Sync data
+python s3_storage.py --sync
+
+# Download backup
+python s3_storage.py --download
+```
+
+### Kaggle Dataset
+
+```bash
+# Setup: Place kaggle.json in ~/.kaggle/
+
+# Upload to Kaggle
+python kaggle_upload.py --upload
+
+# Update existing dataset
+python kaggle_upload.py --update
+```
+
+### Hugging Face Hub
+
+```bash
+# Setup
+export HF_TOKEN="your-huggingface-token"
+
+# Upload dataset
+python huggingface_upload.py --upload
+
+# Upload with custom repo name
+python huggingface_upload.py --upload --repo "username/bd-news-dataset"
+```
+
+### Archive.org (Wayback Machine)
+
+Archive news articles to Wayback Machine for permanent preservation.
+
+```bash
+# Archive recent articles (last 24 hours, max 50)
+python archive_org.py --archive-recent
+
+# Archive articles from last N days
+python archive_org.py --archive-recent --days 7
+
+# Archive more articles per run
+python archive_org.py --archive-recent --limit 100
+
+# Check if URLs are already archived
+python archive_org.py --check
+
+# Verify archived URLs are accessible
+python archive_org.py --verify
+
+# Show archive statistics
+python archive_org.py --stats
+```
+
+**Rate Limits:**
+- 5 seconds between requests (Wayback Machine limit)
+- ~50 URLs per run recommended
+- Archived URLs logged to `archive_log.json`
+
+---
+
+## 🏗️ Deployment
+
+### Docker
+
+```bash
+# Build image
+docker build -t bdnewspaper-scraper .
+
+# Run single spider
+docker run -d --name scraper \
+  -v $(pwd)/news_articles.db:/app/news_articles.db \
+  bdnewspaper-scraper scrapy crawl prothomalo
+
+# Docker Compose (full stack with PostgreSQL, Redis, Prometheus)
+docker-compose up -d
+
+# View logs
+docker-compose logs -f scraper
+```
+
+### Kubernetes
+
+```bash
+# Apply manifests
+kubectl apply -f kubernetes.yml
+
+# Or use k8s directory
+kubectl apply -f k8s/
+
+# Check pods
+kubectl get pods -l app=bdnewspaper-scraper
+```
+
+### GitHub Actions
+
+Pre-configured workflows included:
+
+- **CI Pipeline** (`ci.yml`): Runs on push/PR with linting and tests
+- **Daily Scraper** (`daily-scrape.yml`): Runs daily at 6 AM UTC, scrapes top spiders
+
+---
+
+## ⚙️ Configuration
+
+### Environment Variables
+
+Copy `.env.example` to `.env` and customize:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_PATH` | `news_articles.db` | SQLite database path |
+| `LOG_LEVEL` | `INFO` | Logging level (DEBUG, INFO, WARNING, ERROR) |
+| `LOG_FILE` | `scrapy.log` | Log file path |
+| `MAX_PAGES` | `100` | Maximum pages per spider |
+| `DOWNLOAD_DELAY` | `0.5` | Delay between requests (seconds) |
+| `CONCURRENT_REQUESTS` | `64` | Maximum concurrent requests |
+| `DATE_FILTER_ENABLED` | `false` | Enable date filtering by default |
+| `FILTER_START_DATE` | - | Default start date (YYYY-MM-DD) |
+| `FILTER_END_DATE` | - | Default end date (YYYY-MM-DD) |
+| `LANGUAGE_DETECTION_ENABLED` | `true` | Enable language detection |
+| `MIN_ARTICLE_WORDS` | `20` | Minimum words for valid article |
+| `MAX_ARTICLE_WORDS` | `50000` | Maximum words per article |
+| `CHECKPOINT_ENABLED` | `false` | Enable checkpointing for resume |
+| `CHECKPOINT_INTERVAL` | `100` | Articles between checkpoints |
+| `RETRY_TIMES` | `3` | Number of retries for failed requests |
+
+### Scrapy Settings
+
+Edit `BDNewsPaper/settings.py` or pass via command line:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `CONCURRENT_REQUESTS` | 16 | Maximum concurrent requests |
+| `CONCURRENT_REQUESTS_PER_DOMAIN` | 8 | Max requests per domain |
+| `DOWNLOAD_DELAY` | 0 | Delay between requests (seconds) |
+| `CLOSESPIDER_ITEMCOUNT` | None | Stop after N items |
+| `LOG_LEVEL` | INFO | Logging verbosity |
+| `AUTOTHROTTLE_ENABLED` | True | Enable adaptive throttling |
+| `AUTOTHROTTLE_START_DELAY` | 0.5 | Initial download delay |
+| `AUTOTHROTTLE_MAX_DELAY` | 10 | Maximum download delay |
+| `RETRY_TIMES` | 3 | Number of retries |
+| `RETRY_HTTP_CODES` | [500,502,503,504,408] | HTTP codes to retry |
+
+### Proxy Support
+
+```bash
+# Enable proxy via command line
+uv run scrapy crawl prothomalo -s PROXY_ENABLED=true
+
+# Use proxy list file
+cp proxies.txt.sample proxies.txt
+# Edit proxies.txt with your proxies (one per line)
+# Format: http://user:pass@host:port or http://host:port
 ```
 
 ---
@@ -283,57 +1395,65 @@ CREATE TABLE articles (
 
 ```
 BDNewsPaperScraper/
-├── BDNewsPaper/                     # Main Scrapy project
-│   ├── spiders/                     # Spider implementations
-│   │   ├── base_spider.py          # Base class with shared functionality
-│   │   ├── prothomalo.py           # ProthomAlo (API-based)
-│   │   ├── dailysun.py             # Daily Sun (AJAX API)
-│   │   ├── ittefaq.py              # Daily Ittefaq (AJAX API)
-│   │   ├── bdpratidin.py           # BD Pratidin (HTML)
-│   │   ├── thebangladeshtoday.py   # Bangladesh Today (HTML + Bengali dates)
-│   │   ├── thedailystar.py         # The Daily Star (HTML + RSS)
-│   │   └── kalerkantho.py.disabled # Discontinued
-│   ├── items.py                    # Data models
-│   ├── pipelines.py                # Storage pipelines
-│   ├── middlewares.py              # Custom middlewares
-│   ├── config.py                   # Configuration
-│   ├── cli.py                      # CLI interface
-│   ├── bengalidate_to_englishdate.py  # Bengali date converter
-│   └── settings.py                 # Scrapy settings
-├── run_spiders_optimized.sh        # Batch runner (Linux/macOS)
-├── run_spiders_optimized.py        # Batch runner (Cross-platform)
-├── run_spiders_optimized.bat       # Batch runner (Windows wrapper)
-├── toxlsx.py                       # Export tool
-├── performance_monitor.py          # Performance monitoring
-├── setup.sh                        # Setup script
-├── pyproject.toml                  # Project configuration
-└── news_articles.db                # SQLite database (generated)
+├── BDNewsPaper/                     # Core Scrapy project
+│   ├── spiders/                     # 74 spider implementations
+│   │   ├── base_spider.py           # Base class with shared functionality
+│   │   ├── prothomalo.py            # ProthomAlo (API-based)
+│   │   ├── dailysun.py              # Daily Sun (AJAX API)
+│   │   ├── thedailystar.py          # The Daily Star
+│   │   ├── playwright_spider.py     # Cloudflare bypass (browser)
+│   │   └── ...                      # 70+ more spiders
+│   ├── api.py                       # REST API (FastAPI)
+│   ├── graphql_api.py               # GraphQL API
+│   ├── cli.py                       # CLI interface
+│   ├── search.py                    # Full-text search (FTS5)
+│   ├── config.py                    # Configuration management
+│   ├── items.py                     # Data models
+│   ├── pipelines.py                 # Data pipelines
+│   ├── middlewares.py               # Custom middlewares
+│   ├── proxy.py                     # Proxy rotation
+│   └── settings.py                  # Scrapy settings
+│
+├── chrome_extension/                # Browser extension for clipping
+├── k8s/                             # Kubernetes manifests
+├── tests/                           # Test suite
+├── data/                            # Scraped data exports
+│
+├── app.py                           # Main Streamlit GUI
+├── dashboard.py                     # Basic dashboard
+├── dashboard_enhanced.py            # Enhanced dashboard
+├── analytics.py                     # Sentiment & trend analysis
+├── topic_clustering.py              # ML topic clustering
+├── breaking_news.py                 # Breaking news detection
+├── news_timeline.py                 # Timeline visualization
+│
+├── telegram_bot.py                  # Telegram notifications
+├── slack_bot.py                     # Slack notifications
+├── discord_bot.py                   # Discord notifications
+├── alerts.py                        # Webhook alerts
+├── email_reports.py                 # Email report generator
+├── rss_feed.py                      # RSS feed generator
+│
+├── s3_storage.py                    # AWS S3 backup
+├── kaggle_upload.py                 # Kaggle dataset upload
+├── huggingface_upload.py            # Hugging Face upload
+│
+├── toxlsx.py                        # Excel/CSV export tool
+├── status_page.py                   # Spider health monitoring
+├── performance_monitor.py           # Performance metrics
+├── run_spiders_optimized.py         # Batch runner (cross-platform)
+├── run_spiders_optimized.sh         # Batch runner (Linux/macOS)
+│
+├── docker-compose.yml               # Docker Compose config
+├── Dockerfile                       # Docker image
+├── kubernetes.yml                   # Kubernetes deployment
+├── prometheus.yml                   # Prometheus config
+│
+├── pyproject.toml                   # Project configuration
+├── .env.example                     # Environment template
+├── DOCS.md                          # Additional documentation
+└── news_articles.db                 # SQLite database (generated)
 ```
-
----
-
-## ⚙️ Configuration
-
-### Performance Tuning
-
-```bash
-# High-speed scraping (be respectful to servers)
-uv run scrapy crawl prothomalo -s CONCURRENT_REQUESTS=32 -s DOWNLOAD_DELAY=0.5
-
-# Conservative scraping
-uv run scrapy crawl dailysun -s CONCURRENT_REQUESTS=4 -s DOWNLOAD_DELAY=2
-```
-
-### Key Settings
-
-Edit `BDNewsPaper/settings.py` or pass via command line:
-
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `CONCURRENT_REQUESTS` | 16 | Maximum concurrent requests |
-| `DOWNLOAD_DELAY` | 0 | Delay between requests (seconds) |
-| `CLOSESPIDER_ITEMCOUNT` | None | Stop after N items |
-| `LOG_LEVEL` | INFO | Logging verbosity (DEBUG, INFO, WARNING, ERROR) |
 
 ---
 
@@ -342,11 +1462,17 @@ Edit `BDNewsPaper/settings.py` or pass via command line:
 ### Cron (Linux/macOS)
 
 ```bash
-# Run daily at 2 AM
+# Edit crontab
+crontab -e
+
+# Run all spiders daily at 2 AM
 0 2 * * * cd /path/to/BDNewsPaperScraper && ./run_spiders_optimized.sh --monitor >> /var/log/scraper.log 2>&1
 
 # Run specific spider every 6 hours
-0 */6 * * * cd /path/to/BDNewsPaperScraper && uv run scrapy crawl prothomalo >> /var/log/prothomalo.log 2>&1
+0 */6 * * * cd /path/to/BDNewsPaperScraper && uv run scrapy crawl prothomalo -a start_date=$(date -d "yesterday" +\%Y-\%m-\%d) >> /var/log/prothomalo.log 2>&1
+
+# Daily export at 6 AM
+0 6 * * * cd /path/to/BDNewsPaperScraper && python toxlsx.py --output /path/to/exports/news_$(date +\%Y\%m\%d).xlsx
 ```
 
 ### Task Scheduler (Windows)
@@ -354,8 +1480,10 @@ Edit `BDNewsPaper/settings.py` or pass via command line:
 1. Open Task Scheduler
 2. Create Basic Task
 3. Set trigger (daily, hourly, etc.)
-4. Action: `python run_spiders_optimized.py --monitor`
-5. Set working directory to project folder
+4. Action: Start a program
+   - Program: `python`
+   - Arguments: `run_spiders_optimized.py --monitor`
+   - Start in: `C:\path\to\BDNewsPaperScraper`
 
 ---
 
@@ -365,10 +1493,13 @@ Edit `BDNewsPaper/settings.py` or pass via command line:
 |-------|----------|
 | `command not found: uv` | Install UV: `curl -LsSf https://astral.sh/uv/install.sh \| sh` |
 | `ModuleNotFoundError` | Run `uv sync` to install dependencies |
-| `No articles scraped` | Check internet connection; try with `-L DEBUG` |
+| `No articles scraped` | Check internet; try `-L DEBUG` for details |
 | `Database locked` | Stop running spiders; wait a few seconds |
 | `Spider not found` | Run `uv run scrapy list` to see available spiders |
-| `Windows: No output` | Use `-L INFO` flag or `python run_spiders_optimized.py --monitor` |
+| `Cloudflare blocked (403)` | Use `playwright_spider.py` or add delays |
+| `Too many requests (429)` | Increase `DOWNLOAD_DELAY`, reduce `CONCURRENT_REQUESTS` |
+| `Connection timeout` | Check internet; increase `RETRY_TIMES` |
+| `Invalid date format` | Use `YYYY-MM-DD` format (e.g., `2024-12-25`) |
 
 ### Debug Commands
 
@@ -380,11 +1511,18 @@ uv run scrapy version
 # List available spiders
 uv run scrapy list
 
-# Test single article
+# Test single article with debug
 uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=1 -L DEBUG
+
+# Check spider settings
+uv run scrapy settings --get CONCURRENT_REQUESTS
 
 # View logs
 tail -f scrapy.log
+
+# Check database
+sqlite3 news_articles.db ".tables"
+sqlite3 news_articles.db "SELECT COUNT(*) FROM articles;"
 ```
 
 ---
@@ -393,20 +1531,23 @@ tail -f scrapy.log
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
-3. Install dependencies: `uv sync`
+3. Install dev dependencies: `uv sync --extra dev`
 4. Make changes following existing patterns
-5. Test: `uv run scrapy crawl <spider> -s CLOSESPIDER_ITEMCOUNT=5`
+5. Run tests: `uv run pytest`
 6. Format code: `uv run black . && uv run isort .`
-7. Submit a pull request
+7. Lint: `uv run flake8`
+8. Submit a pull request
 
 ### Adding a New Spider
 
 1. Create spider file in `BDNewsPaper/spiders/`
 2. Extend `BaseNewsSpider` from `base_spider.py`
-3. Implement `start_requests()` and parsing methods
-4. Use `create_article_item()` for consistent output
-5. Test with small item counts
-6. Update this README
+3. Define `name`, `paper_name`, `allowed_domains`
+4. Implement `start_requests()` and parsing methods
+5. Use `create_article_item()` for consistent output
+6. Add spider details to `config.py`
+7. Test: `uv run scrapy crawl yourspider -s CLOSESPIDER_ITEMCOUNT=5`
+8. Update this README and `todo.md`
 
 ---
 
@@ -417,5 +1558,28 @@ MIT License — see [LICENSE](LICENSE) for details.
 ---
 
 <div align="center">
-  <strong>Made with ❤️ for Bangladeshi news data collection</strong>
+
+**Made with ❤️ for Bangladeshi news data collection**
+
+[⬆ Back to Top](#️-bd-newspaper-scraper)
+
 </div>
+## 📁 Project Structure
+
+```bash
+BDNewsPaperScraper/
+├── BDNewsPaper/           # Scrapy project core
+│   ├── spiders/          # Spider definitions
+│   ├── pipelines.py      # Data pipelines
+│   └── settings.py       # Scrapy settings
+├── config/               # Configuration files
+├── docs/                 # Documentation
+├── scripts/              # Helper scripts and bots
+│   ├── analytics.py
+│   ├── dashboard.py
+│   └── performance_monitor.py
+├── news_articles.db      # SQLite database (auto-generated)
+├── run_spiders_optimized.py # Main entry point
+├── app.py                # Streamlit Dashboard
+└── requirements.txt      # Dependencies
+```

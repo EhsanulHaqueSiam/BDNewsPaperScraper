@@ -1,0 +1,29 @@
+# Sample Proxy List for BDNewsPaperScraper
+# ==========================================
+# Add your proxy servers below, one per line.
+# Format: http://user:password@host:port or http://host:port
+# 
+# Supported formats:
+#   - http://proxy.example.com:8080
+#   - http://user:pass@proxy.example.com:8080
+#   - socks5://127.0.0.1:1080
+#   - https://proxy.example.com:443
+#
+# Lines starting with # are ignored.
+
+# Example proxies (replace with your own):
+# http://proxy1.example.com:8080
+# http://proxy2.example.com:8080
+# http://user:password@proxy3.example.com:3128
+
+# Free proxy sources (use at your own risk):
+# - https://free-proxy-list.net/
+# - https://www.sslproxies.org/
+# - https://www.proxy-list.download/
+#
+# Recommended paid proxy services:
+# - Bright Data (best residential): https://brightdata.com
+# - Oxylabs: https://oxylabs.io
+# - Smartproxy: https://smartproxy.com
+# - WebShare: https://webshare.io
+# - Storm Proxies: https://stormproxies.com

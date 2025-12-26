@@ -229,6 +229,7 @@ class NewsArticleItem(scrapy.Item):
     # ===== Auto-generated Metadata =====
     scraped_at = scrapy.Field()
     source_language = scrapy.Field()
+    detected_language = scrapy.Field()  # For language detection pipeline
     word_count = scrapy.Field()
     reading_time_minutes = scrapy.Field()
     content_hash = scrapy.Field()

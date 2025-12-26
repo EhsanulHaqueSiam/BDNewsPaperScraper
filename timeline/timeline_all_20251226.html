@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>News Timeline</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e2e8f0;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        .container { max-width: 900px; margin: 0 auto; }
+        h1 { text-align: center; margin-bottom: 2rem; font-size: 2.5rem; }
+        .stats { 
+            display: flex; justify-content: center; gap: 2rem; 
+            margin-bottom: 2rem; flex-wrap: wrap;
+        }
+        .stat { 
+            background: rgba(255,255,255,0.1); padding: 1rem 2rem; 
+            border-radius: 12px; text-align: center;
+        }
+        .stat-number { font-size: 2rem; font-weight: bold; color: #4299e1; }
+        .timeline { position: relative; padding-left: 30px; }
+        .timeline::before {
+            content: ''; position: absolute; left: 10px; top: 0;
+            height: 100%; width: 3px; background: #4299e1;
+        }
+        .date-group { margin-bottom: 2rem; }
+        .date-header {
+            font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem;
+            color: #4299e1; position: relative;
+        }
+        .date-header::before {
+            content: ''; position: absolute; left: -25px; top: 5px;
+            width: 12px; height: 12px; border-radius: 50%;
+            background: #4299e1; border: 3px solid #1a1a2e;
+        }
+        .event {
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px; padding: 1rem;
+            margin-bottom: 0.5rem; transition: all 0.2s;
+            border-left: 3px solid transparent;
+        }
+        .event:hover {
+            background: rgba(255,255,255,0.1);
+            border-left-color: #4299e1;
+            transform: translateX(5px);
+        }
+        .event-title { font-weight: 500; margin-bottom: 0.5rem; }
+        .event-title a { color: #e2e8f0; text-decoration: none; }
+        .event-title a:hover { color: #4299e1; }
+        .event-meta { font-size: 0.85rem; color: #a0aec0; }
+        .event-meta span { margin-right: 1rem; }
+        .category { 
+            background: #4299e1; color: white; padding: 2px 8px; 
+            border-radius: 4px; font-size: 0.75rem;
+        }
+        .filter { margin-bottom: 2rem; text-align: center; }
+        .filter input {
+            padding: 0.75rem 1.5rem; border-radius: 25px;
+            border: none; width: 100%; max-width: 400px;
+            background: rgba(255,255,255,0.1); color: white;
+        }
+        .filter input::placeholder { color: #a0aec0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗞️ News Timeline</h1>
+        
+        <div class="stats">
+            <div class="stat">
+                <div class="stat-number">231</div>
+                <div>Events</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">68</div>
+                <div>Days</div>
+            </div>
+            <div class="stat">
+                <div class="stat-number">6</div>
+                <div>Sources</div>
+            </div>
+        </div>
+        
+        <div class="filter">
+            <input type="text" id="search" placeholder="🔍 Filter events..." onkeyup="filterEvents()">
+        </div>
+        
+        <div class="timeline" id="timeline">
+<div class="date-group" data-date="Unknown">
+<div class="date-header">📅 Unknown</div>
+
+                <div class="event" data-text="tarique seeks peace, unity on homecoming national the financial express">
+                    <div class="event-title">
+                        <a href="https://thefinancialexpress.com.bd/national/tarique-seeks-peace-unity-on-homecoming" target="_blank">Tarique seeks peace, unity on homecoming</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 The Financial Express</span>
+                        <span>⏰ </span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="from elders to teenagers, diverse masses throng to welcome tarique rahman home national the financial express">
+                    <div class="event-title">
+                        <a href="https://thefinancialexpress.com.bd/national/from-elders-to-teenagers-diverse-masses-throng-to-welcome-tarique-rahman-home" target="_blank">From elders to teenagers, diverse masses throng to welcome Tarique Rahman home</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 The Financial Express</span>
+                        <span>⏰ </span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="ncp, jamaat negotiate seat-sharing pact to contest in parliamentary polls national the financial express">
+                    <div class="event-title">
+                        <a href="https://thefinancialexpress.com.bd/national/ncp-jamaat-negotiate-seat-sharing-pact-to-contest-in-parliamentary-polls" target="_blank">NCP, Jamaat negotiate seat-sharing pact to contest in parliamentary polls</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 The Financial Express</span>
+                        <span>⏰ </span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bnp to launch cleaning drive at july 36 expressway (300-feet) on friday morning national the financial express">
+                    <div class="event-title">
+                        <a href="https://thefinancialexpress.com.bd/national/bnp-to-launch-cleaning-drive-at-july-36-expressway-300-feet-on-friday-morning" target="_blank">BNP to launch cleaning drive at July 36 Expressway (300-feet) on Friday morning</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 The Financial Express</span>
+                        <span>⏰ </span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="tarique rahman returns home amid rapturous reception national the financial express">
+                    <div class="event-title">
+                        <a href="https://thefinancialexpress.com.bd/national/tarique-rahman-returns-home-amid-rapturous-reception" target="_blank">Tarique Rahman returns home amid rapturous reception</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 The Financial Express</span>
+                        <span>⏰ </span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-26">
+<div class="date-header">📅 2025-12-26</div>
+
+                <div class="event" data-text="england dominate as australia bowled out for 152 in 4th ashes test sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/26/53524" target="_blank">England dominate as Australia bowled out for 152 in 4th Ashes Test</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="political leaders react to tarique rahman’s homecoming bangladesh dhaka tribune">
+                    <div class="event-title">
+                        <a href="https://www.dhakatribune.com/bangladesh/399567/political-leaders-react-to-tarique-rahman%E2%80%99s" target="_blank">Political leaders react to Tarique Rahman’s homecoming</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Dhaka Tribune</span>
+                        <span>⏰ 01:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="302, including former home minister, sued over attempted murder case bangladesh dhaka tribune">
+                    <div class="event-title">
+                        <a href="https://www.dhakatribune.com/bangladesh/nation/399577/302-including-former-home-minister-sued-over" target="_blank">302, including former home minister, sued over attempted murder case</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Dhaka Tribune</span>
+                        <span>⏰ 00:19</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="‘dear bangladesh’: tarique rahman returns home after 17 years bangladesh dhaka tribune">
+                    <div class="event-title">
+                        <a href="https://www.dhakatribune.com/bangladesh/politics/399563/%E2%80%98dear-bangladesh%E2%80%99-tarique-rahman-returns-home" target="_blank">‘Dear Bangladesh’: Tarique Rahman returns home after 17 years</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Dhaka Tribune</span>
+                        <span>⏰ 00:30</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="five al men held in moulvibazar bangladesh dhaka tribune">
+                    <div class="event-title">
+                        <a href="https://www.dhakatribune.com/bangladesh/nation/399574/five-al-men-held-in-moulvibazar" target="_blank">Five AL men held in Moulvibazar</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Dhaka Tribune</span>
+                        <span>⏰ 00:09</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="gubt honors female students at aparajita hall farewell ceremony bangladesh dhaka tribune">
+                    <div class="event-title">
+                        <a href="https://www.dhakatribune.com/bangladesh/nation/399571/gubt-honors-female-students-at-aparajita-hall" target="_blank">GUBT honors female students at Aparajita Hall farewell ceremony</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Dhaka Tribune</span>
+                        <span>⏰ 00:02</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="journalists form human chain in khulna protesting attacks on prothom alo, daily star bangladesh dhaka tribune">
+                    <div class="event-title">
+                        <a href="https://www.dhakatribune.com/bangladesh/nation/399573/journalists-form-human-chain-in-khulna-protesting" target="_blank">Journalists form human chain in Khulna protesting attacks on Prothom Alo, Daily Star</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Dhaka Tribune</span>
+                        <span>⏰ 00:06</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-25">
+<div class="date-header">📅 2025-12-25</div>
+
+                <div class="event" data-text="tarique calls ca yunus, expresses gratitude national bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/national/2025/12/25/53463" target="_blank">Tarique calls CA Yunus, expresses gratitude</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="cold wave continues, affecting normal life in northern region national bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/national/2025/12/25/53498" target="_blank">Cold wave continues, affecting normal life in northern region</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="tarique’s motorcade off to gulshan national bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/national/2025/12/25/53497" target="_blank">Tarique’s motorcade off to Gulshan</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="‘it was just a misunderstanding’ sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/25/53494" target="_blank">‘It was just a misunderstanding’</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="shanto prioritises rajshahi impact with t20 world cup in sight sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/25/53475" target="_blank">Shanto prioritises Rajshahi impact with T20 World Cup in sight</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="chattogram royals owner asks bcb to take over franchise sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/25/53444" target="_blank">Chattogram Royals owner asks BCB to take over franchise</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="smith returns as australia prepare an all-pace attack for boxing day test sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/25/53466" target="_blank">Smith returns as Australia prepare an all-pace attack for Boxing Day test</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bashar, nafees and babul appointed as bcb takes charge of royals sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/25/53467" target="_blank">Bashar, Nafees and Babul appointed as BCB takes charge of Royals</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bnp to launch cleaning drive at july 36 expressway (300-feet) tomorrow morning | news national bss news">
+                    <div class="event-title">
+                        <a href="https://www.bssnews.net/news/345111" target="_blank">BNP to launch cleaning drive at July 36 Expressway (300-feet) tomorrow morning | News</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 BSS News</span>
+                        <span>⏰ 23:58</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="special assistant for home affairs khuda baksh resigns | news national bss news">
+                    <div class="event-title">
+                        <a href="https://www.bssnews.net/news/344956" target="_blank">Special Assistant for Home Affairs Khuda Baksh resigns | News</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">national</span>
+                        <span>📰 BSS News</span>
+                        <span>⏰ 23:58</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-24">
+<div class="date-header">📅 2025-12-24</div>
+
+                <div class="event" data-text="1 killed as crude bomb thrown from dhaka flyover bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/city/rq6v01yhh6" target="_blank">1 killed as crude bomb thrown from Dhaka flyover</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 21:03</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="tarique rahman departs for heathrow airport bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/7kwyk12z75" target="_blank">Tarique Rahman departs for Heathrow Airport</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 22:20</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="tarique rahman's return: his 3-day schedule bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/tktzyfyl76" target="_blank">Tarique Rahman's return: His 3-day schedule</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:43</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="is this muhammad yunus' model of civilisation? asks anu muhammad bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/fnfulynt9m" target="_blank">Is this Muhammad Yunus' model of civilisation? asks Anu Muhammad</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 22:56</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="all identified individuals will face legal action: press secretary bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/svr4nfcgdm" target="_blank">All identified individuals will face legal action: Press Secretary</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 19:28</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="jamaat grand rally in dhaka on 3 jan bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/0j8nmnw0b9" target="_blank">Jamaat grand rally in Dhaka on 3 Jan</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 19:45</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="jatiya party attempts a comeback in lalmonirhat bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/x0qhvwd4e8" target="_blank">Jatiya Party attempts a comeback in Lalmonirhat</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:30</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="dru holds human chain in protest of attacks on prothom alo-daily star bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/98s55md071" target="_blank">DRU holds human chain in protest of attacks on Prothom Alo-Daily Star</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:52</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="awami league won't be able to join upcoming polls: press secretary bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/rm54hj1m47" target="_blank">Awami League won't be able to join upcoming polls: Press secretary</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:24</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="ducsu gs farhad marries cucsu leader sanjida bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/s2n4b0azev" target="_blank">DUCSU GS Farhad marries CUCSU leader Sanjida</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 19:17</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-23">
+<div class="date-header">📅 2025-12-23</div>
+
+                <div class="event" data-text="salah scores goal as egypt rally to win against zimbabwe sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/23/53334" target="_blank">Salah scores goal as Egypt rally to win against Zimbabwe</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bnp allocates 4 seats to jamiat ulama-e-islam politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/305vuq2c2h" target="_blank">BNP allocates 4 seats to Jamiat Ulama-e-Islam</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 14:48</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="economy under the dark cloud of violent politics op-ed prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/opinion/op-ed/9ajfdkjyu7" target="_blank">Economy under the dark cloud of violent politics</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Op-Ed</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:21</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="editors’ council, noab jointly hold protest meeting, human chain bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/photo/bangladesh/u5vpnd37w1" target="_blank">Editors’ Council, NOAB jointly hold protest meeting, human chain</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:49</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bnp leaves brahmanbaria-2 to jamiat; rumeen, two other bnp leaders to contest as independents politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/7b38q2bbp0" target="_blank">BNP leaves Brahmanbaria-2 to Jamiat; Rumeen, two other BNP leaders to contest as independents</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:19</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="dangerous conspiracy underway to obstruct transitional process: mirza fakhrul politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/pyqkxx8riy" target="_blank">Dangerous conspiracy underway to obstruct transitional process: Mirza Fakhrul</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 14:10</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="attacks on prothom alo, the daily star: wan-ifra expresses deep alarm bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/tp65u2rh1v" target="_blank">Attacks on Prothom Alo, The Daily Star: WAN-IFRA expresses deep alarm</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 22:43</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="finance uncovered condemns attack on prothom alo and the daily star bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/xbdlhnjd9d" target="_blank">Finance Uncovered condemns attack on Prothom Alo and The Daily Star</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 21:59</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bangladesh high commissioner summoned in delhi on pretext of tea invitation bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/dtfbgnynws" target="_blank">Bangladesh High Commissioner summoned in Delhi on pretext of tea invitation</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 22:25</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="9 accused sent to jail over attack on daily star bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/crime-and-law/4j0ytb53vq" target="_blank">9 accused sent to jail over attack on Daily Star</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:43</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-22">
+<div class="date-header">📅 2025-12-22</div>
+
+                <div class="event" data-text="rajshahi hand captaincy to shanto ahead of bpl sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/22/53270" target="_blank">Rajshahi hand captaincy to Shanto ahead of BPL</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="despite ‘risks’, asif mahmud collects nomination form to contest election bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/qc5v42bap2" target="_blank">Despite ‘risks’, Asif Mahmud collects nomination form to contest election</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 16:53</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="had i resigned i wouldn’t be sitting here: home affairs adviser government prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/government/7ye3pj7vkl" target="_blank">Had I resigned I wouldn’t be sitting here: Home Affairs Adviser</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">government</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:11</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="10 special trains allocated for leaders, activists attending tarique rahman’s reception politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/gh59tc0mwk" target="_blank">10 special trains allocated for leaders, activists attending Tarique Rahman’s reception</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 22:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="attacks on prothom alo, daily star, 2 cultural organisations: 31 suspects identified, 9 arrested bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/27gbd5rft9" target="_blank">Attacks on Prothom Alo, Daily Star, 2 cultural organisations: 31 suspects identified, 9 arrested</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 11:01</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="politicians seek security, gunmen to government bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/yhxd06zsdo" target="_blank">Politicians seek security, gunmen to government</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:28</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="it was not just an attack on prothom alo-daily star, it is an attack on democracy: mirza fakhrul bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/9icpwtrdiz" target="_blank">It was not just an attack on Prothom Alo-Daily Star, it is an attack on democracy: Mirza Fakhrul</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 14:20</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="how bnp wants to build the country op-ed prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/opinion/op-ed/0vfp9007kh" target="_blank">How BNP wants to build the country</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Op-Ed</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 16:41</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bnp gets permission to hold reception for tarique rahman politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/y7j6o96mm9" target="_blank">BNP gets permission to hold reception for Tarique Rahman</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:48</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-21">
+<div class="date-header">📅 2025-12-21</div>
+
+                <div class="event" data-text="‘awesome’ australia dominate to clinch ashes as england left hurting sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/21/53224" target="_blank">‘Awesome’ Australia dominate to clinch Ashes as England left hurting</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="england beaten to lose another ashes in australia sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/21/53206" target="_blank">England beaten to lose another Ashes in Australia</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="mbappé matches ronaldo’s real madrid record with 59 goals in a calendar year sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/21/53191" target="_blank">Mbappé matches Ronaldo’s Real Madrid record with 59 goals in a calendar year</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="nomination papers collected on behalf of khaleda zia and tarique rahman in bogura politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/ldz0wa7lpx" target="_blank">Nomination papers collected on behalf of Khaleda Zia and Tarique Rahman in Bogura</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:31</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="some are trying to create anarchy in the country: tarique rahman local news prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/local-news/spevbkbe5a" target="_blank">Some are trying to create anarchy in the country: Tarique Rahman</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">local news</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:53</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="overall law and order situation under control: ec politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/q6tql3lkg0" target="_blank">Overall law and order situation under control: EC</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 21:38</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="country can't move forward amid so much division and crisis: matiur rahman bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/uy3h9c31il" target="_blank">Country can't move forward amid so much division and crisis: Matiur Rahman</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:18</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="‘mobocracy’ became rampant due to government weakness: salahuddin ahmed politics prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/politics/6opa87arm4" target="_blank">‘Mobocracy’ became rampant due to government weakness: Salahuddin Ahmed</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Politics</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 15:13</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="police find no ‘credible’ evidence of sabotage bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/receev0w5v" target="_blank">Police find no ‘credible’ evidence of sabotage</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 16:56</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="new kind of ‘media environment’ is essential to build a new bangladesh: mahfuz anam bangladesh prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/bangladesh/2w4fagwg0o" target="_blank">New kind of ‘media environment’ is essential to build a new Bangladesh: Mahfuz Anam</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">bangladesh</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 19:56</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-20">
+<div class="date-header">📅 2025-12-20</div>
+
+                <div class="event" data-text="jumar–urmi fall in final, secure historic silver sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/20/53182" target="_blank">Jumar–Urmi fall in final, secure historic silver</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="mustafizur trumps taskin to lead dubai to win in ilt20 sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/20/53180" target="_blank">Mustafizur trumps Taskin to lead Dubai to win in ILT20</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bpl tickets for sylhet phase on sale from sunday, prices start at tk200 sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/20/53173" target="_blank">BPL tickets for Sylhet phase on sale from Sunday, prices start at Tk200</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="gill misses out on india's t20 world cup squad sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/20/53166" target="_blank">Gill misses out on India's T20 World Cup squad</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="rajshahi first to begin bpl preparations, but in national kit sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/20/53142" target="_blank">Rajshahi first to begin BPL preparations, but in national kit</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-19">
+<div class="date-header">📅 2025-12-19</div>
+
+                <div class="event" data-text="guardiola dismisses manchester city exit talk ahead of west ham clash sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/19/53118" target="_blank">Guardiola dismisses Manchester City exit talk ahead of West Ham clash</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="jumar–urmi create history by reaching mixed doubles final sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/19/53117" target="_blank">Jumar–Urmi create history by reaching mixed doubles final</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="pakistan end bangladesh’s dream with dominant eight-wicket win sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/19/53115" target="_blank">Pakistan end Bangladesh’s dream with dominant eight-wicket win</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="morocco beat jordan 3-2 after extra time to clinch arab cup sports bd pratidin">
+                    <div class="event-title">
+                        <a href="https://en.bd-pratidin.com/sports/2025/12/19/53103" target="_blank">Morocco beat Jordan 3-2 after extra time to clinch Arab Cup</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">sports</span>
+                        <span>📰 BD Pratidin</span>
+                        <span>⏰ 00:00</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-18">
+<div class="date-header">📅 2025-12-18</div>
+
+                <div class="event" data-text="mustafizur elated to be part of kkr in ipl sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/k4wo6ft78m" target="_blank">Mustafizur elated to be part of KKR in IPL</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 08:37</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="australia all out for 371 in 3rd ashes test sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/kogzmbczny" target="_blank">Australia all out for 371 in 3rd Ashes Test</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:05</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-17">
+<div class="date-header">📅 2025-12-17</div>
+
+                <div class="event" data-text="khawaja makes the most of late lifeline as australia reach 194 for 5 sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/5mo1p106dr" target="_blank">Khawaja makes the most of late lifeline as Australia reach 194 for 5</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 12:36</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="psg ordered to pay around 60m euros to mbappe in wage dispute sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/abdzdly81d" target="_blank">PSG ordered to pay around 60m euros to Mbappe in wage dispute</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 12:46</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-16">
+<div class="date-header">📅 2025-12-16</div>
+
+                <div class="event" data-text="bangladesh u19 confirms asia cup semifinal sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/oishjluje3" target="_blank">Bangladesh U19 confirms Asia Cup semifinal</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:59</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-15">
+<div class="date-header">📅 2025-12-15</div>
+
+                <div class="event" data-text="'golden moment' as messi meets tendulkar on india tour sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/yg0chtianf" target="_blank">'Golden moment' as Messi meets Tendulkar on India tour</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:51</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-13">
+<div class="date-header">📅 2025-12-13</div>
+
+                <div class="event" data-text="abrar powers bangladesh to victory in u19 asia cup opener sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/gvv1zkkaia" target="_blank">Abrar powers Bangladesh to victory in U19 Asia Cup opener</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 21:46</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="fans vandalise india stadium after messi's abrupt exit sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/osgh4lctdk" target="_blank">Fans vandalise India stadium after Messi's abrupt exit</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 15:32</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-12">
+<div class="date-header">📅 2025-12-12</div>
+
+                <div class="event" data-text="new zealand thrash west indies for 1-0 test series lead as duffy takes 5 sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/xj7h4728rs" target="_blank">New Zealand thrash West Indies for 1-0 Test series lead as Duffy takes 5</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:41</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-11">
+<div class="date-header">📅 2025-12-11</div>
+
+                <div class="event" data-text="man city edge real madrid to leave alonso on brink sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/qqe0affvnu" target="_blank">Man City edge Real Madrid to leave Alonso on brink</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:46</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-10">
+<div class="date-header">📅 2025-12-10</div>
+
+                <div class="event" data-text="kounde double helps barcelona claim frankfurt comeback win sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/4uidp3kbbw" target="_blank">Kounde double helps Barcelona claim Frankfurt comeback win</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 11:15</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="captain cummins back in australia squad for 3rd test sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/evskqr71y2" target="_blank">Captain Cummins back in Australia squad for 3rd Test</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:33</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-07">
+<div class="date-header">📅 2025-12-07</div>
+
+                <div class="event" data-text="messi dazzles as miami beat vancouver to win mls title sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/eec7k55slb" target="_blank">Messi dazzles as Miami beat Vancouver to win MLS title</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:21</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="2026 world cup: fifa reveals tournament schedule sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/w6dfwek1li" target="_blank">2026 World Cup: FIFA reveals tournament schedule</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:29</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="australia crush england by eight wickets for 2-0 lead sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/pa75n0nzp4" target="_blank">Australia crush England by eight wickets for 2-0 lead</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:44</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-06">
+<div class="date-header">📅 2025-12-06</div>
+
+                <div class="event" data-text="trump takes centre stage as 2026 fifa world cup draw takes place sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/u2qa87y5o5" target="_blank">Trump takes centre stage as 2026 FIFA World Cup draw takes place</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 08:42</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="fifa world cup draw: who’s in which group? argentina with algeria, austria, jordan; brazil set for k sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/l7z3ke1kqb" target="_blank">FIFA World Cup draw: Who’s in which group? Argentina with Algeria, Austria, Jordan; Brazil set for k</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:37</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="epic greaves double ton earns windies draw in first nz test sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/ynrc44qp2p" target="_blank">Epic Greaves double ton earns Windies draw in first NZ Test</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 12:33</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-05">
+<div class="date-header">📅 2025-12-05</div>
+
+                <div class="event" data-text="hope's resistance keeps west indies alive against new zealand sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/i31g8ux7wn" target="_blank">Hope's resistance keeps West Indies alive against New Zealand</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:47</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="australia race clear of england to seize control of 2nd test sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/rg8bn7z6kz" target="_blank">Australia race clear of England to seize control of 2nd Test</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 19:40</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-04">
+<div class="date-header">📅 2025-12-04</div>
+
+                <div class="event" data-text="ravindra, latham tons put new zealand in command against west indies sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/c6ut7qy4ml" target="_blank">Ravindra, Latham tons put New Zealand in command against West Indies</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 15:09</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="england win toss, bat in 2nd test as australia bring in neser sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/1pmhw7axw7" target="_blank">England win toss, bat in 2nd Test as Australia bring in Neser</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:58</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-03">
+<div class="date-header">📅 2025-12-03</div>
+
+                <div class="event" data-text="inglis to get nod for 2nd test as cummins comeback rumours grow sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/6i3b0y6j0d" target="_blank">Inglis to get nod for 2nd Test as Cummins comeback rumours grow</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 12:57</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="barca make atletico comeback to extend liga lead sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/xwsegbq57g" target="_blank">Barca make Atletico comeback to extend Liga lead</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:33</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-02">
+<div class="date-header">📅 2025-12-02</div>
+
+                <div class="event" data-text="bangladesh seal ireland t20 series with dominant win sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/gjrjcxjbfz" target="_blank">Bangladesh seal Ireland T20 series with dominant win</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:38</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="new zealand 231-9 as ‘old school’ west indies exploit pace-friendly wicket sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/wbxt24q8fy" target="_blank">New Zealand 231-9 as ‘old school’ West Indies exploit pace-friendly wicket</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:01</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="weight of history against england in pink-ball gabba sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/a2dkva0d0t" target="_blank">Weight of history against England in pink-ball Gabba</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:59</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="west indies win toss, bowl first in opening new zealand sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/dezd7xdfuk" target="_blank">West Indies win toss, bowl first in opening New Zealand</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:21</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bangladesh out to clinch ireland t20 series sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/f3ci1rl06l" target="_blank">Bangladesh out to clinch Ireland T20 series</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 08:34</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-12-01">
+<div class="date-header">📅 2025-12-01</div>
+
+                <div class="event" data-text="bpl auction: naim sheikh the only local player to fetch over 10 million sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/t7npi9ylvo" target="_blank">BPL auction: Naim Sheikh the only local player to fetch over 10 million</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:17</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="jeba runs to success at the kathmandu marathon sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/h195a0vpmt" target="_blank">Jeba runs to success at the Kathmandu Marathon</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:50</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-30">
+<div class="date-header">📅 2025-11-30</div>
+
+                <div class="event" data-text="bpl auction: 3 reasons why 9 cricketers were excluded sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/lse6ije0ra" target="_blank">BPL auction: 3 reasons why 9 cricketers were excluded</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:39</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bpl auction: how it will work, total costs, and players to watch sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/2ia97t4ckl" target="_blank">BPL auction: How it will work, total costs, and players to watch</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 16:19</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bangladesh hold their nerve to beat ireland, level t20i series sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/m0jwuwnj4k" target="_blank">Bangladesh hold their nerve to beat Ireland, level T20I series</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:42</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="kohli stars as india beat south africa sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/scfv1v37ib" target="_blank">Kohli stars as India beat South Africa</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 23:08</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-29">
+<div class="date-header">📅 2025-11-29</div>
+
+                <div class="event" data-text="players accused of fixing excluded from final bpl auction list sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/gcvftdqsuo" target="_blank">Players accused of fixing excluded from final BPL auction list</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:58</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-28">
+<div class="date-header">📅 2025-11-28</div>
+
+                <div class="event" data-text="ireland outclass bangladesh to take lead in t20i series sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/csl43evld5" target="_blank">Ireland outclass Bangladesh to take lead in T20I series</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:46</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-26">
+<div class="date-header">📅 2025-11-26</div>
+
+                <div class="event" data-text="estevao dazzles as rampant chelsea thrash 10-man barca 3-0 sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/5w6vu431ei" target="_blank">Estevao dazzles as rampant Chelsea thrash 10-man Barca 3-0</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:45</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="south africa condemn india to biggest home test loss for series sweep sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/jetk92fvky" target="_blank">South Africa condemn India to biggest home Test loss for series sweep</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 14:04</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-25">
+<div class="date-header">📅 2025-11-25</div>
+
+                <div class="event" data-text="nsc orders not to use national team players in election campaign sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/local-sports/1sikcgvqjl" target="_blank">NSC orders not to use national team players in election campaign</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 08:38</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="stubbs hits 94 as south africa set india mammoth 549 target sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/y6s4qj6ni1" target="_blank">Stubbs hits 94 as South Africa set India mammoth 549 target</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:09</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-24">
+<div class="date-header">📅 2025-11-24</div>
+
+                <div class="event" data-text="jansen takes six as south africa close on historic test series win sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/b7v4i84aay" target="_blank">Jansen takes six as South Africa close on historic Test series win</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:04</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="messi magic as miami thrash cincinnati, face nycfc next sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/football/bpod4bkp3w" target="_blank">Messi magic as Miami thrash Cincinnati, face NYCFC next</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:04</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-23">
+<div class="date-header">📅 2025-11-23</div>
+
+                <div class="event" data-text="muthusamy, jansen put south africa on top of india sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/sg5oh9s0c1" target="_blank">Muthusamy, Jansen put South Africa on top of India</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:47</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="bangladesh crush ireland by 217 runs to complete series sweep sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/cildywdc7v" target="_blank">Bangladesh crush Ireland by 217 runs to complete series sweep</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:42</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="campher resistance delays bangladesh's victory sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/qgcmkop952" target="_blank">Campher resistance delays Bangladesh's victory</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:06</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-22">
+<div class="date-header">📅 2025-11-22</div>
+
+                <div class="event" data-text="bangladesh secure massive lead after taijul becomes tigers’ highest wicket taker in test sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/obi4ayv3n3" target="_blank">Bangladesh secure massive lead after Taijul becomes Tigers’ highest wicket taker in Test</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:42</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="head's 69-ball ton powers australia to victory in ashes opener sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/iow48jojxl" target="_blank">Head's 69-ball ton powers Australia to victory in Ashes opener</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:37</span>
+                    </div>
+                </div>
+
+                <div class="event" data-text="england in charge after dismissing australia for 132 in ashes opener sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/znqsc4tvp1" target="_blank">England in charge after dismissing Australia for 132 in Ashes opener</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:25</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2025-11-21">
+<div class="date-header">📅 2025-11-21</div>
+
+                <div class="event" data-text="bangladesh a beat india a to confirm berth in final sports prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/sports/cricket/niqq3zmd8n" target="_blank">Bangladesh A beat India A to confirm berth in final</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Sports</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 21:55</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2020-01-19">
+<div class="date-header">📅 2020-01-19</div>
+
+                <div class="event" data-text="313,848 posts remain vacant under different ministries business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/313-848-posts-remain-vacant-at-different" target="_blank">313,848 posts remain vacant under different ministries</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:55</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2020-01-15">
+<div class="date-header">📅 2020-01-15</div>
+
+                <div class="event" data-text="bylc awards winners of youth entrepreneurship challenge business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/BYLC-awards-winners-of-Youth-Entrepreneurship" target="_blank">BYLC awards winners of Youth Entrepreneurship Challenge</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:58</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2020-01-04">
+<div class="date-header">📅 2020-01-04</div>
+
+                <div class="event" data-text="41st bcs applications break previous records business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/41st-BCS-applications-break-record-previous" target="_blank">41st BCS applications break previous records</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 21:02</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-12-10">
+<div class="date-header">📅 2019-12-10</div>
+
+                <div class="event" data-text="40th bcs written exams begin 4 jan business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/40th-BCS-written-exams-begin-4-Jan" target="_blank">40th BCS written exams begin 4 Jan</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:19</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-11-27">
+<div class="date-header">📅 2019-11-27</div>
+
+                <div class="event" data-text="41th bcs: circular to recruit 2,166 published business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/41th-BCS-Circular-to-recruit-2-166-published" target="_blank">41th BCS: Circular to recruit 2,166 published</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:03</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-11-17">
+<div class="date-header">📅 2019-11-17</div>
+
+                <div class="event" data-text="resistance anthem rocks iraq business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Resistance-anthem-rocks-Iraq" target="_blank">Resistance anthem rocks Iraq</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:23</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-11-02">
+<div class="date-header">📅 2019-11-02</div>
+
+                <div class="event" data-text="selim al deen utsab begins at shilpakala academy business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Selim-Al-Deen-Utsab-‘19-begins-at-Shilpakala" target="_blank">Selim Al Deen Utsab begins at Shilpakala Academy</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:54</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-10-28">
+<div class="date-header">📅 2019-10-28</div>
+
+                <div class="event" data-text="41st bcs circular soon business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Circular-for-41st-BCS-soon" target="_blank">41st BCS circular soon</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 15:40</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-10-20">
+<div class="date-header">📅 2019-10-20</div>
+
+                <div class="event" data-text="10-day ‘bangla natya utsab’ begins monday business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/10-day-‘Bangla-Natya-Utsab’-begins-Monday" target="_blank">10-day ‘Bangla Natya Utsab’ begins Monday</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 11:59</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-09-02">
+<div class="date-header">📅 2019-09-02</div>
+
+                <div class="event" data-text="dutch-bangla bank to recruit probationary officers business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Dutch-Bangla-Bank-to-recruit-probationary-officers" target="_blank">Dutch-Bangla Bank to recruit probationary officers</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:02</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-08-28">
+<div class="date-header">📅 2019-08-28</div>
+
+                <div class="event" data-text="agricultural extension department to recruit 1357 business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Agricultural-extension-department-to-recruit-1357" target="_blank">Agricultural extension department to recruit 1357</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:07</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-08-09">
+<div class="date-header">📅 2019-08-09</div>
+
+                <div class="event" data-text="bpsc to recruit 76 officials business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/BPSC-to-recruit-76-officials" target="_blank">BPSC to recruit 76 officials</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 08:45</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-07-30">
+<div class="date-header">📅 2019-07-30</div>
+
+                <div class="event" data-text="bcs candidates increasing steadily business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/BCS-candidates-increasing-steadily" target="_blank">BCS candidates increasing steadily</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 18:15</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-07-26">
+<div class="date-header">📅 2019-07-26</div>
+
+                <div class="event" data-text="99pc educated youths seek govt jobs: survey business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/99pc-educated-youths-seek-govt-jobs-Survey" target="_blank">99pc educated youths seek govt jobs: Survey</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 00:21</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-07-16">
+<div class="date-header">📅 2019-07-16</div>
+
+                <div class="event" data-text="names of shilpakala padak-2018 recipients announced business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Names-of-Shilpakala-Padak-2018-recipients" target="_blank">Names of Shilpakala Padak-2018 recipients announced</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:26</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-07-14">
+<div class="date-header">📅 2019-07-14</div>
+
+                <div class="event" data-text="choir, broadway casts perform in the street during ny blackout business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/New-York-moments-choir-Broadway-casts-perform-in" target="_blank">Choir, Broadway casts perform in the street during NY blackout</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:39</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-06-29">
+<div class="date-header">📅 2019-06-29</div>
+
+                <div class="event" data-text="ju to host job fair sunday business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/JU-to-organise-job-fair-Sunday" target="_blank">JU to host job fair Sunday</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 21:40</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-06-27">
+<div class="date-header">📅 2019-06-27</div>
+
+                <div class="event" data-text="‘govt working to create 15m jobs in 5 years’ business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/‘Govt-working-to-create-15m-jobs-in-5-years’" target="_blank">‘Govt working to create 15m jobs in 5 years’</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 11:52</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-06-15">
+<div class="date-header">📅 2019-06-15</div>
+
+                <div class="event" data-text="deepa mehta finds reality cautionary, not scary business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Deepa-Mehta-finds-reality-cautionary-not-scary" target="_blank">Deepa Mehta finds reality cautionary, not scary</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 11:44</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-04-15">
+<div class="date-header">📅 2019-04-15</div>
+
+                <div class="event" data-text="breb to recruit 2000 line crews business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/BREB-to-recruit-2000-line-crews" target="_blank">BREB to recruit 2000 line crews</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:57</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-04-01">
+<div class="date-header">📅 2019-04-01</div>
+
+                <div class="event" data-text="youtube, farming, cleaning jobs abroad rise as alternatives business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/YouTube-farming-cleaning-jobs-abroad-rise-as" target="_blank">YouTube, farming, cleaning jobs abroad rise as alternatives</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:35</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2019-03-24">
+<div class="date-header">📅 2019-03-24</div>
+
+                <div class="event" data-text="singer shahnaz rahmatuallah dies business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Singer-Shahnaz-Rahmatuallah-dies" target="_blank">Singer Shahnaz Rahmatuallah dies</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 08:56</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-12-30">
+<div class="date-header">📅 2018-12-30</div>
+
+                <div class="event" data-text="mrinal sen no more business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Filmmaker-Mrinal-Sen-passes-away" target="_blank">Mrinal Sen no more</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 19:34</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-11-17">
+<div class="date-header">📅 2018-11-17</div>
+
+                <div class="event" data-text="curtain falls on dhaka international folk fest saturday business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Curtain-falls-on-Dhaka-International-Folk-Fest" target="_blank">Curtain falls on Dhaka International Folk Fest Saturday</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 11:12</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-11-10">
+<div class="date-header">📅 2018-11-10</div>
+
+                <div class="event" data-text="'good men do bad things': cheryl on #metoo business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Good-men-do-bad-things-Cheryl-on-MeToo" target="_blank">'Good men do bad things': Cheryl on #MeToo</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 15:28</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-11-04">
+<div class="date-header">📅 2018-11-04</div>
+
+                <div class="event" data-text="evaluation of any artwork is subjective: sujoy ghosh business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Evaluation-of-any-artwork-is-subjective-Sujoy" target="_blank">Evaluation of any artwork is subjective: Sujoy Ghosh</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 17:52</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-10-19">
+<div class="date-header">📅 2018-10-19</div>
+
+                <div class="event" data-text="rock inspiration for the young business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Rock-inspiration-for-the-young" target="_blank">Rock inspiration for the young</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 15:21</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-08-19">
+<div class="date-header">📅 2018-08-19</div>
+
+                <div class="event" data-text="portal to provide job services to unemployed youths business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Portal-to-provide-job-services-to-unemployed" target="_blank">Portal to provide job services to unemployed youths</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 12:20</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-08-18">
+<div class="date-header">📅 2018-08-18</div>
+
+                <div class="event" data-text="selim al deen festivals begin at shilpakala academy business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Selim-Al-Deen-festivals-begin-at-Shilpakala" target="_blank">Selim Al Deen festivals begin at Shilpakala Academy</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 10:18</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-07-20">
+<div class="date-header">📅 2018-07-20</div>
+
+                <div class="event" data-text="library goers increase but not book lovers business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Library-goers-increase-but-not-book-lovers" target="_blank">Library goers increase but not book lovers</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 12:27</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-07-19">
+<div class="date-header">📅 2018-07-19</div>
+
+                <div class="event" data-text="overseas jobs panacea for youth unemployment? business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Overseas-jobs-panacea-for-youth-unemployment" target="_blank">Overseas jobs panacea for youth unemployment?</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 12:14</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-06-10">
+<div class="date-header">📅 2018-06-10</div>
+
+                <div class="event" data-text="dance star akram khan returns with last solo show business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/entertainment/Dance-star-Akram-Khan-returns-with-last-solo-show" target="_blank">Dance star Akram Khan returns with last solo show</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 11:39</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-05-13">
+<div class="date-header">📅 2018-05-13</div>
+
+                <div class="event" data-text="quota protesters stage demo demanding gazette business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Quota-protesters-stage-demo-demanding-gazette" target="_blank">Quota protesters stage demo demanding gazette</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 13:43</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-05-11">
+<div class="date-header">📅 2018-05-11</div>
+
+                <div class="event" data-text="us univs seed start-ups business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/US-univs-seed-start-ups" target="_blank">US univs seed start-ups</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 09:49</span>
+                    </div>
+                </div>
+</div>
+<div class="date-group" data-date="2018-04-08">
+<div class="date-header">📅 2018-04-08</div>
+
+                <div class="event" data-text="physicians can apply for 39th special bcs test from 10 apr business prothom alo">
+                    <div class="event-title">
+                        <a href="https://en.prothomalo.com/youth/Physicians-can-apply-for-39th-special-BCS-test" target="_blank">Physicians can apply for 39th special BCS test from 10 Apr</a>
+                    </div>
+                    <div class="event-meta">
+                        <span class="category">Business</span>
+                        <span>📰 Prothom Alo</span>
+                        <span>⏰ 20:01</span>
+                    </div>
+                </div>
+</div>
+
+        </div>
+    </div>
+    
+    <script>
+        function filterEvents() {
+            const query = document.getElementById('search').value.toLowerCase();
+            const events = document.querySelectorAll('.event');
+            
+            events.forEach(event => {
+                const text = event.dataset.text;
+                event.style.display = text.includes(query) ? 'block' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

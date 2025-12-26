@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            width: 350px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #e2e8f0;
+            padding: 20px;
+        }
+        h1 { font-size: 18px; margin-bottom: 15px; text-align: center; }
+        .status {
+            padding: 12px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+        .status.success { background: rgba(72, 187, 120, 0.2); color: #48bb78; }
+        .status.error { background: rgba(245, 101, 101, 0.2); color: #f56565; }
+        .status.info { background: rgba(66, 153, 225, 0.2); color: #4299e1; }
+        .article-preview {
+            background: rgba(255,255,255,0.05);
+            border-radius: 8px;
+            padding: 12px;
+            margin-bottom: 15px;
+        }
+        .article-preview h3 { font-size: 14px; margin-bottom: 8px; }
+        .article-preview p { font-size: 12px; color: #a0aec0; }
+        .btn {
+            width: 100%;
+            padding: 12px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-bottom: 10px;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); opacity: 0.9; }
+        .btn-secondary { background: rgba(255,255,255,0.1); color: #e2e8f0; }
+        .settings {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+        .settings label { display: block; font-size: 12px; margin-bottom: 5px; }
+        .settings input {
+            width: 100%;
+            padding: 8px;
+            border-radius: 4px;
+            border: none;
+            background: rgba(255,255,255,0.1);
+            color: white;
+            margin-bottom: 10px;
+        }
+        .stats { display: flex; justify-content: space-around; margin-top: 15px; }
+        .stats .stat { text-align: center; }
+        .stats .stat-value { font-size: 20px; font-weight: bold; color: #4299e1; }
+        .stats .stat-label { font-size: 10px; color: #a0aec0; }
+    </style>
+</head>
+<body>
+    <h1>🗞️ BD News Clipper</h1>
+    
+    <div id="status" class="status info">Analyzing page...</div>
+    
+    <div id="article-preview" class="article-preview" style="display: none;">
+        <h3 id="preview-title">Article Title</h3>
+        <p id="preview-meta">Source • Category</p>
+    </div>
+    
+    <button id="clip-btn" class="btn btn-primary" disabled>
+        📎 Clip Article
+    </button>
+    
+    <button id="view-db" class="btn btn-secondary">
+        📊 View Dashboard
+    </button>
+    
+    <div class="settings">
+        <label>API Endpoint</label>
+        <input type="text" id="api-url" placeholder="http://localhost:8000">
+        <button id="save-settings" class="btn btn-secondary">Save Settings</button>
+    </div>
+    
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="clips-today">0</div>
+            <div class="stat-label">Today</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="clips-total">0</div>
+            <div class="stat-label">Total</div>
+        </div>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BD News Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { margin: 0; padding: 0; font-family: system-ui; }
+        #map { height: 100vh; width: 100%; }
+        .info {
+            position: absolute; top: 10px; right: 10px;
+            background: rgba(0,0,0,0.8); color: white;
+            padding: 15px; border-radius: 8px; z-index: 1000;
+        }
+        .legend { position: absolute; bottom: 30px; left: 10px; background: white; padding: 10px; border-radius: 8px; z-index: 1000; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    <div class="info">
+        <h3>🗺️ BD News Map</h3>
+        <p>46 articles</p>
+        <p>15 locations</p>
+    </div>
+    
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map').setView([23.8, 90.4], 7);
+        
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+            attribution: '&copy; <a href="https://carto.com/">CARTO</a>'
+        }).addTo(map);
+        
+        
+                    L.circleMarker([23.685, 90.3563], {
+                        radius: 30,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Bangladesh</b><br>20 articles<br><br><a href='https://en.bd-pratidin.com/sports/2025/12/19/53115' target='_blank'>Pakistan end Bangladesh’s dream with dominant eigh...</a><br><a href='https://www.bssnews.net/news/344959' target='_blank'>People's life, culture key to China-Bangladesh med...</a><br><a href='https://www.newagebd.net/post/foreign-affairs/286240/peoples-life-culture-key-to-china-bangladesh-media-exchange-chinese-envoy' target='_blank'>People’s life, culture key to China-Bangladesh med...</a><br><a href='https://www.newagebd.net/post/politics/286141/nation-ready-to-welcome-tarique-rahman-in-fascist-free-bangladesh-salahuddin' target='_blank'>Nation ready to welcome Tarique Rahman in fascist ...</a><br><a href='https://www.dhakatribune.com/bangladesh/politics/399563/%E2%80%98dear-bangladesh%E2%80%99-tarique-rahman-returns-home' target='_blank'>‘Dear Bangladesh’: Tarique Rahman returns home aft...</a><br>`);
+                
+
+                    L.circleMarker([23.8103, 90.4125], {
+                        radius: 19,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Dhaka</b><br>7 articles<br><br><a href='https://www.newagebd.net/post/Politics/286145/flight-carrying-tarique-rahman-lands-at-dhaka-airport' target='_blank'>Flight carrying Tarique Rahman lands at Dhaka airp...</a><br><a href='https://www.dhakatribune.com/bangladesh/399560/dhaka-shivers-as-season%E2%80%99s-lowest-temperature' target='_blank'>Dhaka shivers at season’s lowest temperature...</a><br><a href='https://en.prothomalo.com/entertainment/Curtain-falls-on-Dhaka-International-Folk-Fest' target='_blank'>Curtain falls on Dhaka International Folk Fest Sat...</a><br><a href='https://en.prothomalo.com/bangladesh/ki393fxiu2' target='_blank'>Tarique Rahman speaks with chief adviser Yunus aft...</a><br><a href='https://en.prothomalo.com/bangladesh/2raiz0pcnj' target='_blank'>Tarique Rahman arrives in Dhaka...</a><br>`);
+                
+
+                    L.circleMarker([24.3745, 88.6042], {
+                        radius: 17,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Rajshahi</b><br>6 articles<br><br><a href='https://en.bd-pratidin.com/sports/2025/12/22/53270' target='_blank'>Rajshahi hand captaincy to Shanto ahead of BPL...</a><br><a href='https://en.bd-pratidin.com/sports/2025/12/20/53142' target='_blank'>Rajshahi first to begin BPL preparations, but in n...</a><br><a href='https://en.bd-pratidin.com/sports/2025/12/25/53475' target='_blank'>Shanto prioritises Rajshahi impact with T20 World ...</a><br><a href='https://www.dhakatribune.com/bangladesh/nation/399559/new-books-for-primary-students-arrive-in-rajshahi' target='_blank'>New books for primary students arrive in Rajshahi...</a><br><a href='https://www.dhakatribune.com/bangladesh/nation/399570/christmas-day-celebrated-in-rajshahi' target='_blank'>Christmas Day celebrated in Rajshahi...</a><br>`);
+                
+
+                    L.circleMarker([22.8456, 89.5403], {
+                        radius: 9,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Khulna</b><br>2 articles<br><br><a href='https://www.dhakatribune.com/bangladesh/nation/399573/journalists-form-human-chain-in-khulna-protesting' target='_blank'>Journalists form human chain in Khulna protesting ...</a><br><a href='https://www.dhakatribune.com/bangladesh/nation/399564/33-candidates-collect-nomination-papers-in-khulna' target='_blank'>33 candidates collect nomination papers in Khulna...</a><br>`);
+                
+
+                    L.circleMarker([24.8949, 91.8687], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Sylhet</b><br>1 articles<br><br><a href='https://en.bd-pratidin.com/sports/2025/12/20/53173' target='_blank'>BPL tickets for Sylhet phase on sale from Sunday, ...</a><br>`);
+                
+
+                    L.circleMarker([22.3569, 91.7832], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Chattogram</b><br>1 articles<br><br><a href='https://en.bd-pratidin.com/sports/2025/12/25/53444' target='_blank'>Chattogram Royals owner asks BCB to take over fran...</a><br>`);
+                
+
+                    L.circleMarker([24.6, 88.2667], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Chapainawabganj</b><br>1 articles<br><br><a href='https://www.newagebd.net/post/country/286241/youth-beaten-after-being-tied-to-electric-pole-in-chapainawabganj' target='_blank'>Youth beaten after being tied to electric pole in ...</a><br>`);
+                
+
+                    L.circleMarker([24.4833, 91.7667], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Moulvibazar</b><br>1 articles<br><br><a href='https://www.dhakatribune.com/bangladesh/nation/399574/five-al-men-held-in-moulvibazar' target='_blank'>Five AL men held in Moulvibazar...</a><br>`);
+                
+
+                    L.circleMarker([24.8, 88.95], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Naogaon</b><br>1 articles<br><br><a href='https://www.dhakatribune.com/bangladesh/nation/399569/3-day-art-camp-launched-in-naogaon' target='_blank'>3-day art camp launched in Naogaon...</a><br>`);
+                
+
+                    L.circleMarker([24.7471, 90.4203], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Mymensingh</b><br>1 articles<br><br><a href='https://www.dhakatribune.com/bangladesh/nation/399565/six-more-held-over-lynching-of-hindu-youth-in' target='_blank'>Six more held over lynching of Hindu youth in Myme...</a><br>`);
+                
+
+                    L.circleMarker([22.15, 90.1167], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Barguna</b><br>1 articles<br><br><a href='https://www.dhakatribune.com/bangladesh/nation/399566/youth-found-dead-in-barguna' target='_blank'>Youth found dead in Barguna...</a><br>`);
+                
+
+                    L.circleMarker([23.9608, 91.1115], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Brahmanbaria</b><br>1 articles<br><br><a href='https://en.prothomalo.com/bangladesh/politics/7b38q2bbp0' target='_blank'>BNP leaves Brahmanbaria-2 to Jamiat; Rumeen, two o...</a><br>`);
+                
+
+                    L.circleMarker([24.851, 89.3697], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Bogura</b><br>1 articles<br><br><a href='https://en.prothomalo.com/bangladesh/politics/ldz0wa7lpx' target='_blank'>Nomination papers collected on behalf of Khaleda Z...</a><br>`);
+                
+
+                    L.circleMarker([25.9167, 89.4333], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Lalmonirhat</b><br>1 articles<br><br><a href='https://en.prothomalo.com/bangladesh/politics/x0qhvwd4e8' target='_blank'>Jatiya Party attempts a comeback in Lalmonirhat...</a><br>`);
+                
+
+                    L.circleMarker([22.8333, 91.1], {
+                        radius: 7,
+                        fillColor: '#667eea',
+                        color: '#fff',
+                        weight: 2,
+                        opacity: 1,
+                        fillOpacity: 0.7
+                    }).addTo(map).bindPopup(`<b>Noakhali</b><br>1 articles<br><br><a href='https://en.prothomalo.com/bangladesh/local-news/q1wjzoimjx' target='_blank'>Five killed in clash, gunfight in Noakhali...</a><br>`);
+                
+    </script>
+</body>
+</html>

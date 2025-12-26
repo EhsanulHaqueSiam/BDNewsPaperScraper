@@ -1,0 +1,302 @@
+name: Daily News Scraper
+
+# GitHub Free Tier Limits:
+# - Public repos: UNLIMITED minutes
+# - Private repos: 2,000 minutes/month
+# - Max job time: 6 hours
+# - Storage: 500MB artifacts (90 days retention)
+
+on:
+  schedule:
+    # Run daily at 6 AM UTC (12 PM Bangladesh Time)
+    - cron: '0 6 * * *'
+  workflow_dispatch:
+    inputs:
+      spiders:
+        description: 'Comma-separated spiders (empty = top 20 reliable)'
+        required: false
+        default: ''
+      max_pages:
+        description: 'Max pages per spider'
+        required: false
+        default: '5'
+      run_all:
+        description: 'Run ALL 71 spiders (takes longer)'
+        type: boolean
+        default: false
+
+env:
+  PYTHON_VERSION: '3.11'
+  TZ: 'Asia/Dhaka'
+
+jobs:
+  scrape:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120  # 2 hour max to stay within free tier
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 1
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: 'pip'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e . --quiet
+      
+      - name: Get today's date
+        id: date
+        run: echo "today=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
+      
+      - name: Create directories
+        run: |
+          mkdir -p data/daily/${{ steps.date.outputs.today }}
+          mkdir -p data/database
+      
+      - name: Load existing database
+        continue-on-error: true
+        run: |
+          if [ -f data/database/news_articles.db ]; then
+            cp data/database/news_articles.db news_articles.db
+            echo "✅ Loaded existing database"
+          fi
+      
+      # Default: Run top 20 most reliable spiders (scheduled or manual without run_all)
+      - name: Run top spiders (default)
+        if: (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'true' && github.event.inputs.spiders == '')
+        run: |
+          # Top 20 most reliable spiders (API-based + stable HTML)
+          SPIDERS=(
+            "prothomalo"
+            "thedailystar"
+            "dailysun"
+            "jugantor"
+            "tbsnews"
+            "ittefaq"
+            "unb"
+            "bdnews24"
+            "dhakatribune"
+            "banglatribune"
+            "samakal"
+            "jagonews24"
+            "risingbd"
+            "nayadiganta"
+            "bdpratidin"
+            "manabzamin"
+            "dhakapost"
+            "barta24"
+            "bbcbangla"
+            "dwbangla"
+          )
+          
+          TOTAL=${#SPIDERS[@]}
+          SUCCESS=0
+          FAILED=0
+          
+          for i in "${!SPIDERS[@]}"; do
+            spider="${SPIDERS[$i]}"
+            echo ""
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            echo "🕷️ [$((i+1))/$TOTAL] $spider"
+            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+            
+            if timeout 180 scrapy crawl "$spider" \
+              -a start_date=${{ steps.date.outputs.today }} \
+              -a end_date=${{ steps.date.outputs.today }} \
+              -a max_pages=5 \
+              -s LOG_LEVEL=WARNING \
+              2>&1 | tail -5; then
+              SUCCESS=$((SUCCESS+1))
+              echo "✅ $spider completed"
+            else
+              FAILED=$((FAILED+1))
+              echo "⚠️ $spider failed/timeout"
+            fi
+          done
+          
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📊 Results: $SUCCESS success, $FAILED failed"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+      
+      # Manual: Run ALL spiders (only if explicitly requested)
+      - name: Run ALL spiders (manual only)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_all == 'true'
+        run: |
+          SPIDERS=$(scrapy list)
+          TOTAL=$(echo "$SPIDERS" | wc -l)
+          COUNT=0
+          SUCCESS=0
+          
+          for spider in $SPIDERS; do
+            COUNT=$((COUNT+1))
+            echo "🕷️ [$COUNT/$TOTAL] $spider"
+            
+            if timeout 120 scrapy crawl "$spider" \
+              -a start_date=${{ steps.date.outputs.today }} \
+              -a end_date=${{ steps.date.outputs.today }} \
+              -a max_pages=${{ github.event.inputs.max_pages }} \
+              -s LOG_LEVEL=ERROR \
+              2>&1 | tail -3; then
+              SUCCESS=$((SUCCESS+1))
+            fi
+          done
+          
+          echo "📊 Completed: $SUCCESS/$TOTAL spiders"
+      
+      # Manual: Run specific spiders
+      - name: Run selected spiders
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.spiders != ''
+        run: |
+          IFS=',' read -ra SPIDERS <<< "${{ github.event.inputs.spiders }}"
+          
+          for spider in "${SPIDERS[@]}"; do
+            spider=$(echo $spider | xargs)
+            echo "🕷️ Running: $spider"
+            
+            timeout 180 scrapy crawl "$spider" \
+              -a start_date=${{ steps.date.outputs.today }} \
+              -a end_date=${{ steps.date.outputs.today }} \
+              -a max_pages=${{ github.event.inputs.max_pages }} \
+              -s LOG_LEVEL=WARNING \
+              2>&1 | tail -10 || echo "⚠️ Failed: $spider"
+          done
+      
+      - name: Export data
+        run: |
+          python << 'EOF'
+          import sqlite3
+          import json
+          import os
+          from datetime import datetime
+          
+          today = "${{ steps.date.outputs.today }}"
+          db_path = "news_articles.db"
+          
+          if not os.path.exists(db_path):
+              print("❌ No database found")
+              exit(0)
+          
+          conn = sqlite3.connect(db_path)
+          conn.row_factory = sqlite3.Row
+          
+          # Get today's articles
+          cursor = conn.execute('''
+              SELECT * FROM articles 
+              WHERE date(publication_date) = ? OR date(scraped_at) = ?
+              ORDER BY paper_name
+          ''', (today, today))
+          
+          articles = [dict(row) for row in cursor.fetchall()]
+          
+          if not articles:
+              print("📭 No articles found for today")
+              conn.close()
+              exit(0)
+          
+          # Export JSON
+          json_path = f"data/daily/{today}/articles.json"
+          with open(json_path, 'w', encoding='utf-8') as f:
+              json.dump(articles, f, ensure_ascii=False, indent=2, default=str)
+          print(f"📄 JSON: {len(articles)} articles")
+          
+          # Export PostgreSQL SQL
+          sql_path = f"data/daily/{today}/articles.sql"
+          with open(sql_path, 'w', encoding='utf-8') as f:
+              f.write(f"""-- PostgreSQL import for {today}
+          -- Generated: {datetime.now().isoformat()}
+          
+          CREATE TABLE IF NOT EXISTS articles (
+              id SERIAL PRIMARY KEY,
+              headline TEXT NOT NULL,
+              sub_title TEXT,
+              article_body TEXT,
+              url TEXT UNIQUE NOT NULL,
+              publication_date TIMESTAMP,
+              category TEXT,
+              paper_name TEXT,
+              scraped_at TIMESTAMP DEFAULT NOW()
+          );
+          
+          """)
+              for a in articles:
+                  h = (a.get('headline') or '').replace("'", "''")
+                  s = (a.get('sub_title') or '').replace("'", "''")
+                  b = (a.get('article_body') or '').replace("'", "''")
+                  u = (a.get('url') or '').replace("'", "''")
+                  p = a.get('publication_date') or None
+                  c = (a.get('category') or '').replace("'", "''")
+                  n = (a.get('paper_name') or '').replace("'", "''")
+                  
+                  p_val = f"'{p}'" if p else "NULL"
+                  
+                  f.write(f"INSERT INTO articles (headline,sub_title,article_body,url,publication_date,category,paper_name) VALUES ('{h}','{s}','{b}','{u}',{p_val},'{c}','{n}') ON CONFLICT (url) DO NOTHING;\n")
+          
+          print(f"🐘 SQL: {len(articles)} inserts")
+          
+          # Generate summary
+          by_paper = {}
+          for a in articles:
+              paper = a.get('paper_name', 'Unknown')
+              by_paper[paper] = by_paper.get(paper, 0) + 1
+          
+          total_db = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
+          
+          readme_path = f"data/daily/{today}/README.md"
+          with open(readme_path, 'w') as f:
+              f.write(f"# 📰 News - {today}\n\n")
+              f.write(f"| Metric | Count |\n|--------|-------|\n")
+              f.write(f"| Today | **{len(articles)}** |\n")
+              f.write(f"| Total DB | {total_db} |\n\n")
+              f.write(f"## By Newspaper\n| Paper | Count |\n|-------|-------|\n")
+              for p, c in sorted(by_paper.items(), key=lambda x: -x[1]):
+                  f.write(f"| {p} | {c} |\n")
+          
+          print(f"📊 Summary generated")
+          conn.close()
+          EOF
+      
+      - name: Save database
+        run: |
+          if [ -f news_articles.db ]; then
+            cp news_articles.db data/database/news_articles.db
+            echo "💾 Database saved"
+          fi
+      
+      - name: Commit changes
+        run: |
+          git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          
+          git add data/
+          
+          if git diff --staged --quiet; then
+            echo "No changes"
+          else
+            git commit -m "📰 ${{ steps.date.outputs.today }}: News update"
+            git push
+          fi
+      
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: news-${{ steps.date.outputs.today }}
+          path: data/daily/${{ steps.date.outputs.today }}
+          retention-days: 30  # Reduced to save storage
+          compression-level: 9
+      
+      - name: Summary
+        if: always()
+        run: |
+          echo "## 📰 Scraping Complete" >> $GITHUB_STEP_SUMMARY
+          if [ -f data/daily/${{ steps.date.outputs.today }}/README.md ]; then
+            cat data/daily/${{ steps.date.outputs.today }}/README.md >> $GITHUB_STEP_SUMMARY
+          fi
