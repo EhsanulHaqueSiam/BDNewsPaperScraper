@@ -79,11 +79,17 @@
   - `AIRepairPipeline` for failed extractions
   - Ollama (local LLM) and OpenAI support
 
-#### 4. Anti-Bot Evasion "Arms Race"
-- **Implementation:**
-  - **TLS Fingerprinting:** Use `curl_cffi` or `tls-client` to mimic real Chrome TLS handshakes (defeats Cloudflare).
-  - **Residential Proxies:** Rotate IPs per request for strict sites.
-  - **Browser Fingerprints:** Randomize Canvas/WebGL fingerprints in Playwright.
+#### 4. Anti-Bot Evasion "Arms Race" ✅ FULLY IMPLEMENTED
+- **Status:** Complete - `antibot.py` (350+ lines)
+- **Features:**
+  - Canvas fingerprint noise injection
+  - WebGL vendor/renderer randomization
+  - Audio context fingerprint protection
+  - Screen/resolution randomization  
+  - Timezone/language consistency (Asia/Dhaka)
+  - Hardware concurrency randomization
+  - Plugin/MIME type simulation
+  - WebRTC leak prevention
 
 #### 5. Dynamic Configuration ✅ IMPLEMENTED
 - **Status:** Complete - `dynamic_config.py` created
@@ -96,11 +102,14 @@
 - **Status:** Complete - `ArchiveFallbackMiddleware` in middlewares.py
 - **Checks Wayback Machine API on 404/403/410**
 
-#### 7. Geographic Mimicry
-- **Concept:** Be where the user is.
-- **Implementation:**
-  - Many Bangladeshi news sites block foreign IPs or serve limited "International Editions".
-  - **Strategy:** Use dedicated **Bangladesh Proxy/VPN nodes** for local-only content.
+#### 7. Geographic Mimicry ✅ FULLY IMPLEMENTED
+- **Status:** Complete - `geo_mimicry.py` (350+ lines)
+- **Features:**
+  - Bangladesh proxy provider integration (BrightData, Oxylabs, SmartProxy)
+  - BD-specific headers (Accept-Language, ISP headers)
+  - Geo-block detection and retry
+  - `BangladeshProxyMiddleware` for settings.py
+  - 5 BD cities for geo context
 
 #### 8. Synthetic Health Checks (Canary Scrapes) ✅ IMPLEMENTED
 - **Status:** Complete - Pre-flight canary added to `daily-scrape.yml`

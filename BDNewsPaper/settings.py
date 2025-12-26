@@ -326,3 +326,41 @@ HONEYPOT_MAX_LINKS_PER_PAGE = 500  # Pages with more links = trap
 # -----------------------------------------------------------------------------
 # Set to False for debugging (logs warnings instead of dropping items)
 VALIDATION_STRICT_MODE = True
+
+# -----------------------------------------------------------------------------
+# 4. ANTI-BOT EVASION (antibot.py)
+# -----------------------------------------------------------------------------
+# Advanced browser fingerprint randomization.
+ANTIBOT_ENABLED = True
+ANTIBOT_CANVAS_NOISE = True      # Randomize canvas fingerprint
+ANTIBOT_WEBGL_NOISE = True       # Randomize WebGL vendor/renderer
+ANTIBOT_AUDIO_NOISE = True       # Audio context fingerprint protection
+ANTIBOT_SCREEN_RANDOM = True     # Screen resolution randomization
+ANTIBOT_LOCALE_CONSISTENCY = True  # Timezone/language consistency
+ANTIBOT_HARDWARE_RANDOM = True   # CPU cores, RAM randomization
+ANTIBOT_PLUGIN_SIMULATION = True # Plugin/MIME type simulation
+ANTIBOT_WEBRTC_PROTECTION = True # WebRTC leak prevention
+
+# -----------------------------------------------------------------------------
+# 7. GEOGRAPHIC MIMICRY (geo_mimicry.py)
+# -----------------------------------------------------------------------------
+# Bangladesh-specific proxy and geo-location features.
+GEO_MIMICRY_ENABLED = False  # Enable when you have proxy credentials
+
+# Proxy provider: 'brightdata', 'oxylabs', 'smartproxy', or 'custom'
+GEO_PROXY_PROVIDER = 'brightdata'
+
+# Provider credentials (set via environment variables for security)
+# GEO_PROXY_USER = ''
+# GEO_PROXY_PASS = ''
+
+# Custom proxy URL (if using 'custom' provider)
+# GEO_PROXY_URL = 'http://user:pass@proxy.example.com:port'
+
+# Domains that need Bangladesh IP
+GEO_DOMAINS = [
+    # Add domains that serve different content for BD IPs
+]
+
+# Retry with new IP on geo-block detection
+GEO_RETRY_ON_BLOCK = True
