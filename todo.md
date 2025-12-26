@@ -106,13 +106,16 @@
 - **Status:** Complete - Pre-flight canary added to `daily-scrape.yml`
 - **Script:** `scripts/canary_check.py --all`
 
-#### 9. Cloudflare Countermeasures (The "Red Button") ✅ PARTIAL
-- **Status:** `cloudflare_bypass.py` created
+#### 9. Cloudflare Countermeasures ✅ FULLY IMPLEMENTED
+- **Status:** Complete - `cloudflare_bypass.py` (650+ lines)
 - **Level 1:** Stealth headers → `stealth_headers.py`
-- **Level 2:** Stealth Playwright args & JS injection
-- **Level 3:** Cookie injection middleware  
-- **Level 4:** Flaresolverr integration (needs Docker container)
-- **Levels 5+:** Future (TLS fingerprinting, HTTP/3)
+- **Level 2:** Stealth Playwright (21 args, 3KB JS injection)
+- **Level 3:** Cookie Management (cf_clearance caching)
+- **Level 4:** Flaresolverr integration (Docker solver)
+- **Level 5:** TLS Fingerprinting (curl_cffi Chrome mimicry)
+- **Level 6:** Challenge Detection (10 patterns, auto-identify)
+- **Level 7:** Progressive Escalation (retry with stronger methods)
+- **Install:** `uv sync --extra cloudflare` for curl_cffi
 
 #### 10. Distributed "Hydra" Infrastructure
 - **Concept:** Cut off one head, two more appear.

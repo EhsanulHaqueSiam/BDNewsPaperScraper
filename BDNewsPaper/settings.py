@@ -60,7 +60,7 @@ DOWNLOADER_MIDDLEWARES = {
     "BDNewsPaper.stealth_headers.StealthHeadersMiddleware": 350,       # Anti-bot headers
     "BDNewsPaper.middlewares.UserAgentMiddleware": 400,                # UA rotation backup
     "BDNewsPaper.proxy.ProxyMiddleware": 410,                          # Proxy rotation
-    "BDNewsPaper.cloudflare_bypass.CloudflareCookieMiddleware": 430,   # CF cookie injection
+    "BDNewsPaper.cloudflare_bypass.CloudflareBypassMiddleware": 430,   # CF bypass (all levels)
     
     # === ROBUSTNESS LAYER 2: Traffic Control (450-550) ===
     "BDNewsPaper.middlewares.CircuitBreakerMiddleware": 451,           # Circuit breaker
@@ -263,17 +263,36 @@ STEALTH_BROWSER_TYPE = 'chrome'  # chrome, firefox, safari
 STEALTH_ROTATE_UA = True  # Rotate User-Agent per request
 
 # -----------------------------------------------------------------------------
-# 9. CLOUDFLARE BYPASS (cloudflare_bypass.py)
+# 9. CLOUDFLARE BYPASS - FULL IMPLEMENTATION (cloudflare_bypass.py)
 # -----------------------------------------------------------------------------
-# Multi-level Cloudflare protection bypass.
+# 7-Level Cloudflare countermeasures system.
+# 
+# LEVELS:
+#   1. Stealth Headers (stealth_headers.py)
+#   2. Stealth Playwright (comprehensive JS injection)
+#   3. Cookie Management (cf_clearance caching)
+#   4. Flaresolverr Integration (Docker solver)
+#   5. TLS Fingerprinting (curl_cffi Chrome mimicry)
+#   6. Challenge Detection (automatic identification)
+#   7. Progressive Escalation (retry with stronger methods)
+
 CF_BYPASS_ENABLED = True
+CF_MAX_RETRIES = 3  # Max escalation attempts per URL
+
 CF_PROTECTED_DOMAINS = [
     'daily-sun.com',
     # Add more CF-protected domains as discovered
 ]
-# Flaresolverr Docker endpoint (if running)
+
+# Cookie cache file for persistence across runs
+CF_COOKIES_FILE = 'config/cf_cookies.json'
+
+# Flaresolverr Docker endpoint (install: docker run -d -p 8191:8191 ghcr.io/flaresolverr/flaresolverr)
+# Uncomment when Flaresolverr is running:
 # FLARESOLVERR_URL = 'http://localhost:8191/v1'
-# CF_COOKIES_FILE = 'config/cf_cookies.json'  # Manual cookie export
+
+# TLS fingerprinting with curl_cffi (install: pip install curl_cffi)
+CF_TLS_CLIENT_ENABLED = True  # Uses curl_cffi if available
 
 # -----------------------------------------------------------------------------
 # 13. ADAPTIVE THROTTLING (middlewares.py)

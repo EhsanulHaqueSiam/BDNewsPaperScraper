@@ -76,6 +76,10 @@ monitoring = [
     "memory-profiler>=0.61.0",
     "py-spy>=0.3.14",
 ]
+cloudflare = [
+    "curl_cffi>=0.6.0",  # TLS fingerprinting for Cloudflare bypass
+    "prometheus-client>=0.19.0",  # Metrics for monitoring
+]
 gui = [
     "streamlit>=1.29.0",
     "pandas>=2.0.0",
