@@ -562,11 +562,12 @@ class CloudflareDetector:
         if response.status == 503:
             return 'challenge'
         
-        # Check content
-        if not hasattr(response, 'text'):
+        # Check content - safely access response.text
+        try:
+            text = response.text[:5000]  # Only check first 5KB
+        except Exception:
+            # Response is not text (e.g., binary, or encoding issue)
             return 'none'
-        
-        text = response.text[:5000]  # Only check first 5KB
         
         for pattern in self.challenge_re:
             if pattern.search(text):

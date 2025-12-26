@@ -101,19 +101,20 @@ class HybridRequestMiddleware:
     
     def _detect_challenge(self, response: Response) -> bool:
         """Detect JavaScript challenge in response."""
-        if not hasattr(response, 'text'):
-            return False
-        
         # Check status codes
         if response.status in [403, 429, 503]:
             return True
         
         # Check content length (challenge pages are usually small)
         if len(response.body) < 5000:
-            text = response.text
-            for pattern in self.challenge_patterns:
-                if pattern.search(text):
-                    return True
+            try:
+                text = response.text
+                for pattern in self.challenge_patterns:
+                    if pattern.search(text):
+                        return True
+            except Exception:
+                # Response is not text (e.g., binary response)
+                pass
         
         return False
     

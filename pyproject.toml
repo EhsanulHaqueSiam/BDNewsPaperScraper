@@ -53,6 +53,7 @@ dependencies = [
     "python-dotenv>=1.0.1",
     "httpx>=0.28.1",  # Modern async HTTP client
     "trafilatura>=1.6.0",  # Article extraction fallback
+    "brotli>=1.1.0",
 ]
 
 [project.optional-dependencies]

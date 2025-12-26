@@ -178,6 +178,7 @@ version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "attrs" },
+    { name = "brotli" },
     { name = "cryptography" },
     { name = "cssselect" },
     { name = "defusedxml" },
@@ -295,6 +296,7 @@ requires-dist = [
     { name = "alembic", marker = "extra == 'postgres'", specifier = ">=1.13.0" },
     { name = "attrs", specifier = ">=24.3.0" },
     { name = "black", marker = "extra == 'dev'", specifier = ">=23.0.0" },
+    { name = "brotli", specifier = ">=1.1.0" },
     { name = "brotli", marker = "extra == 'performance'", specifier = ">=1.1.0" },
     { name = "cchardet", marker = "extra == 'performance'", specifier = ">=2.1.7" },
     { name = "celery", extras = ["redis"], marker = "extra == 'distributed'", specifier = ">=5.3.0" },

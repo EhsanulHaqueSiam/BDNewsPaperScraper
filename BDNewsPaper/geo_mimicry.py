@@ -148,12 +148,15 @@ def is_geo_blocked(response: Response) -> bool:
     if response.status in [403, 451]:  # 451 = Unavailable For Legal Reasons
         return True
     
-    # Check content
-    if hasattr(response, 'text'):
+    # Check content - safely access response.text
+    try:
         text = response.text[:5000].lower()
         for pattern in GEO_BLOCK_PATTERNS:
             if re.search(pattern, text, re.I):
                 return True
+    except Exception:
+        # Response is not text (e.g., binary response)
+        pass
     
     return False
 
