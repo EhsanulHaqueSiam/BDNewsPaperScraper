@@ -329,6 +329,187 @@ class CircuitBreakerMiddleware:
                 spider.logger.info(f"Circuit for {domain} CLOSED after successful recovery")
 
 
+# ============================================================================
+# Adaptive Throttling Middleware
+# ============================================================================
+
+class AdaptiveThrottlingMiddleware:
+    """
+    Dynamic throttling based on server response times.
+    
+    Features:
+        - Tracks response times per domain
+        - Auto-increases delay when responses are slow (> threshold)
+        - Auto-decreases delay when responses normalize
+        - Provides per-domain delay adjustments
+    
+    Settings:
+        - ADAPTIVE_THROTTLE_ENABLED: Enable/disable (default: True)
+        - ADAPTIVE_THROTTLE_THRESHOLD_MS: Slow response threshold (default: 500)
+        - ADAPTIVE_THROTTLE_INCREASE_FACTOR: Delay increase multiplier (default: 1.5)
+        - ADAPTIVE_THROTTLE_DECREASE_FACTOR: Delay decrease multiplier (default: 0.9)
+        - ADAPTIVE_THROTTLE_MIN_DELAY: Minimum delay in seconds (default: 0.5)
+        - ADAPTIVE_THROTTLE_MAX_DELAY: Maximum delay in seconds (default: 30.0)
+        - ADAPTIVE_THROTTLE_WINDOW_SIZE: Rolling window for avg calculation (default: 10)
+    """
+    
+    def __init__(
+        self,
+        enabled: bool = True,
+        threshold_ms: float = 500,
+        increase_factor: float = 1.5,
+        decrease_factor: float = 0.9,
+        min_delay: float = 0.5,
+        max_delay: float = 30.0,
+        window_size: int = 10,
+    ):
+        self.enabled = enabled
+        self.threshold_ms = threshold_ms
+        self.increase_factor = increase_factor
+        self.decrease_factor = decrease_factor
+        self.min_delay = min_delay
+        self.max_delay = max_delay
+        self.window_size = window_size
+        
+        # Per-domain tracking
+        self.domain_stats: Dict[str, Dict] = defaultdict(lambda: {
+            'response_times': [],  # Rolling window of response times
+            'current_delay': 1.0,  # Current delay for this domain
+            'adjustments': 0,      # Number of adjustments made
+            'last_avg_ms': 0,      # Last calculated average
+        })
+        
+        self.stats = {
+            'slow_responses': 0,
+            'delay_increases': 0,
+            'delay_decreases': 0,
+        }
+        
+        self.logger = logging.getLogger(__name__)
+    
+    @classmethod
+    def from_crawler(cls, crawler):
+        enabled = crawler.settings.getbool('ADAPTIVE_THROTTLE_ENABLED', True)
+        if not enabled:
+            raise NotConfigured("Adaptive throttling disabled")
+        
+        middleware = cls(
+            enabled=True,
+            threshold_ms=crawler.settings.getfloat('ADAPTIVE_THROTTLE_THRESHOLD_MS', 500),
+            increase_factor=crawler.settings.getfloat('ADAPTIVE_THROTTLE_INCREASE_FACTOR', 1.5),
+            decrease_factor=crawler.settings.getfloat('ADAPTIVE_THROTTLE_DECREASE_FACTOR', 0.9),
+            min_delay=crawler.settings.getfloat('ADAPTIVE_THROTTLE_MIN_DELAY', 0.5),
+            max_delay=crawler.settings.getfloat('ADAPTIVE_THROTTLE_MAX_DELAY', 30.0),
+            window_size=crawler.settings.getint('ADAPTIVE_THROTTLE_WINDOW_SIZE', 10),
+        )
+        
+        crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
+        return middleware
+    
+    def _get_domain(self, url: str) -> str:
+        """Extract domain from URL."""
+        from urllib.parse import urlparse
+        return urlparse(url).netloc
+    
+    def process_request(self, request, spider):
+        """Add timing metadata and apply domain-specific delay."""
+        if not self.enabled:
+            return None
+        
+        # Mark request start time
+        request.meta['_adaptive_throttle_start'] = time.time()
+        
+        # Apply domain-specific delay (handled by Scrapy's autothrottle or manually)
+        domain = self._get_domain(request.url)
+        stats = self.domain_stats[domain]
+        
+        if stats['current_delay'] > 1.0:
+            # Store recommended delay in meta for other middlewares
+            request.meta['download_delay'] = stats['current_delay']
+        
+        return None
+    
+    def process_response(self, request, response, spider):
+        """Track response time and adjust throttling."""
+        if not self.enabled:
+            return response
+        
+        start_time = request.meta.get('_adaptive_throttle_start')
+        if start_time is None:
+            return response
+        
+        # Calculate response time
+        response_time_ms = (time.time() - start_time) * 1000
+        domain = self._get_domain(request.url)
+        stats = self.domain_stats[domain]
+        
+        # Add to rolling window
+        stats['response_times'].append(response_time_ms)
+        if len(stats['response_times']) > self.window_size:
+            stats['response_times'].pop(0)
+        
+        # Calculate average
+        avg_ms = sum(stats['response_times']) / len(stats['response_times'])
+        stats['last_avg_ms'] = avg_ms
+        
+        # Adjust delay based on average response time
+        if avg_ms > self.threshold_ms:
+            self.stats['slow_responses'] += 1
+            
+            # Increase delay
+            new_delay = min(
+                stats['current_delay'] * self.increase_factor,
+                self.max_delay
+            )
+            
+            if new_delay > stats['current_delay']:
+                self.stats['delay_increases'] += 1
+                stats['adjustments'] += 1
+                spider.logger.info(
+                    f"Adaptive throttle: {domain} slow ({avg_ms:.0f}ms), "
+                    f"increasing delay {stats['current_delay']:.1f}s → {new_delay:.1f}s"
+                )
+                stats['current_delay'] = new_delay
+                
+        elif len(stats['response_times']) >= self.window_size:
+            # Only decrease if we have enough samples
+            if avg_ms < self.threshold_ms * 0.5:  # Well below threshold
+                new_delay = max(
+                    stats['current_delay'] * self.decrease_factor,
+                    self.min_delay
+                )
+                
+                if new_delay < stats['current_delay']:
+                    self.stats['delay_decreases'] += 1
+                    stats['adjustments'] += 1
+                    spider.logger.debug(
+                        f"Adaptive throttle: {domain} fast ({avg_ms:.0f}ms), "
+                        f"decreasing delay {stats['current_delay']:.1f}s → {new_delay:.1f}s"
+                    )
+                    stats['current_delay'] = new_delay
+        
+        return response
+    
+    def spider_closed(self, spider, reason):
+        """Log throttling statistics."""
+        if self.stats['delay_increases'] > 0 or self.stats['delay_decreases'] > 0:
+            spider.logger.info(
+                f"Adaptive Throttling Stats: "
+                f"SlowResponses={self.stats['slow_responses']}, "
+                f"DelayIncreases={self.stats['delay_increases']}, "
+                f"DelayDecreases={self.stats['delay_decreases']}"
+            )
+            
+            # Log per-domain summary
+            for domain, stats in self.domain_stats.items():
+                if stats['adjustments'] > 0:
+                    spider.logger.info(
+                        f"  {domain}: FinalDelay={stats['current_delay']:.1f}s, "
+                        f"AvgResponseTime={stats['last_avg_ms']:.0f}ms, "
+                        f"Adjustments={stats['adjustments']}"
+                    )
+
+
 class StatisticsMiddleware:
     def __init__(self):
         self.stats: Dict[str, Dict] = defaultdict(lambda: {
