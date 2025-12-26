@@ -66,12 +66,12 @@
   3. **Tertiary:** Generic CSS heuristics (`<article>`, `h1`, p-dense div)
   4. **Pipeline:** `FallbackExtractionPipeline` auto-rescues short content
 
-#### 2. Hybrid Request Engine
-- **Concept:** Balance speed (Requests) vs. Access (Browser).
-- **Implementation:**
-  - Start with `httpx/requests` (Speed).
-  - If 403/429/JS-Challenge detected -> **Auto-switch** to `Playwright` (Stealth).
-  - Use `scrapy-playwright` only for difficult sites/pages.
+#### 2. Hybrid Request Engine ✅ IMPLEMENTED
+- **Status:** Complete - `hybrid_request.py` created
+- **Features:**
+  - Auto-detects JS challenges/Cloudflare
+  - Switches to Playwright on detection
+  - Learns domains needing browser rendering
 
 #### 3. AI-Powered Repair
 - **Concept:** Use LLMs for "Last Mile" fixing.
@@ -143,12 +143,12 @@
   - Trap page detection (pages with >500 links)
   - `is_invisible_link()` helper function
 
-#### 12. Observability & Monitoring (Ops Layer)
-- **Concept:** Visual proof of health.
-- **Implementation:**
-  - **Prometheus Exporter:** Spider pushes metrics (items/min, errors/min) to Pushgateway.
-  - **Grafana Dashboard:** real-time view of all 79 spiders.
-  - **Dead Man's Switch:** If no successful scrape for 24h -> Critical Alert to Discord/Slack.
+#### 12. Observability & Monitoring (Ops Layer) ✅ IMPLEMENTED
+- **Status:** Complete - `prometheus_metrics.py` created
+- **Features:**
+  - Prometheus metrics endpoint (items, requests, errors, response times)
+  - Optional Pushgateway integration
+  - Per-spider and per-domain metrics
 
 #### 13. Adaptive Throttling (Compliance Engine) ✅ IMPLEMENTED
 - **Status:** Complete - `AdaptiveThrottlingMiddleware` created
