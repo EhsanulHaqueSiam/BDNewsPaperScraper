@@ -105,11 +105,9 @@
   - Many Bangladeshi news sites block foreign IPs or serve limited "International Editions".
   - **Strategy:** Use dedicated **Bangladesh Proxy/VPN nodes** for local-only content.
 
-#### 8. Synthetic Health Checks (Canary Scrapes)
-- **Concept:** Know it's broken before the main job.
-- **Implementation:**
-  - Run a lightweight "Canary" spider every hour on just the Homepage.
-  - If Canary fails (0 items or Layout shift detected) -> **Alert Admin** & **Pause Main Job**.
+#### 8. Synthetic Health Checks (Canary Scrapes) ✅ IMPLEMENTED
+- **Status:** Complete - Pre-flight canary added to `daily-scrape.yml`
+- **Script:** `scripts/canary_check.py --all`
 
 #### 9. Cloudflare Countermeasures (The "Red Button")
 - **Level 1 (TLS Mimicry):**
@@ -137,12 +135,13 @@
   - **Kubernetes Scaling:** Auto-scale spider pods based on CPU/Memory load.
   - **Ephemeral Workers:** Use AWS Lambda or Google Cloud Run for specific, hard-to-scrape pages (rotates IP/Infrastructure automatically).
 
-#### 11. Defensive Scraping (Honeypot Detection)
-- **Concept:** Don't get trapped by anti-bot fake links.
-- **Implementation:**
-  - Detect "invisible" links (CSS `display: none`, `visibility: hidden`) and avoid them.
-  - Analyze link distribution: If a page has 10,000 links, it's a trap.
-  - Track "Trap URLs" in a shared Redis blocklist.
+#### 11. Defensive Scraping (Honeypot Detection) ✅ IMPLEMENTED
+- **Status:** Complete - `honeypot.py` created
+- **Features:**
+  - `HoneypotDetectionMiddleware` for invisible link blocking
+  - Suspicious URL pattern detection
+  - Trap page detection (pages with >500 links)
+  - `is_invisible_link()` helper function
 
 #### 12. Observability & Monitoring (Ops Layer)
 - **Concept:** Visual proof of health.
