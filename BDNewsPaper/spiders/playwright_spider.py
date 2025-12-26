@@ -34,6 +34,14 @@ except ImportError:
     BaseNewsSpider = scrapy.Spider
     ArticleItem = dict
 
+# Import PageMethod for Playwright actions
+try:
+    from scrapy_playwright.page import PageMethod
+    PLAYWRIGHT_AVAILABLE = True
+except ImportError:
+    PageMethod = None
+    PLAYWRIGHT_AVAILABLE = False
+
 
 class PlaywrightMixin:
     """Mixin for Playwright-based scraping with Cloudflare bypass."""
@@ -63,25 +71,23 @@ class PlaywrightMixin:
             "playwright_context": "default",
         }
         
-        # Page actions to execute
-        actions = []
+        # Page methods to execute (must be PageMethod objects, not dicts)
+        page_methods = []
         
-        if self.wait_for_cloudflare:
-            # Wait for Cloudflare challenge to complete
-            actions.append({
-                "action": "wait_for_timeout",
-                "timeout": self.cf_wait_time
-            })
+        if PLAYWRIGHT_AVAILABLE and PageMethod:
+            if self.wait_for_cloudflare:
+                # Wait for Cloudflare challenge to complete
+                page_methods.append(
+                    PageMethod("wait_for_timeout", self.cf_wait_time)
+                )
+            
+            if wait_for:
+                page_methods.append(
+                    PageMethod("wait_for_selector", wait_for, timeout=timeout or self.timeout)
+                )
         
-        if wait_for:
-            actions.append({
-                "action": "wait_for_selector",
-                "selector": wait_for,
-                "timeout": timeout or self.timeout
-            })
-        
-        if actions:
-            meta["playwright_page_methods"] = actions
+        if page_methods:
+            meta["playwright_page_methods"] = page_methods
         
         return meta
 

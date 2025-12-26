@@ -12,6 +12,42 @@ BOT_NAME = "BDNewsPaper"
 SPIDER_MODULES = ["BDNewsPaper.spiders"]
 NEWSPIDER_MODULE = "BDNewsPaper.spiders"
 
+# =============================================================================
+# PLAYWRIGHT CONFIGURATION
+# =============================================================================
+# Enable Playwright for JavaScript rendering and Cloudflare bypass
+DOWNLOAD_HANDLERS = {
+    "http": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+    "https": "scrapy_playwright.handler.ScrapyPlaywrightDownloadHandler",
+}
+
+# Playwright launch options
+PLAYWRIGHT_BROWSER_TYPE = "chromium"
+PLAYWRIGHT_LAUNCH_OPTIONS = {
+    "headless": True,
+    "args": [
+        "--disable-blink-features=AutomationControlled",
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-dev-shm-usage",
+        "--disable-gpu",
+    ],
+}
+
+# Playwright context options
+PLAYWRIGHT_CONTEXTS = {
+    "default": {
+        "viewport": {"width": 1920, "height": 1080},
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "locale": "en-US",
+        "timezone_id": "Asia/Dhaka",
+        "ignore_https_errors": True,
+    },
+}
+
+# Twisted reactor for async Playwright
+TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+
 
 # Crawl responsibly by identifying yourself (and your website) on the user-agent
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
