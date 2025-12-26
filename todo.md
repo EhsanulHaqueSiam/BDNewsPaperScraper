@@ -85,19 +85,16 @@
   - **Residential Proxies:** Rotate IPs per request for strict sites.
   - **Browser Fingerprints:** Randomize Canvas/WebGL fingerprints in Playwright.
 
-#### 5. Dynamic Configuration
-- **Concept:** Spiders that heal themselves.
-- **Implementation:**
-  - Database stores "Working Selectors".
-  - If failure rate > 10%, a "Doctor" script runs to find new selectors and updates the DB.
+#### 5. Dynamic Configuration ✅ IMPLEMENTED
+- **Status:** Complete - `dynamic_config.py` created
+- **Features:**
+  - SelectorConfig stores working selectors per paper
+  - Tracks success/failure rates
+  - Auto-fallback to backup selectors
 
-#### 6. "Time Travel" & External Archives
-- **Concept:** If direct access fails, check the archives.
-- **Implementation:**
-  - If a specific article URL returns 404/403:
-  - Check **Internet Archive (Wayback Machine)** API.
-  - Check **Google Cache** version.
-  - Check **Bing Cache**.
+#### 6. "Time Travel" & External Archives ✅ IMPLEMENTED
+- **Status:** Complete - `ArchiveFallbackMiddleware` in middlewares.py
+- **Checks Wayback Machine API on 404/403/410**
 
 #### 7. Geographic Mimicry
 - **Concept:** Be where the user is.
