@@ -10,7 +10,7 @@ A high-performance web scraper for Bangladeshi newspapers built with [Scrapy](ht
 
 ## ✨ Features
 
-- **35 Active Spiders** — Scrape from 18 English + 17 Bangla newspapers including ProthomAlo, Daily Star, BSS News, NTV BD, and more
+- **65 Active Spiders** — Scrape from 21 English + 44 Bangla newspapers with API-based scrapers for optimal speed
 - **Web GUI** — User-friendly Streamlit interface for controlling scrapers and browsing articles
 - **Date Range Filtering** — Scrape articles from specific time periods
 - **Unified Database** — All articles stored in a single SQLite database with duplicate prevention
@@ -71,7 +71,7 @@ Open http://localhost:8501 in your browser to access the GUI.
 
 ## 📰 Available Spiders
 
-### English Newspapers (17)
+### English Newspapers (20)
 
 | Spider | Command | Source | Method | Speed |
 |--------|---------|--------|--------|-------|
@@ -92,8 +92,11 @@ Open http://localhost:8501 in your browser to access the GUI.
 | `observerbd` | `scrapy crawl observerbd` | [Observer BD](https://observerbd.com/) | HTML | 🔄 Medium |
 | `bangladeshpost` | `scrapy crawl bangladeshpost` | [Bangladesh Post](https://bangladeshpost.net/) | HTML | 🔄 Medium |
 | `dailyasianage` | `scrapy crawl dailyasianage` | [Asian Age](https://dailyasianage.com/) | HTML | 🔄 Medium |
+| `dhakacourier` | `scrapy crawl dhakacourier` | [Dhaka Courier](https://dhakacourier.com.bd/) | HTML | 🔄 Medium |
+| `bd24live` | `scrapy crawl bd24live` | [BD24Live](https://bd24live.com/) | HTML | 🔄 Medium |
+| `ntvbd` | `scrapy crawl ntvbd` | [NTV BD](https://en.ntvbd.com/) | HTML | 🔄 Medium |
 
-### Bangla Newspapers (17)
+### Bangla Newspapers (34)
 
 | Spider | Command | Source | Method | Speed |
 |--------|---------|--------|--------|-------|
@@ -114,6 +117,17 @@ Open http://localhost:8501 in your browser to access the GUI.
 | `sangbad` | `scrapy crawl sangbad` | [Sangbad](https://sangbad.net.bd/) | HTML | 🔄 Medium |
 | `ntvbd_bangla` | `scrapy crawl ntvbd_bangla` | [NTV Bangla](https://www.ntvbd.com/) | HTML | 🔄 Medium |
 | `alokitobangladesh` | `scrapy crawl alokitobangladesh` | [Alokito Bangladesh](https://alokitobangladesh.com/) | HTML | 🔄 Medium |
+| `dainikbangla` | `scrapy crawl dainikbangla` | [Dainik Bangla](https://dainikbangla.com.bd/) | HTML | 🔄 Medium |
+| `dhakapost` | `scrapy crawl dhakapost` | [Dhaka Post](https://dhakapost.com/) | HTML | 🔄 Medium |
+| `sarabangla` | `scrapy crawl sarabangla` | [Sara Bangla](https://sarabangla.net/) | HTML | 🔄 Medium |
+| `rtvonline` | `scrapy crawl rtvonline` | [RTV Online](https://rtvonline.com/) | HTML | 🔄 Medium |
+| `ekattor` | `scrapy crawl ekattor` | [Ekattor TV](https://ekattor.tv/) | HTML | 🔄 Medium |
+| `news24bd` | `scrapy crawl news24bd` | [News24 BD](https://news24bd.tv/) | HTML | 🔄 Medium |
+| `channeli` | `scrapy crawl channeli` | [Channel I](https://channelionline.com/) | HTML | 🔄 Medium |
+| `banglavision` | `scrapy crawl banglavision` | [Bangla Vision](https://banglavision.tv/) | HTML | 🔄 Medium |
+| `maasranga` | `scrapy crawl maasranga` | [Maasranga TV](https://maasranga.tv/) | **WP API** | ⚡ Fast |
+| `dbcnews` | `scrapy crawl dbcnews` | [DBC News](https://dbcnews.tv/) | HTML | 🔄 Medium |
+| `itvbd` | `scrapy crawl itvbd` | [ITV BD](https://itvbd.com/) | HTML | 🔄 Medium |
 
 > ⚠️ **Note**: Kaler Kantho is Cloudflare protected. Spider file is disabled (`kalerkantho.py.disabled`).
 

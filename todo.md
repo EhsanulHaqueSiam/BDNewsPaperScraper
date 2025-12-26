@@ -1,8 +1,8 @@
 # BDNewsPaperScraper - TODO
 
-## Current Spiders (18 English + 17 Bangla = 35 Total) ✅
+## Current Spiders (21 English + 44 Bangla = 65 Total) ✅
 
-### Implemented English (18)
+### Implemented English (21)
 - [x] Prothom Alo - `prothomalo.com` - API ⚡
 - [x] The Daily Star - `thedailystar.net` - API ⚡
 - [x] Daily Sun - `daily-sun.com` - API ⚡
@@ -21,8 +21,11 @@
 - [x] Observer BD - `observerbd.com`
 - [x] Bangladesh Post - `bangladeshpost.net`
 - [x] Daily Asian Age - `dailyasianage.com`
+- [x] Dhaka Courier - `dhakacourier.com.bd` - Weekly ✅
+- [x] BD24Live - `bd24live.com` ✅
+- [x] Sylhet Mirror - `sylhetmirror.com` - Regional ✅
 
-### Implemented Bangla (17)
+### Implemented Bangla (44)
 - [x] Jugantor - `jugantor.com` - JSON API ⚡⭐
 - [x] Bangla Tribune - `banglatribune.com`
 - [x] Samakal - `samakal.com`
@@ -40,6 +43,12 @@
 - [x] Sangbad - `sangbad.net.bd`
 - [x] NTV BD (Bn) - `ntvbd.com`
 - [x] Alokito Bangladesh - `alokitobangladesh.com`
+- [x] Dainik Bangla - `dainikbangla.com.bd` - **State Newspaper** ⭐
+- [x] Dhaka Post - `dhakapost.com` - **Popular Portal** ⭐
+- [x] Sara Bangla - `sarabangla.net`
+- [x] Maasranga TV - `maasranga.tv` - WordPress API ⚡
+- [x] DBC News - `dbcnews.tv` - TV Portal
+- [x] ITV BD - `itvbd.com` - TV Portal
 
 ---
 
@@ -59,66 +68,65 @@
 ---
 
 ### 📰 English Newspapers (To Explore)
-- [ ] Dhaka Courier - `dhakacourier.com.bd` - Weekly magazine
+- [x] Dhaka Courier - `dhakacourier.com.bd` - Weekly magazine ✅
 - [ ] The Daily People's View - `dailypeoplesview.com`
-- [ ] The Dhaka Times - `thedhakatimes.com`
+- [x] The Dhaka Times - `thedhakatimes.com` - WordPress API ⚡ ✅
 - [ ] Bangladesh Journal - `bd-journal.com`
 - [ ] The Country Today - `thecountrytoday.com`
 - [ ] The Peoples View - `thepeoplesview.net`
 
 ### 📰 Bangla Newspapers (To Explore)
-- [ ] Dainik Bangla - `dainikbangla.com.bd` - **State newspaper** ⭐
+- [x] Dainik Bangla - `dainikbangla.com.bd` - **State newspaper** ⭐ ✅
 - [ ] Amar Desh - `amardeshonline.com`
-- [ ] Bhorer Kagoj - `bhorerkagoj.com`
-- [ ] Sangbad - `sangbad.net.bd`
-- [ ] Inqilab - `dailyinqilab.com`
+- [x] Bhorer Kagoj - `bhorerkagoj.com` ✅
+- [x] Sangbad - `sangbad.net.bd` ✅
+- [x] Inqilab - `dailyinqilab.com` ✅
 - [ ] Jai Jai Din - `jaaborjaidin.com`
-- [ ] Alokito Bangladesh - `alokitobangladesh.com`
-- [ ] Ajker Patrika - `ajkerpatrika.com`
-- [ ] Daily Sangram - `dailysangram.com`
+- [x] Alokito Bangladesh - `alokitobangladesh.com` ✅
+- [x] Ajker Patrika - `ajkerpatrika.com` - API ⚡ ✅
+- [x] Daily Sangram - `dailysangram.com` ✅
 - [ ] Destiny Online - `destinyonline.com.bd`
-- [ ] Daily Amader Shomoy - `dainikamadershomoy.com`
+- [x] Daily Amader Shomoy - `dainikamadershomoy.com` ✅
 
 ---
 
-### 🌐 Online News Portals (To Explore)
-- [ ] Dhaka Post - `dhakapost.com` - **Popular portal** ⭐
-- [ ] Priyo.com - `priyo.com` - News + lifestyle
-- [ ] BD24Live - `bd24live.com`
-- [ ] Barta24 - `barta24.com`
-- [ ] Sara Bangla - `sarabangla.net`
+### 🌐 Online News Portals
+- [x] Dhaka Post - `dhakapost.com` - **Popular portal** ⭐ ✅
+- [x] Barta24 - `barta24.com` - API-based ⚡ ✅
+- [x] Sara Bangla - `sarabangla.net` ✅
+- [x] BD24Live - `bd24live.com` ✅
 - [ ] Dhaka Times 24 - `dhakatimes24.com`
 - [ ] 24 Live Newspaper - `24livenewspaper.com`
 
----
-
-### 📺 TV News Portals (To Explore)
-- [ ] Somoy TV - `somoynews.tv` - **Major TV** ⭐
-- [ ] NTV Bangla - `ntvbd.com`
-- [ ] ATN News - `atnnews.tv`
-- [ ] RTV Online - `rtvonline.com`
-- [ ] Channel I - `channelionline.com`
-- [ ] Ekattor TV - `ekattor.tv`
-- [ ] Bangla Vision - `banglavision.tv`
-- [ ] Jamuna TV - `jamuna.tv`
-- [ ] Independent TV - `independenttv.com.bd`
-- [ ] DBC News - `dbcnews.tv`
-- [ ] News 24 - `news24bd.tv`
-- [ ] Gazi TV - `gazitv.com`
-- [ ] Maasranga TV - `maasranga.tv`
+> **Note:** Priyo.com is now a fintech app, not a news portal
 
 ---
 
-### 🏛️ News Agencies (To Explore)
-- [ ] UNB Bangla - `unb.com.bd/bangla`
-- [ ] BSS Bangla - `bssnews.net/bangla`
+### 📺 TV News Portals
+- [x] NTV Bangla - `ntvbd.com` ✅
+- [x] RTV Online - `rtvonline.com` ✅
+- [x] Channel I - `channelionline.com` ✅
+- [x] Ekattor TV - `ekattor.tv` ✅
+- [x] Bangla Vision - `banglavision.tv` ✅
+- [x] News 24 - `news24bd.tv` ✅
+- [x] Maasranga TV - `maasranga.tv` - WordPress API ⚡ ✅
+- [x] DBC News - `dbcnews.tv` ✅
+- [x] ITV BD - `itvbd.com` ✅
+
+> **Blocked:** Somoy TV (403), ATN News, Jamuna TV (403), Independent TV (domain not found), Gazi TV (no news content)
 
 ---
 
-### 🌍 International Bengali Services
-- [ ] BBC Bangla - `bbc.com/bengali`
-- [ ] DW Bangla - `dw.com/bn`
-- [ ] VOA Bangla - `voabangla.com`
+### 🏛️ News Agencies ✅
+- [x] UNB Bangla - `unb.com.bd/bangla` - API ✅
+- [x] BSS Bangla - `bssnews.net/bangla` ✅
+
+---
+
+### 🌍 International Bengali Services ✅
+- [x] BBC Bangla - `bbc.com/bengali` - Embedded JSON ⚡
+- [x] DW Bangla - `dw.com/bn` - __APP_STATE__ JSON ⚡
+- [x] VOA Bangla - `voabangla.com` - RSS + analyticsData ⚡
 
 ---
 
@@ -132,17 +140,17 @@
 - [ ] Coxsbazar News - `coxsbazarnews.com`
 
 #### Sylhet Division
-- [ ] Sylhet Mirror - `sylhetmirror.com`
-- [ ] Daily Sylhet - `dailysylhet.com`
-- [ ] Sylhet Express - `sylhetexpress.com`
+- [x] Sylhet Mirror - `sylhetmirror.com` ✅ (English)
+- [x] Daily Sylhet - `dailysylhet.com` - WordPress API ⚡ ✅
+- [x] Sylhet Express - `sylhetexpress.net` ✅
 
 #### Khulna Division
 - [ ] Daily Purbanchal - `dailypurbanchal.com`
-- [ ] Khulna Gazette - `khulnagazette.com`
+- [x] Khulna Gazette - `khulnagazette.com` - WordPress API ⚡ ✅
 - [ ] Gramer Kagoj - `gramerkagoj.com` - Jessore
 
 #### Barishal Division
-- [ ] Barishal Times - `barishaltimes.com`
+- [x] Barishal Times - `barishaltimes.com` ✅
 - [ ] Dainik Barishal - `dainikbarishal.com`
 
 #### Rajshahi Division
@@ -161,8 +169,8 @@
 ---
 
 ### 💻 Tech/Specialized
+- [x] Tech Shohor - `techshohor.com` ✅
 - [ ] Tech News BD - `technewsbd.com`
-- [ ] Tech Shohor - `techshohor.com`
 - [ ] Protidin Tech - `protidintech.com`
 
 ---
