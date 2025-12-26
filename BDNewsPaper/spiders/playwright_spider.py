@@ -662,12 +662,16 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             except:
                 pass
         
-        # Extract article links - updated selectors for current Daily Sun layout (2024-2025)
-        # Primary: Use href pattern matching for /post/ links
+        # Extract article links - UPDATED selectors for current Daily Sun layout (2024-2025)
+        # NOTE: Site changed from /post/{id} to /{category}/{id}/{slug} pattern
+        # Primary: Use a.linkOverlay which found 27 links on browser inspection
         articles = response.css(
-            'a[href^="/post/"]::attr(href), '         # Best: any link starting with /post/
-            'a.row::attr(href), '                      # Row-based article links
-            '.container a[href^="/post/"]::attr(href), '  # Container posts
+            'a.linkOverlay::attr(href), '              # Best: linkOverlay class (found 27 links)
+            'a[href*="/bangladesh/"]::attr(href), '    # Bangladesh category links
+            'a[href*="/business/"]::attr(href), '      # Business category links
+            'a[href*="/world/"]::attr(href), '         # World category links
+            'a[href*="/entertainment/"]::attr(href), ' # Entertainment category links
+            'a[href*="/sports/"]::attr(href), '        # Sports category links
             '.row a::attr(href), '                     # Row links
             'h4 a::attr(href), '                       # Headlines in h4
             'h5 a::attr(href)'                         # Headlines in h5
@@ -683,8 +687,10 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             
             full_url = response.urljoin(href)
             
-            # Only process article URLs (must have /post/ pattern)
-            if '/post/' in full_url:
+            # Only process article URLs (must have /{category}/{id}/ pattern)
+            # Categories: bangladesh, business, world, entertainment, sports, lifestyle, tech, opinion
+            category_patterns = ['bangladesh', 'business', 'world', 'entertainment', 'sports', 'lifestyle', 'tech', 'opinion']
+            if any(f'/{cat}/' in full_url for cat in category_patterns):
                 if full_url not in self.processed_urls:
                     valid_articles.append(full_url)
                     self.processed_urls.add(full_url)
