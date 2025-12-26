@@ -3,18 +3,17 @@
 
 name: CI
 
-# TEMPORARILY DISABLED - Re-enable after development sprint
-# on:
-#   push:
-#     branches: [main, master]
-#     paths:
-#       - 'BDNewsPaper/**'
-#       - 'tests/**'
-#       - 'pyproject.toml'
-#   pull_request:
-#     branches: [main, master]
 on:
-  workflow_dispatch:  # Manual trigger only
+  push:
+    branches: [main, master]
+    paths:
+      - 'BDNewsPaper/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:  # Manual trigger also available
+
 
 concurrency:
   group: ci-${{ github.ref }}

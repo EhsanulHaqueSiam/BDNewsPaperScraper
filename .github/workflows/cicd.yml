@@ -4,19 +4,18 @@
 
 name: CI/CD
 
-# TEMPORARILY DISABLED - Re-enable after development sprint
-# on:
-#   push:
-#     branches: [main]
-#     paths-ignore:
-#       - '*.md'
-#       - 'docs/**'
-#       - '.github/workflows/pages.yml'
-#       - '.github/workflows/daily-scrape.yml'
-#   pull_request:
-#     branches: [main]
 on:
-  workflow_dispatch:  # Manual trigger only
+  push:
+    branches: [main]
+    paths-ignore:
+      - '*.md'
+      - 'docs/**'
+      - '.github/workflows/pages.yml'
+      - '.github/workflows/daily-scrape.yml'
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Manual trigger also available
+
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
