@@ -52,15 +52,30 @@ SPIDER_MIDDLEWARES = {
 # Enable or disable downloader middlewares
 # See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
 DOWNLOADER_MIDDLEWARES = {
-    "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,  # Disable default
-    "BDNewsPaper.middlewares.UserAgentMiddleware": 400,  # Custom User-Agent rotation
-    "BDNewsPaper.proxy.ProxyMiddleware": 410,  # Proxy rotation (optional - enable via PROXY_ENABLED)
-    "BDNewsPaper.middlewares.CircuitBreakerMiddleware": 420,  # Circuit breaker (before stats)
-    "BDNewsPaper.middlewares.StatisticsMiddleware": 450,  # Statistics tracking
-    "BDNewsPaper.middlewares.RateLimitMiddleware": 500,  # Rate limiting
-    "BDNewsPaper.middlewares.BdnewspaperDownloaderMiddleware": 543,  # Enhanced downloader
-    "BDNewsPaper.middlewares.SmartRetryMiddleware": 550,  # Smart retry with backoff
-    "scrapy.downloadermiddlewares.retry.RetryMiddleware": None,  # Disable default retry
+    # Disable default middlewares we're replacing
+    "scrapy.downloadermiddlewares.useragent.UserAgentMiddleware": None,
+    "scrapy.downloadermiddlewares.retry.RetryMiddleware": None,
+    
+    # === ROBUSTNESS LAYER 1: Request Preparation (300-450) ===
+    "BDNewsPaper.stealth_headers.StealthHeadersMiddleware": 350,       # Anti-bot headers
+    "BDNewsPaper.middlewares.UserAgentMiddleware": 400,                # UA rotation backup
+    "BDNewsPaper.proxy.ProxyMiddleware": 410,                          # Proxy rotation
+    "BDNewsPaper.cloudflare_bypass.CloudflareCookieMiddleware": 430,   # CF cookie injection
+    
+    # === ROBUSTNESS LAYER 2: Traffic Control (450-550) ===
+    "BDNewsPaper.middlewares.CircuitBreakerMiddleware": 451,           # Circuit breaker
+    "BDNewsPaper.middlewares.StatisticsMiddleware": 460,               # Statistics tracking
+    "BDNewsPaper.middlewares.AdaptiveThrottlingMiddleware": 470,       # Dynamic throttling
+    "BDNewsPaper.middlewares.RateLimitMiddleware": 500,                # Rate limiting
+    
+    # === ROBUSTNESS LAYER 3: Request Processing (550-650) ===
+    "BDNewsPaper.hybrid_request.HybridRequestMiddleware": 540,         # Auto HTTP/Playwright
+    "BDNewsPaper.middlewares.BdnewspaperDownloaderMiddleware": 543,    # Enhanced downloader
+    "BDNewsPaper.middlewares.SmartRetryMiddleware": 550,               # Smart retry
+    "BDNewsPaper.honeypot.HoneypotDetectionMiddleware": 560,           # Honeypot detection
+    
+    # === ROBUSTNESS LAYER 4: Response Fallbacks (650+) ===
+    "BDNewsPaper.middlewares.ArchiveFallbackMiddleware": 650,          # Wayback fallback
 }
 
 # =============================================================================
@@ -109,6 +124,10 @@ PROXY_BAN_THRESHOLD = 5
 # Configure item pipelines
 # See https://docs.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
+    # === ROBUSTNESS: Content Extraction Fallback ===
+    "BDNewsPaper.pipelines.FallbackExtractionPipeline": 50,  # Try rescue before validation
+    
+    # === Standard Processing Pipeline ===
     "BDNewsPaper.pipelines.ValidationPipeline": 100,
     "BDNewsPaper.pipelines.CleanArticlePipeline": 200,
     "BDNewsPaper.pipelines.LanguageDetectionPipeline": 210,  # Language detection
@@ -210,3 +229,81 @@ CIRCUIT_BREAKER_HALF_OPEN_CALLS = 3  # Successful calls to close circuit
 # Rate Limiting Configuration
 RATELIMIT_DELAY = 1.0
 RATELIMIT_RANDOMIZE = True
+
+# =============================================================================
+# ROBUSTNESS FEATURES CONFIGURATION
+# =============================================================================
+# All features below are ENABLED by default for maximum robustness.
+# Disable individual features by setting their *_ENABLED flag to False.
+
+# -----------------------------------------------------------------------------
+# 1. SMART FALLBACK EXTRACTION (extractors.py, pipelines.py)
+# -----------------------------------------------------------------------------
+# When spider selectors fail, try fallback extraction methods.
+FALLBACK_EXTRACTION_ENABLED = True
+FALLBACK_MIN_BODY_LENGTH = 50  # Trigger fallback if body shorter than this
+
+# -----------------------------------------------------------------------------
+# 2. HYBRID REQUEST ENGINE (hybrid_request.py)  
+# -----------------------------------------------------------------------------
+# Automatically switch from HTTP to Playwright when JS challenges detected.
+HYBRID_REQUEST_ENABLED = True
+HYBRID_MAX_RETRIES = 2  # Max Playwright retries per URL
+HYBRID_PLAYWRIGHT_DOMAINS = [
+    # Domains that always need Playwright (known CF-protected)
+    'daily-sun.com',
+]
+
+# -----------------------------------------------------------------------------
+# 4. ANTI-BOT EVASION (stealth_headers.py)
+# -----------------------------------------------------------------------------
+# Realistic browser headers to avoid bot detection.
+STEALTH_HEADERS_ENABLED = True
+STEALTH_BROWSER_TYPE = 'chrome'  # chrome, firefox, safari
+STEALTH_ROTATE_UA = True  # Rotate User-Agent per request
+
+# -----------------------------------------------------------------------------
+# 9. CLOUDFLARE BYPASS (cloudflare_bypass.py)
+# -----------------------------------------------------------------------------
+# Multi-level Cloudflare protection bypass.
+CF_BYPASS_ENABLED = True
+CF_PROTECTED_DOMAINS = [
+    'daily-sun.com',
+    # Add more CF-protected domains as discovered
+]
+# Flaresolverr Docker endpoint (if running)
+# FLARESOLVERR_URL = 'http://localhost:8191/v1'
+# CF_COOKIES_FILE = 'config/cf_cookies.json'  # Manual cookie export
+
+# -----------------------------------------------------------------------------
+# 13. ADAPTIVE THROTTLING (middlewares.py)
+# -----------------------------------------------------------------------------
+# Dynamic delay adjustment based on server response times.
+ADAPTIVE_THROTTLE_ENABLED = True
+ADAPTIVE_THROTTLE_THRESHOLD_MS = 500  # Slow response threshold
+ADAPTIVE_THROTTLE_INCREASE_FACTOR = 1.5  # Delay multiplier on slow
+ADAPTIVE_THROTTLE_DECREASE_FACTOR = 0.9  # Delay multiplier on fast
+ADAPTIVE_THROTTLE_MIN_DELAY = 0.5  # Minimum delay (seconds)
+ADAPTIVE_THROTTLE_MAX_DELAY = 30.0  # Maximum delay (seconds)
+ADAPTIVE_THROTTLE_WINDOW_SIZE = 10  # Rolling window for avg calculation
+
+# -----------------------------------------------------------------------------
+# ARCHIVE FALLBACK (middlewares.py)
+# -----------------------------------------------------------------------------
+# Query Wayback Machine for 404/403 pages.
+ARCHIVE_FALLBACK_ENABLED = True
+ARCHIVE_FALLBACK_CODES = [404, 403, 410]
+ARCHIVE_FALLBACK_TIMEOUT = 10
+
+# -----------------------------------------------------------------------------
+# HONEYPOT DETECTION (honeypot.py)
+# -----------------------------------------------------------------------------
+# Avoid anti-bot trap links.
+HONEYPOT_DETECTION_ENABLED = True
+HONEYPOT_MAX_LINKS_PER_PAGE = 500  # Pages with more links = trap
+
+# -----------------------------------------------------------------------------
+# VALIDATION PIPELINE (pipelines.py)
+# -----------------------------------------------------------------------------
+# Set to False for debugging (logs warnings instead of dropping items)
+VALIDATION_STRICT_MODE = True
