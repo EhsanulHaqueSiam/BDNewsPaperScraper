@@ -1,10 +1,11 @@
 # Project To-Do List
 
-- [ ] **Test Locally Testable Features**
-  - Verify `app.py` (Streamlit GUI) loads correctly
-  - Test CLI commands (`bdnews list`, `bdnews scrape`)
-  - Check reports generation (analytics, dashboard)
-  - Verify script execution in `scripts/` directory
+- [x] **Test Locally Testable Features**
+  - [x] Test CLI commands (`bdnews list`, `bdnews scrape`) - ✅ Working
+  - [x] Run pytest suite - ✅ 27 tests passing
+  - [ ] Verify `app.py` (Streamlit GUI) - requires `uv sync --extra gui`
+  - [ ] Check reports generation (analytics, dashboard)
+  - [ ] Verify script execution in `scripts/` directory
 
 - [ ] **Test & Fix Spiders**
 
