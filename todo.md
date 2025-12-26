@@ -73,11 +73,11 @@
   - Switches to Playwright on detection
   - Learns domains needing browser rendering
 
-#### 3. AI-Powered Repair
-- **Concept:** Use LLMs for "Last Mile" fixing.
-- **Implementation:**
-  - If ValidationPipeline drops an item due to "Bad Content", send HTML snippet to a local LLM (small model).
-  - Prompt: "Extract headline and body from this messy HTML."
+#### 3. AI-Powered Repair ✅ IMPLEMENTED
+- **Status:** Complete - `ai_repair.py` created
+- **Features:**
+  - `AIRepairPipeline` for failed extractions
+  - Ollama (local LLM) and OpenAI support
 
 #### 4. Anti-Bot Evasion "Arms Race"
 - **Implementation:**
@@ -106,24 +106,13 @@
 - **Status:** Complete - Pre-flight canary added to `daily-scrape.yml`
 - **Script:** `scripts/canary_check.py --all`
 
-#### 9. Cloudflare Countermeasures (The "Red Button")
-- **Level 1 (TLS Mimicry):**
-  - Replace `requests` with `curl_cffi` or `tls_client`.
-  - **Why:** Cloudflare blocks Python's default SSL handshake. These libraries copy Chrome's handshake exactly.
-- **Level 2 (The "Stealth" Browser):**
-  - Use `scrapy-playwright` with `args=["--disable-blink-features=AutomationControlled"]`.
-  - Inject `stealth.min.js` to hide webdriver properties.
-- **Level 3 (Cookie Hijacking):**
-  - Run a local browser, login/solve Captcha manually.
-  - Export `cf_clearance` cookie and User-Agent.
-  - Inject these into Scrapy middleware (`CookieMiddleware`).
-- **Level 4 (Solver Services):**
-  - Integrate **Flaresolverr** (Docker container) that solves JS challenges and returns cookies.
-  - Use commercial API solvers (2Captcha, CapMonster) for "Turnstile".
-- **Level 5 (Network Layer Mastery):**
-  - **JA3/JA4 Randomization:** Randomize TLS Client Hello packets to prevent fingerprinting.
-  - **HTTP/2 & HTTP/3 (QUIC):** Force newer protocols which are harder for WAFs to filter without false positives.
-  - **Header Order Hacking:** Mimic Chrome's exact header order (e.g., `Host` before `User-Agent`) using custom middleware.
+#### 9. Cloudflare Countermeasures (The "Red Button") ✅ PARTIAL
+- **Status:** `cloudflare_bypass.py` created
+- **Level 1:** Stealth headers → `stealth_headers.py`
+- **Level 2:** Stealth Playwright args & JS injection
+- **Level 3:** Cookie injection middleware  
+- **Level 4:** Flaresolverr integration (needs Docker container)
+- **Levels 5+:** Future (TLS fingerprinting, HTTP/3)
 
 #### 10. Distributed "Hydra" Infrastructure
 - **Concept:** Cut off one head, two more appear.
