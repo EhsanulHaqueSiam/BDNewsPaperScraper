@@ -36,17 +36,24 @@
   - Cloudflare (mentioned in `dailysun` docstring) may be serving CAPTCHA pages which parse as empty content, triggering "Content too short" drops.
 
 ### 🛠️ Updated Action Plan
-- [ ] **Fix URL Logic:** Audit all 79 spiders for `response.urljoin()` usage.
+- [x] **Fix URL Logic:** Added `is_valid_article_url()` to `BaseNewsSpider` for all 79 spiders.
 - [x] **Relax Validation:** Added `VALIDATION_STRICT_MODE` setting to log warnings instead of dropping items for short content.
 - [x] **Spider-Specific Fixes:**
-  - [x] `dailysun`: Added `_is_valid_article_url()` to filter `#`, `javascript:`, etc.
-  - [x] `prothomalo`: Added `_is_valid_article_url()` to filter invalid URLs.
+  - [x] `prothomalo`: ✅ **WORKING** - URL validation added, successfully scrapes articles.
+  - [ ] `dailysun`: ⚠️ **BLOCKED BY CLOUDFLARE** - URL validation added but site returns Cloudflare JS challenge. Needs Playwright/curl_cffi bypass.
 - [ ] **Monitor Drops:** Enable `LOG_LEVEL=DEBUG` globally for a test run to catch `DropItem` exceptions.
+
+### 🚨 Cloudflare-Protected Sites (Need Bypass)
+- **dailysun** - AJAX API returns Cloudflare challenge page. Options:
+  1. Convert to Playwright spider (like `kalerkantho_playwright`)
+  2. Use `curl_cffi` for TLS mimicry
+  3. Integrate Flaresolverr Docker container
 
 - [ ] **Test Playwright Scripts**
   - [ ] Verify `kalerkantho_playwright`
   - [ ] Check `GenericPlaywrightSpider` functionality
   - [ ] Ensure browser installation is correct (`uv run playwright install`)
+
 
 ### 🚀 Roadmap: Universal Robustness (Scrape Any Site)
 
