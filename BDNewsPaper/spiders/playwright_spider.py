@@ -185,7 +185,8 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
                 url=url,
                 callback=self.parse_category,
                 meta={
-                    **self.get_playwright_meta(wait_for=".news_list, .content_holder, article"),
+                    # Updated wait_for selectors for 2024-2025 layout
+                    **self.get_playwright_meta(wait_for=".container, .catLead, .row, h4"),
                     "category": cat_name
                 },
                 errback=self.errback_playwright,
@@ -209,26 +210,31 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             finally:
                 await page.close()
         
-        # Extract article links - multiple selectors for different page layouts
+        # Extract article links - updated selectors based on current site layout
         article_links = set()
         
-        # Try different selectors
+        # Updated selectors for current Kalerkantho layout (2024-2025)
+        # Primary: Use href pattern matching for /online/ links
         selectors = [
-            "a.linkOverlay::attr(href)",
-            ".news_list a::attr(href)",
-            ".content_holder a::attr(href)",
-            "article a::attr(href)",
-            ".row a.title_link::attr(href)",
-            "h3 a::attr(href)",
-            "h2 a::attr(href)",
+            "a[href*='/online/']::attr(href)",  # Best: any link with /online/ in path
+            ".catLead a::attr(href)",           # Lead story container
+            ".row a::attr(href)",               # Row-based listings
+            "h4 a::attr(href)",                 # Headlines in h4
+            "h5 a::attr(href)",                 # Headlines in h5
+            "h3 a::attr(href)",                 # Headlines in h3
+            "h2 a::attr(href)",                 # Headlines in h2
+            ".col-md-6 a::attr(href)",          # Bootstrap column items
+            ".col-md-4 a::attr(href)",          # Bootstrap column items
         ]
         
         for selector in selectors:
             links = response.css(selector).getall()
             for link in links:
-                if link and ("/online/" in link or "/print-edition/" in link):
+                if link and "/online/" in link:
                     full_url = response.urljoin(link)
-                    article_links.add(full_url)
+                    # Filter to only article URLs (has date pattern)
+                    if any(f"/{year}/" in full_url for year in ['2024', '2025', '2023']):
+                        article_links.add(full_url)
         
         self.logger.info(f"Found {len(article_links)} article links in {category}")
         
@@ -238,7 +244,8 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
                 url=url,
                 callback=self.parse_article,
                 meta={
-                    **self.get_playwright_meta(wait_for=".news_content, .single_news, article"),
+                    # Updated: use generic selectors that exist on article pages
+                    **self.get_playwright_meta(wait_for=".container, h1, .row"),
                     "category": category
                 },
                 errback=self.errback_playwright
@@ -251,7 +258,7 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         
         if page:
             try:
-                await page.wait_for_selector(".news_content, .single_news, article", timeout=10000)
+                await page.wait_for_selector("h1, .container", timeout=10000)
             except:
                 pass
             finally:
@@ -635,7 +642,8 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
                 callback=self.parse_category,
                 errback=self.errback_playwright,
                 meta={
-                    **self.get_playwright_meta(wait_for=".news-list, .media, article, .latest-news"),
+                    # Updated wait_for selectors for 2024-2025 layout
+                    **self.get_playwright_meta(wait_for=".container, .row, h4, h5"),
                     "category": cat_name,
                 }
             )
@@ -654,8 +662,16 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             except:
                 pass
         
-        # Extract article links from various possible containers
-        articles = response.css('article a::attr(href), .media a.linkOverlay::attr(href), .news-list a::attr(href), .latest-news a::attr(href)').getall()
+        # Extract article links - updated selectors for current Daily Sun layout (2024-2025)
+        # Primary: Use href pattern matching for /post/ links
+        articles = response.css(
+            'a[href^="/post/"]::attr(href), '         # Best: any link starting with /post/
+            'a.row::attr(href), '                      # Row-based article links
+            '.container a[href^="/post/"]::attr(href), '  # Container posts
+            '.row a::attr(href), '                     # Row links
+            'h4 a::attr(href), '                       # Headlines in h4
+            'h5 a::attr(href)'                         # Headlines in h5
+        ).getall()
         
         # Filter and deduplicate
         valid_articles = []
@@ -667,8 +683,8 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             
             full_url = response.urljoin(href)
             
-            # Only process article URLs (typically /post/ or /detail/)
-            if '/post/' in full_url or full_url.count('/') > 3:
+            # Only process article URLs (must have /post/ pattern)
+            if '/post/' in full_url:
                 if full_url not in self.processed_urls:
                     valid_articles.append(full_url)
                     self.processed_urls.add(full_url)
