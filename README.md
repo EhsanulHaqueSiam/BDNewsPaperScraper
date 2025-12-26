@@ -166,12 +166,15 @@ uv run scrapy list
 # Quick test (10 articles)
 uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=10
 
+# Disable caching for fresh results
+uv run scrapy crawl prothomalo -s CLOSESPIDER_ITEMCOUNT=10 -s HTTPCACHE_ENABLED=False
+
 # Full scrape with monitoring
 ./run_spiders_optimized.sh prothomalo --monitor        # Linux/macOS
 python run_spiders_optimized.py prothomalo --monitor   # Windows/All platforms
 
 # Check results
-python toxlsx.py --list
+python scripts/toxlsx.py --list
 ```
 
 ### 🖥️ Launch Web GUI

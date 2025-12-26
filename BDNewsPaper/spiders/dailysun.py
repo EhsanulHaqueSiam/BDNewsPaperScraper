@@ -353,7 +353,9 @@ class DailySunSpider(BaseNewsSpider):
             date_el = article.css('.desktopTime span span::text, .date::text, time::text').get()
             img_el = article.css('img::attr(src), img::attr(data-src)').get()
             
-            if not link_el:
+            # Validate URL - skip invalid ones like #, javascript:, etc.
+            if not self._is_valid_article_url(link_el):
+                self.logger.debug(f"Skipping invalid URL: {link_el}")
                 continue
             
             full_url = f"{self.BASE_URL}{link_el}" if not link_el.startswith('http') else link_el
@@ -395,7 +397,9 @@ class DailySunSpider(BaseNewsSpider):
         body = data.get('content', data.get('body', data.get('summary', '')))
         url = data.get('url', '')
         
-        if not url:
+        # Validate URL - skip invalid ones like #, javascript:, etc.
+        if not self._is_valid_article_url(url):
+            self.logger.debug(f"Skipping invalid URL from API: {url}")
             return None
         
         full_url = f"{self.BASE_URL}{url}" if not url.startswith('http') else url
@@ -421,6 +425,21 @@ class DailySunSpider(BaseNewsSpider):
         """Check if item has enough content to skip fetching full article."""
         body = item.get('article_body', '')
         return body and len(body) > 200
+    
+    def _is_valid_article_url(self, url: Optional[str]) -> bool:
+        """Check if URL is a valid article link (not #, javascript:, empty, etc.)."""
+        if not url or not isinstance(url, str):
+            return False
+        url = url.strip()
+        if not url:
+            return False
+        # Filter out common invalid patterns
+        invalid_patterns = ['#', 'javascript:', 'void(0)', 'mailto:', 'tel:']
+        for pattern in invalid_patterns:
+            if url == pattern or url.startswith(pattern):
+                return False
+        # Must be a path or full URL
+        return url.startswith('/') or url.startswith('http://') or url.startswith('https://')
     
     # ================================================================
     # Date Validation Helpers

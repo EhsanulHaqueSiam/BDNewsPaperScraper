@@ -33,29 +33,32 @@ class ValidationPipeline:
     Configurable via settings:
         - MIN_ARTICLE_LENGTH: Minimum article body length (default: 50)
         - MIN_HEADLINE_LENGTH: Minimum headline length (default: 5)
+        - VALIDATION_STRICT_MODE: If False, log warnings instead of dropping (default: True)
     """
     
-    def __init__(self, min_article_length: int = 50, min_headline_length: int = 5):
+    def __init__(self, min_article_length: int = 50, min_headline_length: int = 5, strict_mode: bool = True):
         self.min_article_length = min_article_length
         self.min_headline_length = min_headline_length
+        self.strict_mode = strict_mode
     
     @classmethod
     def from_crawler(cls, crawler):
         return cls(
             min_article_length=crawler.settings.getint('MIN_ARTICLE_LENGTH', MIN_ARTICLE_LENGTH),
             min_headline_length=crawler.settings.getint('MIN_HEADLINE_LENGTH', MIN_HEADLINE_LENGTH),
+            strict_mode=crawler.settings.getbool('VALIDATION_STRICT_MODE', True),
         )
     
     def process_item(self, item, spider):
         adapter = ItemAdapter(item)
         
-        # Required fields validation
+        # Required fields validation (always strict)
         required_fields = ['headline', 'url', 'paper_name']
         for field in required_fields:
             if not adapter.get(field):
                 raise DropItem(f"Missing required field: {field} in {adapter.get('url', 'unknown URL')}")
         
-        # URL validation
+        # URL validation (always strict - invalid URLs are fatal)
         url = adapter.get('url')
         if not self._is_valid_url(url):
             raise DropItem(f"Invalid URL format: {url}")
@@ -63,12 +66,18 @@ class ValidationPipeline:
         # Headline length validation
         headline = adapter.get('headline', '')
         if len(headline.strip()) < self.min_headline_length:
-            raise DropItem(f"Headline too short ({len(headline)} chars): {url}")
+            if self.strict_mode:
+                raise DropItem(f"Headline too short ({len(headline)} chars): {url}")
+            else:
+                spider.logger.warning(f"[RELAXED] Headline too short ({len(headline)} chars): {url}")
         
         # Content length validation
         article_body = adapter.get('article_body', '')
         if not article_body or len(article_body.strip()) < self.min_article_length:
-            raise DropItem(f"Article too short ({len(article_body)} chars): {url}")
+            if self.strict_mode:
+                raise DropItem(f"Article too short ({len(article_body) if article_body else 0} chars): {url}")
+            else:
+                spider.logger.warning(f"[RELAXED] Article too short ({len(article_body) if article_body else 0} chars): {url}")
         
         return item
     

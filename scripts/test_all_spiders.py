@@ -63,7 +63,8 @@ def test_spider(spider_name: str) -> Dict:
         "-s", f"CLOSESPIDER_ITEMCOUNT={ITEM_LIMIT}",
         "-s", "LOG_LEVEL=INFO",
         "-s", "DATABASE_PATH=:memory:",
-        "-s", "TELNETCONSOLE_ENABLED=0"
+        "-s", "TELNETCONSOLE_ENABLED=0",
+        "-s", "HTTPCACHE_ENABLED=False"
     ])
     
     try:
