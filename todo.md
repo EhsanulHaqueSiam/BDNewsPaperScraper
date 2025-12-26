@@ -58,13 +58,13 @@
 
 ### 🚀 Roadmap: Universal Robustness (Scrape Any Site)
 
-#### 1. Smart Fallback Architecture
-- **Concept:** Never fail completely; degrade gracefully.
+#### 1. Smart Fallback Architecture ✅ IMPLEMENTED
+- **Status:** Complete - `extractors.py` created
 - **Implementation:**
-  1. **Primary:** Specific Selectors (Fastest, High Precision).
-  2. **Secondary:** JSON-LD / Microdata (Standardized schemas).
-  3. **Tertiary:** Generic Heuristics (e.g., `<article>`, `h1` near top, p-dense div).
-  4. **Final Fallback:** Library-based extraction (`trafilatura` or `newspaper3k`).
+  1. **Primary:** JSON-LD / Microdata extraction
+  2. **Secondary:** `trafilatura` ML-based extraction  
+  3. **Tertiary:** Generic CSS heuristics (`<article>`, `h1`, p-dense div)
+  4. **Pipeline:** `FallbackExtractionPipeline` auto-rescues short content
 
 #### 2. Hybrid Request Engine
 - **Concept:** Balance speed (Requests) vs. Access (Browser).
