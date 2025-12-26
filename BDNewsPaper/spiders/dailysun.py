@@ -354,7 +354,7 @@ class DailySunSpider(BaseNewsSpider):
             img_el = article.css('img::attr(src), img::attr(data-src)').get()
             
             # Validate URL - skip invalid ones like #, javascript:, etc.
-            if not self._is_valid_article_url(link_el):
+            if not self.is_valid_article_url(link_el):
                 self.logger.debug(f"Skipping invalid URL: {link_el}")
                 continue
             
@@ -398,7 +398,7 @@ class DailySunSpider(BaseNewsSpider):
         url = data.get('url', '')
         
         # Validate URL - skip invalid ones like #, javascript:, etc.
-        if not self._is_valid_article_url(url):
+        if not self.is_valid_article_url(url):
             self.logger.debug(f"Skipping invalid URL from API: {url}")
             return None
         
@@ -425,21 +425,6 @@ class DailySunSpider(BaseNewsSpider):
         """Check if item has enough content to skip fetching full article."""
         body = item.get('article_body', '')
         return body and len(body) > 200
-    
-    def _is_valid_article_url(self, url: Optional[str]) -> bool:
-        """Check if URL is a valid article link (not #, javascript:, empty, etc.)."""
-        if not url or not isinstance(url, str):
-            return False
-        url = url.strip()
-        if not url:
-            return False
-        # Filter out common invalid patterns
-        invalid_patterns = ['#', 'javascript:', 'void(0)', 'mailto:', 'tel:']
-        for pattern in invalid_patterns:
-            if url == pattern or url.startswith(pattern):
-                return False
-        # Must be a path or full URL
-        return url.startswith('/') or url.startswith('http://') or url.startswith('https://')
     
     # ================================================================
     # Date Validation Helpers

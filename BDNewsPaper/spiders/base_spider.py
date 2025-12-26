@@ -237,6 +237,37 @@ class BaseNewsSpider(scrapy.Spider):
         return date_obj < self.start_date
     
     # ================================================================
+    # URL Validation
+    # ================================================================
+    
+    def is_valid_article_url(self, url: Optional[str]) -> bool:
+        """
+        Check if URL is a valid article link.
+        
+        Filters out invalid patterns like #, javascript:, empty, etc.
+        Use this before creating article requests to prevent
+        ValidationPipeline drops.
+        
+        Args:
+            url: URL string to validate
+            
+        Returns:
+            True if valid article URL, False otherwise
+        """
+        if not url or not isinstance(url, str):
+            return False
+        url = url.strip()
+        if not url:
+            return False
+        # Filter out common invalid patterns
+        invalid_patterns = ['#', 'javascript:', 'void(0)', 'mailto:', 'tel:', 'data:']
+        for pattern in invalid_patterns:
+            if url == pattern or url.startswith(pattern):
+                return False
+        # Must be a path or full URL
+        return url.startswith('/') or url.startswith('http://') or url.startswith('https://')
+    
+    # ================================================================
     # Search/Keyword Filtering
     # ================================================================
     

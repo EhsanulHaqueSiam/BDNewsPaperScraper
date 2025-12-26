@@ -266,7 +266,7 @@ class ProthomaloSpider(BaseNewsSpider):
             url = item.get("url")
             
             # Validate URL - skip invalid patterns
-            if not self._is_valid_article_url(url):
+            if not self.is_valid_article_url(url):
                 self.logger.debug(f"Skipping invalid URL from API: {url}")
                 continue
             
@@ -472,21 +472,6 @@ class ProthomaloSpider(BaseNewsSpider):
             return dt.strftime("%Y-%m-%d %H:%M:%S")
         except (ValueError, OSError):
             return "Unknown"
-    
-    def _is_valid_article_url(self, url: Optional[str]) -> bool:
-        """Check if URL is a valid article link (not #, javascript:, empty, etc.)."""
-        if not url or not isinstance(url, str):
-            return False
-        url = url.strip()
-        if not url:
-            return False
-        # Filter out common invalid patterns
-        invalid_patterns = ['#', 'javascript:', 'void(0)', 'mailto:', 'tel:']
-        for pattern in invalid_patterns:
-            if url == pattern or url.startswith(pattern):
-                return False
-        # Must be a path or full URL
-        return url.startswith('/') or url.startswith('http://') or url.startswith('https://')
     
     # ================================================================
     # HTML Parsing (Fallback)
