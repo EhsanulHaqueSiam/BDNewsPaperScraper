@@ -182,7 +182,32 @@ ITEM_PIPELINES = {
     "BDNewsPaper.pipelines.ContentQualityPipeline": 220,  # Content quality check
     "BDNewsPaper.pipelines.DateFilterPipeline": 250,  # Optional date filtering
     "BDNewsPaper.pipelines.SharedSQLitePipeline": 300,
+    
+    # === PostgreSQL Pipeline (enable for production) ===
+    # "BDNewsPaper.postgres_pipeline.PostgreSQLPipeline": 310,  # Uncomment for PostgreSQL
 }
+
+# =============================================================================
+# PostgreSQL Database Configuration (for production scale)
+# =============================================================================
+import os
+
+# Database Selection: 'sqlite' or 'postgresql'
+DATABASE_TYPE = os.environ.get('DATABASE_TYPE', 'sqlite')
+
+# PostgreSQL Configuration (via environment variables)
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
+POSTGRES_PORT = int(os.environ.get('POSTGRES_PORT', '5432'))
+POSTGRES_DATABASE = os.environ.get('POSTGRES_DATABASE', 'bdnews')
+POSTGRES_USER = os.environ.get('POSTGRES_USER', 'bdnews')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'bdnews_password')
+
+# Connection pool settings
+POSTGRES_POOL_MIN = int(os.environ.get('POSTGRES_POOL_MIN', '2'))
+POSTGRES_POOL_MAX = int(os.environ.get('POSTGRES_POOL_MAX', '10'))
+
+# SQLite Configuration (default for development)
+SQLITE_DATABASE = os.environ.get('SQLITE_DATABASE', 'news_articles.db')
 
 # Date filter settings (disabled by default, enabled per-spider)
 DATE_FILTER_ENABLED = False
