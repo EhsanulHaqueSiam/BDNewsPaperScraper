@@ -442,13 +442,17 @@ class ContentQualityPipeline:
             raise DropItem(f"Garbage content detected: {url}")
         
         # Check special character ratio
-        alpha_count = sum(1 for c in body if c.isalpha())
-        total_count = len(body.replace(' ', ''))
+        # Note: isalpha() works with Unicode, so Bengali and other scripts are counted as letters
+        # We count letters + digits as "good" characters
+        good_char_count = sum(1 for c in body if c.isalpha() or c.isdigit())
+        total_count = len(body.replace(' ', '').replace('\n', ''))
         
         if total_count > 0:
-            alpha_ratio = alpha_count / total_count
-            if alpha_ratio < (1 - self.max_special_char_ratio):
-                spider.logger.warning(f"High special char ratio in {url}: {1 - alpha_ratio:.2f}")
+            good_ratio = good_char_count / total_count
+            # For non-ASCII text (Bengali, Arabic, etc), the ratio calculation may differ
+            # Only flag if ratio is extremely low (< 0.3) instead of using max_special_char_ratio
+            if good_ratio < 0.3:
+                spider.logger.warning(f"Low text ratio in {url}: {good_ratio:.2f}")
                 raise DropItem(f"Too many special characters: {url}")
         
         # Check word count

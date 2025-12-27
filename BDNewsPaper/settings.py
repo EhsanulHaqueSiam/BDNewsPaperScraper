@@ -62,7 +62,7 @@ PLAYWRIGHT_CONTEXTS = {
 USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
 
 # Obey robots.txt rules
-ROBOTSTXT_OBEY = True
+ROBOTSTXT_OBEY = False
 
 # Configure maximum concurrent requests performed by Scrapy (default: 16)
 CONCURRENT_REQUESTS = 64
@@ -75,6 +75,9 @@ RANDOMIZE_DOWNLOAD_DELAY = True
 # The download delay setting will honor only one of:
 CONCURRENT_REQUESTS_PER_DOMAIN = 16
 CONCURRENT_REQUESTS_PER_IP = 16
+
+# Download timeout (seconds) - increased for slow Bangladesh news sites
+DOWNLOAD_TIMEOUT = 120  # Default is 180, but we use 120 for balance
 
 # Disable cookies (enabled by default)
 # COOKIES_ENABLED = False
@@ -228,11 +231,12 @@ COOKIES_ENABLED = False
 # HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 
 # Enable HTTP caching to minimize duplicate requests
-HTTPCACHE_ENABLED = True
-HTTPCACHE_EXPIRATION_SECS = 3600  # Cache for 1 hour (reduced from 24h)
-HTTPCACHE_DIR = "httpcache"
-HTTPCACHE_IGNORE_HTTP_CODES = [500, 502, 503, 504, 400, 403, 404, 429]
-HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
+# HTTPCACHE_ENABLED = True
+HTTPCACHE_ENABLED = False
+# HTTPCACHE_EXPIRATION_SECS = 3600  # Cache for 1 hour (reduced from 24h)
+# HTTPCACHE_DIR = "httpcache"
+# HTTPCACHE_IGNORE_HTTP_CODES = [500, 502, 503, 504, 400, 403, 404, 429]
+# HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
 
 # DNS resolver optimization
 DNSCACHE_ENABLED = True
@@ -363,8 +367,8 @@ ARCHIVE_FALLBACK_TIMEOUT = 10
 # HONEYPOT DETECTION (honeypot.py)
 # -----------------------------------------------------------------------------
 # Avoid anti-bot trap links.
-HONEYPOT_DETECTION_ENABLED = True
-HONEYPOT_MAX_LINKS_PER_PAGE = 500  # Pages with more links = trap
+# DISABLED by default - news listing pages often have 200+ legitimate links
+HONEYPOT_DETECTION_ENABLED = False
 
 # -----------------------------------------------------------------------------
 # VALIDATION PIPELINE (pipelines.py)

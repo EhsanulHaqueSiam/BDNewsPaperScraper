@@ -229,6 +229,11 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         
         for selector in selectors:
             links = response.css(selector).getall()
+        
+        # ROBUST FALLBACK: Use universal link discovery if selectors fail
+        if not links:
+            self.logger.info(f"CSS selectors failed, using universal link discovery")
+            links = self.discover_links(response, limit=50)
             for link in links:
                 if link and "/online/" in link:
                     full_url = response.urljoin(link)
@@ -483,6 +488,37 @@ class GenericPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
     
     async def parse_article(self, response):
         """Parse individual article page."""
+
+        # ROBUST FALLBACK: Try universal extraction first
+        fallback_result = self.extract_article_fallback(response)
+        if fallback_result and fallback_result.get('headline') and fallback_result.get('article_body'):
+            if len(fallback_result.get('article_body', '')) >= 100:
+                pub_date = None
+                if fallback_result.get('publication_date'):
+                    pub_date = self.parse_article_date(str(fallback_result['publication_date']))
+                
+                # Date filter
+                if pub_date and not self.is_date_in_range(pub_date):
+                    self.stats['date_filtered'] += 1
+                    return
+                
+                # Search filter
+                if not self.filter_by_search_query(fallback_result['headline'], fallback_result['article_body']):
+                    return
+                
+                self.stats['articles_processed'] += 1
+                yield self.create_article_item(
+                    url=response.url,
+                    headline=fallback_result['headline'],
+                    article_body=fallback_result['article_body'],
+                    author=fallback_result.get('author') or self.extract_author(response),
+                    publication_date=pub_date.isoformat() if pub_date else None,
+                    image_url=fallback_result.get('image_url'),
+                    category=response.meta.get('category', 'General'),
+                )
+                return
+        
+        # Original parsing logic (fallback to CSS selectors)
         page = response.meta.get("playwright_page")
         
         if page:

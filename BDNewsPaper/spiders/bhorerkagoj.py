@@ -138,6 +138,21 @@ class BhorerKagojSpider(BaseNewsSpider):
         # Deduplicate
         article_links = list(set(article_links))
         
+        # ROBUST FALLBACK: Use universal link discovery if selectors fail
+
+        
+        if not article_links:
+
+        
+            self.logger.info("CSS selectors failed, using universal link discovery")
+
+        
+            article_links = self.discover_links(response, limit=50)
+
+        
+        
+
+        
         self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
         
         if not article_links:
@@ -178,6 +193,30 @@ class BhorerKagojSpider(BaseNewsSpider):
     def parse_article(self, response: Response) -> Generator[NewsArticleItem, None, None]:
         """Parse individual article page."""
         url = response.url
+        
+        # ROBUST FALLBACK: Try universal extraction first
+        fallback = self.extract_article_fallback(response)
+        if fallback and fallback.get('headline') and fallback.get('article_body'):
+            if len(fallback.get('article_body', '')) >= 100:
+                pub_date = self.parse_article_date(str(fallback.get('publication_date', ''))) if fallback.get('publication_date') else None
+                if pub_date and not self.is_date_in_range(pub_date):
+                    self.stats['date_filtered'] += 1
+                    return
+                if not self.filter_by_search_query(fallback['headline'], fallback['article_body']):
+                    return
+                self.stats['articles_processed'] += 1
+                yield self.create_article_item(
+                    url=url,
+                    headline=fallback['headline'],
+                    article_body=fallback['article_body'],
+                    author=fallback.get('author') or self.extract_author(response),
+                    publication_date=pub_date.isoformat() if pub_date else None,
+                    image_url=fallback.get('image_url'),
+                    category=response.meta.get('category', 'General'),
+                )
+                return
+        
+        # Original extraction
         
         # Extract headline
         headline = (

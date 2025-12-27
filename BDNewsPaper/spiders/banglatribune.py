@@ -124,7 +124,7 @@ class BanglaTribuneSpider(BaseNewsSpider):
         cat_slug = response.meta.get('cat_slug')
         page = response.meta.get('page', 1)
         
-        # Find article links - pattern: /{category}/{id}/{slug} or /{category}/news/{id}/{slug}
+        # Primary: CSS selectors for known patterns
         article_links = response.css('a[href*="/news/"]::attr(href)').getall()
         article_links += response.css(f'a[href*="/{cat_slug}/"]::attr(href)').getall()
         
@@ -134,11 +134,12 @@ class BanglaTribuneSpider(BaseNewsSpider):
         # Deduplicate
         article_links = list(set(article_links))
         
-        self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
-        
+        # FALLBACK: If CSS selectors fail, use universal link discovery
         if not article_links:
-            self.logger.info(f"No more articles in {category}")
-            return
+            self.logger.info(f"CSS selectors failed, using universal link discovery for {category}")
+            article_links = self.discover_links(response, limit=50)
+        
+        self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
         
         found_count = 0
         
@@ -180,7 +181,41 @@ class BanglaTribuneSpider(BaseNewsSpider):
         """Parse individual article page."""
         url = response.url
         
-        # Extract headline
+        # Try JSON-LD and generic fallback FIRST (more reliable)
+        extracted = self.extract_article_fallback(response)
+        
+        if extracted and extracted.get('headline') and extracted.get('article_body') and len(extracted.get('article_body', '')) >= 100:
+            # Use fallback extraction result
+            headline = unescape(extracted['headline'].strip())
+            article_body = extracted['article_body']
+            pub_date = None
+            
+            if extracted.get('publication_date'):
+                pub_date = self._parse_date_string(extracted['publication_date'])
+            
+            # Date filter
+            if pub_date and not self.is_date_in_range(pub_date):
+                self.stats['date_filtered'] += 1
+                return
+            
+            # Search query filter
+            if not self.filter_by_search_query(headline, article_body):
+                return
+            
+            self.stats['articles_processed'] += 1
+            
+            yield self.create_article_item(
+                url=url,
+                headline=headline,
+                article_body=article_body,
+                publication_date=pub_date.isoformat() if pub_date else None,
+                category=response.meta.get('category', 'General'),
+                author=extracted.get('author') or self.extract_author(response),
+                image_url=extracted.get('image_url'),
+            )
+            return
+        
+        # FALLBACK: Original CSS selector approach
         headline = (
             response.css('h1::text').get() or
             response.css('h1.title::text').get() or

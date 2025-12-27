@@ -115,6 +115,21 @@ class BDPratidinBanglaSpider(BaseNewsSpider):
         # Deduplicate
         article_links = list(set(article_links))
         
+        # ROBUST FALLBACK: Use universal link discovery if selectors fail
+
+        
+        if not article_links:
+
+        
+            self.logger.info("CSS selectors failed, using universal link discovery")
+
+        
+            article_links = self.discover_links(response, limit=50)
+
+        
+        
+
+        
         self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
         
         if not article_links:

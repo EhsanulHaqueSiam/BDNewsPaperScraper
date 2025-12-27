@@ -22,6 +22,7 @@ from BDNewsPaper.config import (
     get_spider_config,
 )
 from BDNewsPaper.items import NewsArticleItem
+from BDNewsPaper.link_discovery import ArticleLinkDiscovery, discover_article_links
 
 
 class BaseNewsSpider(scrapy.Spider):
@@ -66,6 +67,15 @@ class BaseNewsSpider(scrapy.Spider):
     # Initialization
     # ================================================================
     
+    @classmethod
+    def from_crawler(cls, crawler, *args, **kwargs):
+        """Create spider instance with settings from crawler."""
+        # Extract DATABASE_PATH from settings and pass to spider
+        db_path = crawler.settings.get('DATABASE_PATH', 'news_articles.db')
+        kwargs['db_path'] = db_path
+        spider = super().from_crawler(crawler, *args, **kwargs)
+        return spider
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         
@@ -84,7 +94,7 @@ class BaseNewsSpider(scrapy.Spider):
         # Parse search query arguments
         self._parse_search_args(kwargs)
         
-        # Initialize database path
+        # Initialize database path (from_crawler passes db_path from settings)
         self.db_path = kwargs.get('db_path', 'news_articles.db')
         
         # Initialize tracking sets
@@ -266,6 +276,334 @@ class BaseNewsSpider(scrapy.Spider):
                 return False
         # Must be a path or full URL
         return url.startswith('/') or url.startswith('http://') or url.startswith('https://')
+    
+    # ================================================================
+    # Universal Fallback Extraction Methods
+    # ================================================================
+    
+    def extract_from_jsonld(self, response: Response) -> Optional[Dict[str, Any]]:
+        """
+        Extract article data from JSON-LD structured data.
+        
+        Most news sites embed article metadata in JSON-LD format.
+        This is the most reliable extraction method when available.
+        
+        Args:
+            response: Scrapy Response object
+            
+        Returns:
+            Dictionary with extracted fields, or None if not found
+        """
+        import json
+        
+        scripts = response.css('script[type="application/ld+json"]::text').getall()
+        
+        for script in scripts:
+            try:
+                data = json.loads(script)
+                
+                # Handle @graph format
+                if isinstance(data, dict) and '@graph' in data:
+                    items = data['@graph']
+                elif isinstance(data, list):
+                    items = data
+                else:
+                    items = [data]
+                
+                for item in items:
+                    if not isinstance(item, dict):
+                        continue
+                    
+                    item_type = item.get('@type', '')
+                    if isinstance(item_type, list):
+                        item_type = item_type[0] if item_type else ''
+                    
+                    # Check for article types
+                    article_types = ['NewsArticle', 'Article', 'BlogPosting', 'WebPage', 
+                                    'ReportageNewsArticle', 'AnalysisNewsArticle']
+                    if not any(t in str(item_type) for t in article_types):
+                        continue
+                    
+                    # Extract fields
+                    result = {
+                        'headline': item.get('headline') or item.get('name'),
+                        'article_body': item.get('articleBody') or item.get('description'),
+                        'publication_date': item.get('datePublished'),
+                        'modification_date': item.get('dateModified'),
+                    }
+                    
+                    # Extract author
+                    author = item.get('author')
+                    if isinstance(author, dict):
+                        result['author'] = author.get('name')
+                    elif isinstance(author, list) and author:
+                        names = [a.get('name') if isinstance(a, dict) else a for a in author]
+                        result['author'] = ', '.join(filter(None, names))
+                    elif isinstance(author, str):
+                        result['author'] = author
+                    
+                    # Extract image
+                    image = item.get('image')
+                    if isinstance(image, dict):
+                        result['image_url'] = image.get('url')
+                    elif isinstance(image, list) and image:
+                        first_img = image[0]
+                        result['image_url'] = first_img.get('url') if isinstance(first_img, dict) else first_img
+                    elif isinstance(image, str):
+                        result['image_url'] = image
+                    
+                    # Only return if we have at least headline
+                    if result.get('headline'):
+                        self.logger.debug(f"Extracted from JSON-LD: {result.get('headline')[:50]}")
+                        return result
+                        
+            except (json.JSONDecodeError, TypeError, AttributeError) as e:
+                self.logger.debug(f"JSON-LD parse error: {e}")
+                continue
+        
+        return None
+    
+    def try_generic_selectors(self, response: Response) -> Dict[str, Any]:
+        """
+        Try common CSS selectors used by news sites.
+        
+        Use this as a fallback when spider-specific selectors fail.
+        
+        Args:
+            response: Scrapy Response object
+            
+        Returns:
+            Dictionary with extracted fields (may be empty)
+        """
+        result = {}
+        
+        # Headline selectors (in order of specificity)
+        headline_selectors = [
+            'h1.entry-title::text',
+            'h1.post-title::text',
+            'h1.article-title::text',
+            'h1[itemprop="headline"]::text',
+            '.headline h1::text',
+            'article h1::text',
+            '.article-header h1::text',
+            '.post-header h1::text',
+            'h1.title::text',
+            'h1::text',
+        ]
+        
+        for selector in headline_selectors:
+            headline = response.css(selector).get()
+            if headline and len(headline.strip()) > 10:
+                result['headline'] = headline.strip()
+                break
+        
+        # Body selectors (ordered by specificity/reliability)
+        body_selectors = [
+            # Schema.org/semantic
+            '[itemprop="articleBody"] p::text',
+            '[itemprop="articleBody"]::text',
+            
+            # Common CMS patterns
+            'article .entry-content p::text',
+            '.post-content p::text',
+            '.article-body p::text',
+            '.article-content p::text',
+            '.story-body p::text',
+            '.story-content p::text',
+            '.content-inner p::text',
+            '.main-content p::text',
+            
+            # Bangla news site patterns
+            '.news-content p::text',
+            '.content p::text',
+            '.news-details p::text',
+            '.details-content p::text',
+            
+            # Generic fallbacks
+            'article p::text',
+            '.single-content p::text',
+            'main p::text',
+        ]
+        
+        for selector in body_selectors:
+            paragraphs = response.css(selector).getall()
+            if paragraphs:
+                body = ' '.join(p.strip() for p in paragraphs if p.strip())
+                if len(body) > 100:
+                    result['article_body'] = body
+                    break
+        
+        # Date selectors
+        date_selectors = [
+            'time[datetime]::attr(datetime)',
+            '[itemprop="datePublished"]::attr(content)',
+            'meta[property="article:published_time"]::attr(content)',
+            '.post-date::text',
+            '.entry-date::text',
+            '.published::text',
+        ]
+        
+        for selector in date_selectors:
+            date = response.css(selector).get()
+            if date and date.strip():
+                result['publication_date'] = date.strip()
+                break
+        
+        # Image selectors
+        image_selectors = [
+            'meta[property="og:image"]::attr(content)',
+            'article img::attr(src)',
+            '.featured-image img::attr(src)',
+            '.post-thumbnail img::attr(src)',
+        ]
+        
+        for selector in image_selectors:
+            image = response.css(selector).get()
+            if image and image.strip():
+                result['image_url'] = response.urljoin(image.strip())
+                break
+        
+        if result:
+            self.logger.debug(f"Generic selectors found: {list(result.keys())}")
+        
+        return result
+    
+    def extract_article_fallback(self, response: Response) -> Optional[Dict[str, Any]]:
+        """
+        Unified fallback extraction using all available methods.
+        
+        Extraction chain:
+        1. JSON-LD structured data (most reliable)
+        2. Generic CSS selectors (common patterns)
+        3. Meta tags (og:, twitter:)
+        
+        Args:
+            response: Scrapy Response object
+            
+        Returns:
+            Dictionary with extracted fields, or None if all fail
+        """
+        # Try JSON-LD first (most reliable)
+        result = self.extract_from_jsonld(response)
+        if result and result.get('headline') and result.get('article_body'):
+            result['extraction_source'] = 'jsonld'
+            return result
+        
+        # Try generic selectors
+        generic_result = self.try_generic_selectors(response)
+        
+        # Merge results if JSON-LD was partial
+        if result:
+            for key, value in generic_result.items():
+                if not result.get(key) and value:
+                    result[key] = value
+            if result.get('headline'):
+                result['extraction_source'] = 'jsonld+generic'
+                return result
+        
+        # Use generic result if JSON-LD failed
+        if generic_result.get('headline'):
+            generic_result['extraction_source'] = 'generic'
+            return generic_result
+        
+        return None
+    
+    def discover_links(self, response: Response, limit: int = 50) -> List[str]:
+        """
+        Discover article links using pattern-based URL detection.
+        
+        This is a robust fallback when CSS selectors fail. It analyzes
+        all links on the page and scores them based on URL patterns.
+        
+        Args:
+            response: Scrapy Response object
+            limit: Maximum links to return
+            
+        Returns:
+            List of article URLs
+        """
+        return discover_article_links(response, limit)
+    
+    def parse_article_auto(self, response: Response) -> Optional[NewsArticleItem]:
+        """
+        Universal article parser with automatic extraction.
+        
+        Tries multiple extraction strategies:
+        1. JSON-LD structured data
+        2. Generic CSS selectors
+        3. Meta tags (og:, twitter:)
+        
+        Use this when spider-specific selectors are broken.
+        
+        Args:
+            response: Scrapy Response object
+            
+        Returns:
+            NewsArticleItem or None if extraction fails
+        """
+        # Try fallback extraction
+        extracted = self.extract_article_fallback(response)
+        
+        if not extracted:
+            self.logger.debug(f"Auto extraction failed for: {response.url}")
+            return None
+        
+        # Extract author as fallback
+        author = extracted.get('author') or self.extract_author(response)
+        
+        # Create item
+        item = self.create_article_item(
+            url=response.url,
+            headline=extracted.get('headline'),
+            article_body=extracted.get('article_body'),
+            author=author,
+            publication_date=extracted.get('publication_date'),
+            modification_date=extracted.get('modification_date'),
+            image_url=extracted.get('image_url'),
+        )
+        
+        # Store raw HTML for fallback pipeline
+        item['_raw_html'] = response.text
+        
+        self.stats['articles_processed'] += 1
+        self.logger.info(f"Auto-extracted: {extracted.get('headline', '')[:50]}")
+        
+        return item
+    
+    def parse_listing_auto(self, response: Response) -> Generator:
+        """
+        Universal listing page parser.
+        
+        Discovers article links using pattern-based detection,
+        then yields requests for each article.
+        
+        Usage in spider:
+            def parse(self, response):
+                yield from self.parse_listing_auto(response)
+        
+        Args:
+            response: Scrapy Response object (listing page)
+            
+        Yields:
+            Scrapy Requests for discovered article pages
+        """
+        article_urls = self.discover_links(response)
+        
+        self.logger.info(f"Discovered {len(article_urls)} article links on {response.url}")
+        
+        for url in article_urls:
+            # Skip if already in database
+            if self.is_url_in_db(url):
+                continue
+            
+            self.stats['articles_found'] += 1
+            
+            yield Request(
+                url=url,
+                callback=self.parse_article_auto,
+                errback=self.handle_request_failure,
+                meta={'auto_parse': True},
+            )
     
     # ================================================================
     # Search/Keyword Filtering

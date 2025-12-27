@@ -139,7 +139,168 @@ Collects news articles from **74+ major Bangladeshi news sources** (English & Ba
 
 ---
 
-## 🚀 Quick Start
+## � Complete Scripts Reference (31 Scripts)
+
+All scripts are in the `scripts/` directory. Run with `uv run python scripts/<script>.py`.
+
+### 📊 Analytics & ML
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `analytics.py` | Sentiment analysis, entity extraction, trends | `--report`, `--sentiment`, `--entities`, `--trends` |
+| `topic_clustering.py` | K-Means article clustering | `--cluster`, `--n-clusters 15`, `--similar "query"` |
+| `bias_detection.py` | Political bias scoring | `--compare`, `--paper "Prothom Alo"` |
+| `content_similarity.py` | Duplicate detection | `--duplicates`, `--threshold 0.85` |
+| `breaking_news.py` | Spike detection & trending | `--monitor`, `--breaking`, `--trending` |
+
+### 📈 Dashboards & Visualization
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `dashboard.py` | Basic Streamlit dashboard | `streamlit run scripts/dashboard.py` |
+| `dashboard_enhanced.py` | Enhanced dark mode dashboard | `streamlit run scripts/dashboard_enhanced.py` |
+| `status_page.py` | Spider health monitoring | `--serve`, `--port 8080` |
+| `geo_mapping.py` | Leaflet.js Bangladesh maps | `--generate`, `--output map.html` |
+| `news_timeline.py` | Interactive timeline | `--generate`, `--days 30` |
+| `performance_monitor.py` | Scraping metrics | `--watch`, `--interval 60` |
+
+### 📡 Notifications & Bots
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `telegram_bot.py` | Telegram notifications | `--send`, `--summary`, `--breaking` |
+| `slack_bot.py` | Slack notifications | `--send`, `--channel "#news"` |
+| `discord_bot.py` | Discord embeds | `--send`, `--webhook-url "..."` |
+| `email_reports.py` | HTML email summaries | `--send`, `--recipients "a@b.com"` |
+| `webhooks.py` | Custom webhook alerts | `--monitor`, `--url "..."` |
+| `alerts.py` | Multi-channel alerts | `--send`, `--channels "telegram,slack"` |
+
+### 🔍 Search & API
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `graphql_api.py` | GraphQL API server | `--serve`, `--port 8000` |
+| `elasticsearch_search.py` | Elasticsearch indexing | `--index`, `--search "query"` |
+| `redis_cache.py` | Redis caching layer | `--flush`, `--stats` |
+
+### ☁️ Cloud & Storage
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `s3_storage.py` | AWS S3/DO Spaces backup | `--backup`, `--bucket "name"` |
+| `archive_org.py` | Archive.org/Wayback | `--archive-recent`, `--url "..."` |
+| `kaggle_upload.py` | Kaggle dataset upload | `--upload`, `--dataset "name"` |
+| `huggingface_upload.py` | Hugging Face Hub | `--upload`, `--repo "user/repo"` |
+
+### 📧 Export & Reports
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `toxlsx.py` | Excel export | `--all`, `--paper "name"`, `--limit 1000` |
+| `rss_feed.py` | RSS feed generation | `--generate`, `--output feed.xml` |
+
+### 🛠️ Maintenance & Testing
+
+| Script | Description | Usage |
+|--------|-------------|-------|
+| `test_all_spiders.py` | Parallel spider testing | `--timeout 120`, `--max-items 2`, `--workers 10` |
+| `canary_check.py` | Health monitoring | `--check`, `--alert-on-failure` |
+| `fix_all_spiders.py` | Batch spider fixer | Adds fallback methods to spiders |
+| `fix_article_extraction.py` | Fix parse_article methods | Adds extract_article_fallback |
+| `update_spiders_fallback.py` | Update spider fallbacks | Batch update utility |
+
+### Usage Examples
+
+```bash
+# Analytics report
+uv run python scripts/analytics.py --report
+
+# Topic clustering with 10 clusters
+uv run python scripts/topic_clustering.py --cluster --n-clusters 10
+
+# Find duplicate articles
+uv run python scripts/content_similarity.py --duplicates --threshold 0.9
+
+# Export to Excel
+uv run python scripts/toxlsx.py --all --output all_news.xlsx
+
+# Generate RSS feed
+uv run python scripts/rss_feed.py --generate --output feed.xml
+
+# Test all spiders (longer timeout)
+uv run python scripts/test_all_spiders.py --timeout 120 --max-items 3
+
+# Send Telegram notification
+uv run python scripts/telegram_bot.py --send --summary
+
+# Backup to S3
+uv run python scripts/s3_storage.py --backup --bucket my-news-backup
+
+# Run enhanced dashboard
+uv run streamlit run scripts/dashboard_enhanced.py
+```
+
+### 🏠 Root-Level Scripts & Utilities
+
+These scripts are in the project root directory:
+
+| File | Description | Usage |
+|------|-------------|-------|
+| `app.py` | **Streamlit Web GUI** | `uv run streamlit run app.py` |
+| `run_spiders_optimized.py` | **Batch spider runner** | `python run_spiders_optimized.py prothomalo dailysun` |
+| `run_spiders_optimized.sh` | Batch runner (Linux/Mac) | `./run_spiders_optimized.sh --monitor` |
+| `run_spiders_optimized.bat` | Batch runner (Windows) | `run_spiders_optimized.bat` |
+| `setup.sh` | **Full project setup** | `./setup.sh` |
+| `test_spiders.sh` | Quick spider tests | `./test_spiders.sh prothomalo` |
+| `init.sql` | PostgreSQL schema | Used by Docker |
+| `scrapy.cfg` | Scrapy configuration | Auto-loaded by Scrapy |
+
+### 📦 BDNewsPaper Module Components
+
+Key Python modules in `BDNewsPaper/`:
+
+| Module | Description |
+|--------|-------------|
+| `api.py` | **FastAPI REST API** with rate limiting |
+| `cli.py` | **CLI interface** (`python -m BDNewsPaper.cli`) |
+| `search.py` | **Full-text search** (`python -m BDNewsPaper.search`) |
+| `items.py` | Scrapy item definitions |
+| `settings.py` | All configuration options |
+| `pipelines.py` | 6 data processing pipelines |
+| `middlewares.py` | 11 downloader middlewares |
+| `extractors.py` | Content extraction utilities |
+| `link_discovery.py` | Pattern-based URL discovery |
+| `base_spider.py` | Base class with fallback methods |
+| `auto_spider.py` | Universal self-healing spider |
+| `proxy.py` | Multi-type proxy rotation |
+| `cloudflare_bypass.py` | 7-level CF bypass |
+| `stealth_headers.py` | Anti-bot headers |
+| `hybrid_request.py` | Auto HTTP→Playwright switching |
+| `honeypot.py` | Trap link detection |
+| `antibot.py` | Browser fingerprint randomization |
+| `geo_mimicry.py` | Bangladesh geo-location mimicry |
+
+### 🧪 Test Suite
+
+Tests are in `tests/` directory:
+
+```bash
+# Run all tests
+uv run pytest
+
+# Run with coverage
+uv run pytest --cov=BDNewsPaper --cov-report=html
+
+# Run specific test file
+uv run pytest tests/test_spider.py -v
+
+# Run smoke tests only
+uv run pytest tests/test_smoke.py -v
+```
+
+---
+
+## �🚀 Quick Start
 
 ### Prerequisites
 
@@ -351,7 +512,194 @@ uv run scrapy crawl kalerkantho_playwright -s CONCURRENT_REQUESTS=4 -s DOWNLOAD_
 | `Cloudflare still blocking` | Try adding more delay with `-s DOWNLOAD_DELAY=5` |
 | `Memory issues` | Reduce `CONCURRENT_REQUESTS` to 2-4 |
 
+### 🔧 Universal Self-Healing Spider (NEW)
+
+The `autonews` spider works on **ANY news website** without custom configuration. It uses pattern-based link discovery and multi-layer extraction fallbacks.
+
+#### Quick Start
+
+```bash
+# Scrape ANY news site automatically
+uv run scrapy crawl autonews -a url="https://www.risingbd.com/"
+
+# Multiple start URLs
+uv run scrapy crawl autonews -a urls="https://samakal.com/,https://risingbd.com/"
+
+# With item limit
+uv run scrapy crawl autonews -a url="https://www.bhorerkagoj.com/" -s CLOSESPIDER_ITEMCOUNT=10
+```
+
+#### How It Works
+
+1. **Pattern-based Link Discovery** - Finds article URLs using URL patterns (no CSS selectors needed)
+2. **JSON-LD Extraction** - Extracts structured data first (most reliable)
+3. **Generic CSS Selectors** - Falls back to 22 common CSS patterns
+4. **Self-Healing** - If one method fails, automatically tries the next
+
+#### Features
+
+| Feature | Description |
+|---------|-------------|
+| 🔄 **Self-healing** | Automatically adapts when website layouts change |
+| 🌐 **Works on any site** | No custom selectors needed |
+| 🚀 **Fast discovery** | Pattern-based URL detection |
+| 📊 **Full extraction** | Headlines, body, dates, authors, images |
+
 ---
+
+## 🛡️ Middleware & Robustness Features
+
+This scraper includes **11 downloader middlewares** and **6 pipelines** for maximum reliability.
+
+### Downloader Middlewares (Request/Response Processing)
+
+| Middleware | Priority | Purpose | Toggle |
+|------------|----------|---------|--------|
+| `StealthHeadersMiddleware` | 350 | Anti-bot headers | `STEALTH_HEADERS_ENABLED` |
+| `UserAgentMiddleware` | 400 | UA rotation | Always on |
+| `ProxyMiddleware` | 410 | Proxy rotation | `PROXY_ENABLED` |
+| `CloudflareBypassMiddleware` | 430 | CF bypass (7 levels) | `CF_BYPASS_ENABLED` |
+| `CircuitBreakerMiddleware` | 451 | Prevents hammering failed sites | `CIRCUIT_BREAKER_*` |
+| `StatisticsMiddleware` | 460 | Request/response tracking | Always on |
+| `AdaptiveThrottlingMiddleware` | 470 | Dynamic delay adjustment | `ADAPTIVE_THROTTLE_ENABLED` |
+| `RateLimitMiddleware` | 500 | Request rate limiting | `RATELIMIT_*` |
+| `HybridRequestMiddleware` | 540 | Auto HTTP→Playwright switch | `HYBRID_REQUEST_ENABLED` |
+| `SmartRetryMiddleware` | 550 | Exponential backoff retry | `RETRY_*` |
+| `ArchiveFallbackMiddleware` | 650 | Wayback Machine fallback | `ARCHIVE_FALLBACK_ENABLED` |
+
+### Item Pipelines (Data Processing)
+
+| Pipeline | Priority | Purpose |
+|----------|----------|---------|
+| `FallbackExtractionPipeline` | 50 | Re-extract content if spider fails |
+| `ValidationPipeline` | 100 | Validate required fields |
+| `CleanArticlePipeline` | 200 | Clean HTML, normalize text |
+| `LanguageDetectionPipeline` | 210 | Detect article language |
+| `ContentQualityPipeline` | 220 | Check word count, special chars |
+| `SharedSQLitePipeline` | 300 | Save to database |
+
+### Usage Examples
+
+#### Enable Proxy Rotation
+```bash
+# Single proxy
+uv run scrapy crawl prothomalo -s PROXY_ENABLED=true -s PROXY_URL="http://user:pass@host:port"
+
+# Rotating proxies from file
+uv run scrapy crawl prothomalo -s PROXY_ENABLED=true -s PROXY_TYPE=rotating -s PROXY_LIST=proxies.txt
+
+# Residential proxies (Brightdata, Oxylabs, etc.)
+uv run scrapy crawl prothomalo -s PROXY_ENABLED=true -s PROXY_TYPE=residential -s RESIDENTIAL_PROVIDER=brightdata
+```
+
+#### Configure Retry Behavior
+```bash
+# Custom retry settings
+uv run scrapy crawl prothomalo \
+  -s RETRY_TIMES=5 \
+  -s RETRY_HTTP_CODES="500,502,503,504,429" \
+  -s RETRY_BACKOFF_FACTOR=2.0
+```
+
+#### Cloudflare Bypass (7 Levels)
+```bash
+# Auto-escalating CF bypass (enabled by default)
+uv run scrapy crawl dailysun -s CF_BYPASS_ENABLED=true
+
+# With Flaresolverr (Docker)
+docker run -d -p 8191:8191 ghcr.io/flaresolverr/flaresolverr
+uv run scrapy crawl dailysun -s FLARESOLVERR_URL="http://localhost:8191/v1"
+```
+
+#### Adaptive Throttling
+```bash
+# Configure throttling thresholds
+uv run scrapy crawl prothomalo \
+  -s ADAPTIVE_THROTTLE_ENABLED=true \
+  -s ADAPTIVE_THROTTLE_THRESHOLD_MS=500 \
+  -s ADAPTIVE_THROTTLE_MIN_DELAY=0.5 \
+  -s ADAPTIVE_THROTTLE_MAX_DELAY=10.0
+```
+
+#### Circuit Breaker
+```bash
+# Prevent hammering failed sites
+uv run scrapy crawl prothomalo \
+  -s CIRCUIT_BREAKER_THRESHOLD=5 \
+  -s CIRCUIT_BREAKER_RECOVERY_TIMEOUT=60
+```
+
+#### Content Quality Filters
+```bash
+# Strict content validation
+uv run scrapy crawl prothomalo \
+  -s MIN_ARTICLE_WORDS=50 \
+  -s MAX_ARTICLE_WORDS=10000 \
+  -s MAX_SPECIAL_CHAR_RATIO=0.3
+```
+
+#### Language Detection
+```bash
+# Only keep English articles
+uv run scrapy crawl prothomalo \
+  -s LANGUAGE_DETECTION_ENABLED=true \
+  -s LANGUAGE_DETECTION_STRICT=true \
+  -s EXPECTED_LANGUAGES="en"
+```
+
+#### Archive Fallback (Wayback Machine)
+```bash
+# Fetch from Wayback when sites return 404/403
+uv run scrapy crawl prothomalo \
+  -s ARCHIVE_FALLBACK_ENABLED=true \
+  -s ARCHIVE_FALLBACK_CODES="404,403,410"
+```
+
+#### Hybrid Request (Auto Playwright)
+```bash
+# Auto-switch to Playwright for JS sites
+uv run scrapy crawl dailysun -s HYBRID_REQUEST_ENABLED=true
+```
+
+### Performance Tuning
+
+```bash
+# High-speed aggressive scraping
+uv run scrapy crawl prothomalo \
+  -s CONCURRENT_REQUESTS=64 \
+  -s CONCURRENT_REQUESTS_PER_DOMAIN=16 \
+  -s DOWNLOAD_DELAY=0.25 \
+  -s AUTOTHROTTLE_ENABLED=false
+
+# Conservative/polite scraping
+uv run scrapy crawl prothomalo \
+  -s CONCURRENT_REQUESTS=4 \
+  -s DOWNLOAD_DELAY=3 \
+  -s AUTOTHROTTLE_ENABLED=true
+
+# Memory-limited (2GB)
+uv run scrapy crawl prothomalo \
+  -s MEMUSAGE_ENABLED=true \
+  -s MEMUSAGE_LIMIT_MB=2048
+```
+
+### All Available Settings
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `DOWNLOAD_TIMEOUT` | 120 | Request timeout (seconds) |
+| `CONCURRENT_REQUESTS` | 64 | Max concurrent requests |
+| `DOWNLOAD_DELAY` | 0.5 | Delay between requests |
+| `PROXY_ENABLED` | false | Enable proxy rotation |
+| `CF_BYPASS_ENABLED` | true | Enable Cloudflare bypass |
+| `HYBRID_REQUEST_ENABLED` | true | Auto HTTP→Playwright |
+| `STEALTH_HEADERS_ENABLED` | true | Anti-bot headers |
+| `ADAPTIVE_THROTTLE_ENABLED` | true | Dynamic delay adjustment |
+| `ARCHIVE_FALLBACK_ENABLED` | true | Wayback Machine fallback |
+| `FALLBACK_EXTRACTION_ENABLED` | true | Re-extract failed content |
+| `LANGUAGE_DETECTION_ENABLED` | true | Detect article language |
+| `HONEYPOT_DETECTION_ENABLED` | false | Avoid trap links |
+| `VALIDATION_STRICT_MODE` | true | Drop invalid items |
 
 ## 🛠️ Usage
 

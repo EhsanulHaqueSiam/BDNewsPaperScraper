@@ -6,6 +6,7 @@ Runs all available spiders in parallel to verify they are working correctly.
 Limits execution to 2 items per spider.
 """
 
+import argparse
 import subprocess
 import sys
 import time
@@ -14,11 +15,16 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import re
 
-# Configuration
-MAX_WORKERS = 8
-ITEM_LIMIT = 2
-TIMEOUT_SECONDS = 60
+# Default Configuration
+DEFAULT_MAX_WORKERS = 8
+DEFAULT_ITEM_LIMIT = 2
+DEFAULT_TIMEOUT_SECONDS = 60
 TEST_DB_PATH = "test_results.db"
+
+# Global config (set by argparse)
+MAX_WORKERS = DEFAULT_MAX_WORKERS
+ITEM_LIMIT = DEFAULT_ITEM_LIMIT
+TIMEOUT_SECONDS = DEFAULT_TIMEOUT_SECONDS
 
 def get_spiders() -> List[str]:
     """Get list of available spiders."""
@@ -64,7 +70,8 @@ def test_spider(spider_name: str) -> Dict:
         "-s", "LOG_LEVEL=INFO",
         "-s", "DATABASE_PATH=:memory:",
         "-s", "TELNETCONSOLE_ENABLED=0",
-        "-s", "HTTPCACHE_ENABLED=False"
+        "-s", "HTTPCACHE_ENABLED=False",
+        "-s", "LOG_FILE="
     ])
     
     try:
@@ -119,8 +126,46 @@ def test_spider(spider_name: str) -> Dict:
             "item_count": 0
         }
 
+def parse_args():
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Parallel Spider Tester - runs all spiders to verify they work correctly"
+    )
+    parser.add_argument(
+        "--timeout", "-t",
+        type=int,
+        default=DEFAULT_TIMEOUT_SECONDS,
+        help=f"Timeout in seconds per spider (default: {DEFAULT_TIMEOUT_SECONDS})"
+    )
+    parser.add_argument(
+        "--max-items", "-m",
+        type=int,
+        default=DEFAULT_ITEM_LIMIT,
+        help=f"Maximum items to scrape per spider (default: {DEFAULT_ITEM_LIMIT})"
+    )
+    parser.add_argument(
+        "--workers", "-w",
+        type=int,
+        default=DEFAULT_MAX_WORKERS,
+        help=f"Number of parallel workers (default: {DEFAULT_MAX_WORKERS})"
+    )
+    parser.add_argument(
+        "--spider", "-s",
+        type=str,
+        default=None,
+        help="Test only a specific spider by name"
+    )
+    return parser.parse_args()
+
 def main():
-    print(f"🕷️  Starting parallel spider test (Workers: {MAX_WORKERS})")
+    global MAX_WORKERS, ITEM_LIMIT, TIMEOUT_SECONDS
+    
+    args = parse_args()
+    MAX_WORKERS = args.workers
+    ITEM_LIMIT = args.max_items
+    TIMEOUT_SECONDS = args.timeout
+    
+    print(f"🕷️  Starting parallel spider test (Workers: {MAX_WORKERS}, Timeout: {TIMEOUT_SECONDS}s, Max Items: {ITEM_LIMIT})")
     print("=" * 60)
     
     # Clean up previous test DB
@@ -131,7 +176,15 @@ def main():
         print("No spiders found!")
         return
     
-    print(f"Found {len(spiders)} spiders. Running tests...")
+    # Filter to specific spider if requested
+    if args.spider:
+        if args.spider not in spiders:
+            print(f"❌ Spider '{args.spider}' not found!")
+            print(f"Available spiders: {', '.join(spiders[:10])}...")
+            return
+        spiders = [args.spider]
+    
+    print(f"Found {len(spiders)} spider(s). Running tests...")
     
     results = {
         "PASSED": [],

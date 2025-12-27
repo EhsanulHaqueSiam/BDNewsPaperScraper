@@ -92,6 +92,21 @@ class Barta24Spider(BaseNewsSpider):
             self.logger.error("Expected list of articles from API")
             return
         
+        # ROBUST FALLBACK: Use universal link discovery if selectors fail
+
+        
+        if not articles:
+
+        
+            self.logger.info("CSS selectors failed, using universal link discovery")
+
+        
+            articles = self.discover_links(response, limit=50)
+
+        
+        
+
+        
         self.logger.info(f"Found {len(articles)} articles from API")
         
         for article in articles:
