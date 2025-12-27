@@ -314,15 +314,12 @@ uv run pytest tests/test_smoke.py -v
 git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
 cd BDNewsPaperScraper
 
-# Option 1: Quick setup (recommended) - Works on Windows/Mac/Linux
+# Quick setup (works on Windows, Mac, Linux)
 python quickstart.py              # Basic setup
 python quickstart.py dashboard    # With dashboard
 python quickstart.py all          # All features
 
-# Option 2: Bash script (Mac/Linux only)
-./quickstart.sh
-
-# Option 3: Manual setup
+# Or manual setup
 uv sync                           # Install dependencies
 uv run playwright install chromium # Install browser
 
