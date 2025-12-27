@@ -314,8 +314,14 @@ uv run pytest tests/test_smoke.py -v
 git clone https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper.git
 cd BDNewsPaperScraper
 
-# Install dependencies
-uv sync
+# Option 1: Quick setup (recommended)
+./quickstart.sh              # Basic setup
+./quickstart.sh dashboard    # With dashboard
+./quickstart.sh all          # All features
+
+# Option 2: Manual setup
+uv sync                           # Install dependencies
+uv run playwright install chromium # Install browser
 
 # Verify installation
 uv run scrapy list
