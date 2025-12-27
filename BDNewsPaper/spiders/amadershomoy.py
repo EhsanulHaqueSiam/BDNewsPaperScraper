@@ -72,12 +72,6 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
         """Generate initial requests to category pages."""
         self.stats['requests_made'] = 0
         
-        # This site uses Nuxt.js and requires JavaScript rendering
-        playwright_meta = {
-            'playwright': True,
-            'playwright_include_page': False,
-        }
-        
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
@@ -90,7 +84,7 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1, **playwright_meta},
+                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1},
                     errback=self.handle_request_failure,
                 )
         else:
@@ -100,7 +94,7 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
             yield Request(
                 url=url,
                 callback=self.parse_category,
-                meta={'category': 'General', 'cat_slug': '', 'page': 1, **playwright_meta},
+                meta={'category': 'General', 'cat_slug': '', 'page': 1},
                 errback=self.handle_request_failure,
             )
     
