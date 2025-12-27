@@ -77,7 +77,7 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 16
 CONCURRENT_REQUESTS_PER_IP = 16
 
 # Download timeout (seconds) - increased for slow Bangladesh news sites
-DOWNLOAD_TIMEOUT = 120  # Default is 180, but we use 120 for balance
+DOWNLOAD_TIMEOUT = 180  # 3 minutes for slow Bangladesh news sites
 
 # Disable cookies (enabled by default)
 # COOKIES_ENABLED = False
