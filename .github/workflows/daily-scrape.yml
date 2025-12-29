@@ -32,6 +32,10 @@ env:
   PYTHON_VERSION: '3.11'
   TZ: 'Asia/Dhaka'
 
+concurrency:
+  group: daily-scrape
+  cancel-in-progress: false  # Don't cancel in-progress scrapes
+
 jobs:
   scrape:
     runs-on: ubuntu-latest
