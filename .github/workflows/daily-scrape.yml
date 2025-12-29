@@ -25,6 +25,9 @@ on:
         type: boolean
         default: false
 
+permissions:
+  contents: write
+
 env:
   PYTHON_VERSION: '3.11'
   TZ: 'Asia/Dhaka'
