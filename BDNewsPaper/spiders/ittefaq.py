@@ -70,7 +70,7 @@ class IttefaqSpider(BaseNewsSpider):
         "Opinion": {"widget": 33, "page_id": 1103, "path": "opinion"},
     }
     
-    DEFAULT_CATEGORIES = ["Bangladesh"]
+    DEFAULT_CATEGORIES = ["Bangladesh", "International", "Sports", "Business", "Entertainment", "Opinion"]
     
     API_HEADERS = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
