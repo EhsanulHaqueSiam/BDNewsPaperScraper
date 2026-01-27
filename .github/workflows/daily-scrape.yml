@@ -121,12 +121,13 @@ jobs:
           "
           
           # DEBUG: Run single spider with full output to diagnose issue
-          echo "🔧 DEBUG: Single spider test with full output..."
+          echo "🔧 DEBUG: Single spider test with default reactor..."
           timeout 60 scrapy crawl prothomalo \
             -a start_date=${{ steps.date.outputs.today }} \
             -a end_date=${{ steps.date.outputs.today }} \
             -a max_pages=1 \
-            -s LOG_LEVEL=INFO 2>&1 || echo "Spider exited with code: $?"
+            -s LOG_LEVEL=INFO \
+            -s TWISTED_REACTOR= 2>&1 || echo "Spider exited with code: $?"
           echo "🔧 DEBUG: Single spider test complete"
           
           # Top 20 most reliable spiders (API-based + stable HTML)
