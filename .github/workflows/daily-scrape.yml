@@ -346,45 +346,29 @@ jobs:
       
       - name: Upload to Kaggle Dataset
         if: success() && hashFiles('data/articles.json') != ''
+        uses: jaimevalero/push-kaggle-dataset@v3.2
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
-        run: |
-          # Install kaggle CLI
-          pip install kaggle --quiet
-          
-          # Create kaggle dataset metadata
-          mkdir -p kaggle_upload
-          cp data/articles.json kaggle_upload/
-          cp data/articles.sql kaggle_upload/ 2>/dev/null || true
-          cp data/README.md kaggle_upload/ 2>/dev/null || true
-          
-          # Create dataset-metadata.json
-          cat > kaggle_upload/dataset-metadata.json << EOF
-          {
-            "title": "Bangladesh News Articles Dataset",
-            "id": "${KAGGLE_USERNAME}/bangladesh-news-articles",
-            "licenses": [{"name": "CC0-1.0"}],
-            "keywords": ["bangladesh", "news", "nlp", "text", "journalism"],
-            "resources": [
-              {
-                "path": "articles.json",
-                "description": "All scraped news articles in JSON format"
-              }
-            ]
-          }
-          EOF
-          
-          # Check if dataset exists
-          if kaggle datasets list --user "${KAGGLE_USERNAME}" | grep -q "bangladesh-news-articles"; then
-            echo "📤 Updating existing Kaggle dataset..."
-            kaggle datasets version -p kaggle_upload -m "Daily update: ${{ steps.date.outputs.today }}" --quiet
-          else
-            echo "📤 Creating new Kaggle dataset..."
-            kaggle datasets create -p kaggle_upload --public --quiet
-          fi
-          
-          echo "✅ Kaggle dataset updated"
+        with:
+          id: "${{ secrets.KAGGLE_USERNAME }}/bangladesh-news-articles"
+          title: "Bangladesh News Articles Dataset"
+          subtitle: "Daily scraped news from major Bangladeshi newspapers"
+          description: |
+            ## Bangladesh News Archive
+            
+            Automatically updated daily via GitHub Actions from https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper
+            
+            **Sources:** Prothom Alo, Daily Star, BD News 24, Dhaka Tribune, and 20+ more newspapers
+            
+            **Fields:** headline, article, url, publication_date, category, paper_name, author, etc.
+            
+            Last update: ${{ steps.date.outputs.today }}
+          files: |
+            data/articles.json
+            data/articles.sql
+            data/README.md
+          is_public: true
       
       - name: Upload artifact
         uses: actions/upload-artifact@v4
