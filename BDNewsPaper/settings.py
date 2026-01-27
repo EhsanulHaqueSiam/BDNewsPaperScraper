@@ -74,7 +74,7 @@ DOWNLOAD_DELAY = 0.5  # Reduced delay for faster scraping
 RANDOMIZE_DOWNLOAD_DELAY = True
 # The download delay setting will honor only one of:
 CONCURRENT_REQUESTS_PER_DOMAIN = 16
-CONCURRENT_REQUESTS_PER_IP = 16
+# CONCURRENT_REQUESTS_PER_IP = 16  # Disabled: incompatible with Scrapy 2.14's DownloaderAwarePriorityQueue
 
 # Download timeout (seconds) - increased for slow Bangladesh news sites
 DOWNLOAD_TIMEOUT = 180  # 3 minutes for slow Bangladesh news sites
