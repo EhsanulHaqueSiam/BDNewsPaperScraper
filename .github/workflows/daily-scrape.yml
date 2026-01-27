@@ -104,6 +104,22 @@ jobs:
       - name: Run top spiders (default)
         if: (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'true' && github.event.inputs.spiders == '')
         run: |
+          # Diagnostic: Test if Scrapy can make requests
+          echo "🔧 Running Scrapy diagnostics..."
+          scrapy version
+          
+          # Test API accessibility directly
+          echo "🔧 Testing API accessibility..."
+          python3 -c "
+          import requests
+          try:
+              r = requests.get('https://en.prothomalo.com/api/v1/advanced-search?limit=2', timeout=30)
+              print(f'API Status: {r.status_code}')
+              print(f'Response length: {len(r.text)} bytes')
+          except Exception as e:
+              print(f'API Error: {e}')
+          "
+          
           # Top 20 most reliable spiders (API-based + stable HTML)
           SPIDERS=(
             "prothomalo"
