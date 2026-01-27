@@ -57,7 +57,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install -e . --quiet
+          pip install -e ".[cloudflare]" --quiet
+      
+      - name: Install Playwright browsers
+        run: |
+          playwright install chromium --with-deps
       
       - name: Get today's date
         id: date
