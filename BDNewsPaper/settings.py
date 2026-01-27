@@ -354,8 +354,39 @@ CF_BYPASS_ENABLED = True
 CF_MAX_RETRIES = 3  # Max escalation attempts per URL
 
 CF_PROTECTED_DOMAINS = [
+    # Major English newspapers
+    'thedailystar.net',
     'daily-sun.com',
-    # Add more CF-protected domains as discovered
+    'bdnews24.com',
+    'dhakatribune.com',
+    'newagebd.net',
+    'thefinancialexpress.com.bd',
+    'observerbd.com',
+    'tbsnews.net',
+    'unb.com.bd',
+    
+    # Major Bangla newspapers
+    'prothomalo.com',
+    'jugantor.com',
+    'ittefaq.com.bd',
+    'kalerkantho.com',
+    'samakal.com',
+    'banglatribune.com',
+    'jaijaidinbd.com',
+    'mzamin.com',
+    'jagonews24.com',
+    'risingbd.com',
+    'nayadiganta.com',
+    'bd-pratidin.com',
+    'dhakapost.com',
+    'barta24.com',
+    'bhorer-kagoj.com',
+    'amaderbarta.com',
+    
+    # International Bangla services
+    'bbc.com',
+    'dw.com',
+    'voabangla.com',
 ]
 
 # Cookie cache file for persistence across runs
