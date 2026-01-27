@@ -143,8 +143,8 @@ jobs:
               -a start_date=${{ steps.date.outputs.today }} \
               -a end_date=${{ steps.date.outputs.today }} \
               -a max_pages=5 \
-              -s LOG_LEVEL=WARNING \
-              2>&1 | tail -5; then
+              -s LOG_LEVEL=INFO \
+              2>&1 | tail -20; then
               SUCCESS=$((SUCCESS+1))
               echo "✅ $spider completed"
             else
