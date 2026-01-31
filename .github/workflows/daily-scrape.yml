@@ -354,16 +354,7 @@ jobs:
           id: "${{ secrets.KAGGLE_USERNAME }}/bangladesh-news-articles"
           title: "Bangladesh News Articles Dataset"
           subtitle: "Daily scraped news from major Bangladeshi newspapers"
-          description: |
-            ## Bangladesh News Archive
-            
-            Automatically updated daily via GitHub Actions from https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper
-            
-            **Sources:** Prothom Alo, Daily Star, BD News 24, Dhaka Tribune, and 20+ more newspapers
-            
-            **Fields:** headline, article, url, publication_date, category, paper_name, author, etc.
-            
-            Last update: ${{ steps.date.outputs.today }}
+          description: "Bangladesh News Archive - Automatically updated daily via GitHub Actions. Sources: Prothom Alo, Daily Star, BD News 24, Dhaka Tribune, and 20+ more newspapers. Fields: headline, article, url, publication_date, category, paper_name. Last update: ${{ steps.date.outputs.today }}"
           files: |
             data/articles.json
             data/articles.sql
