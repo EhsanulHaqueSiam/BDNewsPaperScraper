@@ -1,7 +1,7 @@
 {
   "title": "Bangladesh News Articles Dataset",
   "subtitle": "Daily scraped news from 74+ major Bangladeshi newspapers (English & Bangla)",
-  "description": "A comprehensive collection of news articles from major Bangladeshi newspapers, automatically updated daily via GitHub Actions.\n\n## 📰 Content\n\nThis dataset contains news articles scraped from 74+ Bangladeshi newspapers including:\n- **English**: Prothom Alo, Daily Star, BD News 24, Dhaka Tribune, TBS News, UNB\n- **Bangla**: Jugantor, Samakal, Jago News 24, Rising BD, Naya Diganta, Manab Zamin\n\n## 📂 Files\n\n| File | Format | Description |\n|------|--------|-------------|\n| `articles.json` | JSON | All articles with full metadata |\n| `articles.csv` | CSV | Tabular format for easy analysis |\n| `articles.xlsx` | Excel | Native Excel format |\n| `articles.parquet` | Parquet | Compressed columnar format for big data tools |\n\n## 📋 Columns\n\n- `headline` - Article title/headline\n- `sub_title` - Article subtitle (if available)\n- `article_body` - Full article text\n- `url` - Original article URL\n- `publication_date` - When the article was published\n- `category` - News category (Politics, Sports, Business, etc.)\n- `paper_name` - Source newspaper name\n- `scraped_at` - When the article was scraped\n\n## 🎯 Use Cases\n\n- **NLP Tasks**: Sentiment analysis, text classification, summarization\n- **Topic Modeling**: Discover trending topics in Bangladeshi news\n- **Named Entity Recognition**: Extract people, places, organizations\n- **Language Modeling**: Train Bengali language models\n- **Media Analysis**: Compare coverage across newspapers\n\n## 🔄 Updates\n\nThis dataset is **automatically updated daily** at 12:00 PM Bangladesh Time via GitHub Actions.\n\n## 📦 Source\n\nData collected using [BDNewsPaperScraper](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper) - the largest open-source Bangladeshi news scraping project.",
+  "description": "# 📰 Bangladesh News Articles Dataset\n\nA comprehensive, **daily-updated** collection of news articles from major Bangladeshi newspapers. This is the largest open-source Bangladeshi news dataset, automatically scraped and updated via GitHub Actions.\n\n---\n\n## � Dataset Overview\n\n| Attribute | Value |\n|-----------|-------|\n| **Sources** | 74+ Bangladeshi newspapers |\n| **Languages** | English & Bengali (Bangla) |\n| **Update Frequency** | Daily (12:00 PM Bangladesh Time) |\n| **License** | CC0 1.0 (Public Domain) |\n| **Format** | JSON, CSV, Excel, Parquet |\n\n---\n\n## 📰 Newspaper Sources\n\n### English Newspapers\n- **The Daily Star** - Bangladesh's leading English daily\n- **Prothom Alo** (English) - Most circulated newspaper\n- **BD News 24** - 24/7 news portal\n- **Dhaka Tribune** - Independent daily\n- **The Business Standard** - Business & economy focus\n- **UNB** - United News of Bangladesh\n- **Daily Sun** - National English daily\n\n### Bengali (Bangla) Newspapers\n- **Prothom Alo** - Highest circulation\n- **Jugantor** - Popular Bengali daily\n- **Samakal** - Leading Bengali newspaper\n- **Jago News 24** - Online news portal\n- **Rising BD** - Digital news platform\n- **Naya Diganta** - Conservative daily\n- **Manab Zamin** - National daily\n- **BD Pratidin** - Popular tabloid\n- **Barta 24** - 24-hour news\n\n### International (Bengali Service)\n- **BBC Bangla** - BBC's Bengali service\n- **DW Bangla** - Deutsche Welle Bengali\n\n---\n\n## 📂 Available Files\n\n| File | Format | Best For |\n|------|--------|----------|\n| `articles.json` | JSON | Web development, APIs, JavaScript |\n| `articles.csv` | CSV | Excel, Google Sheets, pandas, R |\n| `articles.xlsx` | Excel | Microsoft Excel, LibreOffice |\n| `articles.parquet` | Parquet | Big data, Spark, Dask, analytics |\n\n---\n\n## � Data Schema\n\n| Column | Type | Description |\n|--------|------|-------------|\n| `headline` | string | Article title/headline |\n| `sub_title` | string | Article subtitle (may be null) |\n| `article_body` | string | Full article text content |\n| `url` | string | Original article URL |\n| `publication_date` | datetime | When the article was published |\n| `category` | string | News category (Politics, Sports, Business, etc.) |\n| `paper_name` | string | Source newspaper name |\n| `scraped_at` | datetime | When the article was scraped |\n\n---\n\n## 🎯 Use Cases\n\n### Natural Language Processing (NLP)\n- **Sentiment Analysis** - Analyze public opinion on events\n- **Text Classification** - Categorize news by topic\n- **Summarization** - Train abstractive/extractive summarizers\n- **Named Entity Recognition** - Extract people, places, organizations\n\n### Machine Learning\n- **Bengali Language Models** - Train/fine-tune LLMs for Bengali\n- **Topic Modeling** - Discover trending topics\n- **Headline Generation** - Generate headlines from article bodies\n\n### Research & Analysis\n- **Media Bias Analysis** - Compare coverage across newspapers\n- **Event Detection** - Track breaking news and events\n- **Trend Analysis** - Monitor news trends over time\n\n---\n\n## 🔄 Automatic Updates\n\nThis dataset is **automatically updated daily** at 12:00 PM Bangladesh Time (06:00 UTC) via GitHub Actions. Each update scrapes the latest articles from all sources and appends them to the existing data.\n\n---\n\n## 📦 Source Code\n\nData collected using **[BDNewsPaperScraper](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper)** - the largest open-source Bangladeshi news scraping project.\n\n### Features:\n- 74+ newspaper spiders\n- Cloudflare bypass support\n- API-based extraction where available\n- Deduplication built-in\n- Multiple export formats\n\n---\n\n## 📜 License\n\nThis dataset is released under **CC0 1.0 Universal (Public Domain)**. You can copy, modify, distribute and perform the work, even for commercial purposes, all without asking permission.\n\n---\n\n## 🙏 Citation\n\nIf you use this dataset in your research, please cite:\n\n```bibtex\n@dataset{bangladesh_news_2024,\n  title={Bangladesh News Articles Dataset},\n  author={Ehsanul Haque Siam},\n  year={2024},\n  publisher={Kaggle},\n  url={https://www.kaggle.com/datasets/ehsanulhaquesiam/bangladesh-news-articles}\n}\n```",
   "isPrivate": false,
   "licenses": [
     {
@@ -13,36 +13,214 @@
     "bangladesh",
     "nlp",
     "bengali",
+    "bangla",
     "text classification",
     "sentiment analysis",
     "newspapers",
-    "bangla",
     "south asia",
     "text mining",
     "journalism",
     "media",
-    "topic modeling"
+    "topic modeling",
+    "language model",
+    "named entity recognition"
   ],
   "resources": [
     {
       "path": "articles.json",
-      "description": "All articles in JSON format - ideal for web apps and JavaScript. Contains headline, article_body, url, publication_date, category, paper_name, scraped_at fields."
+      "description": "All articles in JSON format - ideal for web development, APIs, and JavaScript applications. Contains all fields with full Unicode support for Bengali text.",
+      "schema": {
+        "fields": [
+          {
+            "name": "headline",
+            "description": "Article title/headline in original language (English or Bengali)",
+            "type": "string"
+          },
+          {
+            "name": "sub_title",
+            "description": "Article subtitle or lead paragraph (may be null if not available)",
+            "type": "string"
+          },
+          {
+            "name": "article_body",
+            "description": "Full article text content in original language",
+            "type": "string"
+          },
+          {
+            "name": "url",
+            "description": "Original article URL on the newspaper website",
+            "type": "string"
+          },
+          {
+            "name": "publication_date",
+            "description": "Date and time when the article was originally published",
+            "type": "datetime"
+          },
+          {
+            "name": "category",
+            "description": "News category: Politics, Sports, Business, Entertainment, International, Technology, etc.",
+            "type": "string"
+          },
+          {
+            "name": "paper_name",
+            "description": "Name of the source newspaper (e.g., prothomalo, thedailystar, jugantor)",
+            "type": "string"
+          },
+          {
+            "name": "scraped_at",
+            "description": "Timestamp when the article was scraped by BDNewsPaperScraper",
+            "type": "datetime"
+          }
+        ]
+      }
     },
     {
       "path": "articles.csv",
-      "description": "Tabular format with all articles - universal format compatible with Excel, Google Sheets, pandas, R, and most data tools."
+      "description": "Tabular format - universal compatibility with Excel, Google Sheets, pandas, R, and most data analysis tools. UTF-8 encoded for Bengali text support.",
+      "schema": {
+        "fields": [
+          {
+            "name": "headline",
+            "description": "Article title/headline",
+            "type": "string"
+          },
+          {
+            "name": "sub_title",
+            "description": "Article subtitle (may be empty)",
+            "type": "string"
+          },
+          {
+            "name": "article_body",
+            "description": "Full article text content",
+            "type": "string"
+          },
+          {
+            "name": "url",
+            "description": "Original article URL",
+            "type": "string"
+          },
+          {
+            "name": "publication_date",
+            "description": "Publication date and time",
+            "type": "datetime"
+          },
+          {
+            "name": "category",
+            "description": "News category",
+            "type": "string"
+          },
+          {
+            "name": "paper_name",
+            "description": "Source newspaper name",
+            "type": "string"
+          },
+          {
+            "name": "scraped_at",
+            "description": "Scraping timestamp",
+            "type": "datetime"
+          }
+        ]
+      }
     },
     {
       "path": "articles.xlsx",
-      "description": "Native Excel format - open directly in Microsoft Excel or LibreOffice Calc for easy viewing and filtering."
+      "description": "Native Microsoft Excel format - open directly in Excel or LibreOffice Calc. Best for manual exploration and filtering.",
+      "schema": {
+        "fields": [
+          {
+            "name": "headline",
+            "description": "Article title/headline",
+            "type": "string"
+          },
+          {
+            "name": "sub_title",
+            "description": "Article subtitle",
+            "type": "string"
+          },
+          {
+            "name": "article_body",
+            "description": "Full article text",
+            "type": "string"
+          },
+          {
+            "name": "url",
+            "description": "Original URL",
+            "type": "string"
+          },
+          {
+            "name": "publication_date",
+            "description": "Publication date",
+            "type": "datetime"
+          },
+          {
+            "name": "category",
+            "description": "Category",
+            "type": "string"
+          },
+          {
+            "name": "paper_name",
+            "description": "Newspaper",
+            "type": "string"
+          },
+          {
+            "name": "scraped_at",
+            "description": "Scraped at",
+            "type": "datetime"
+          }
+        ]
+      }
     },
     {
       "path": "articles.parquet",
-      "description": "Compressed columnar format - optimized for Spark, Dask, and big data analytics. Uses snappy compression for fast I/O."
+      "description": "Compressed columnar format - optimized for Spark, Dask, PyArrow, and big data analytics. Uses Snappy compression for fast I/O with minimal storage.",
+      "schema": {
+        "fields": [
+          {
+            "name": "headline",
+            "description": "Article title/headline",
+            "type": "string"
+          },
+          {
+            "name": "sub_title",
+            "description": "Article subtitle",
+            "type": "string"
+          },
+          {
+            "name": "article_body",
+            "description": "Full article text",
+            "type": "string"
+          },
+          {
+            "name": "url",
+            "description": "Original URL",
+            "type": "string"
+          },
+          {
+            "name": "publication_date",
+            "description": "Publication date",
+            "type": "datetime"
+          },
+          {
+            "name": "category",
+            "description": "Category",
+            "type": "string"
+          },
+          {
+            "name": "paper_name",
+            "description": "Newspaper",
+            "type": "string"
+          },
+          {
+            "name": "scraped_at",
+            "description": "Scraped at",
+            "type": "datetime"
+          }
+        ]
+      }
     },
     {
       "path": "README.md",
-      "description": "Dataset documentation with statistics, file descriptions, and update history."
+      "description": "Auto-generated dataset statistics showing article counts per newspaper and daily update summaries."
     }
   ]
 }
