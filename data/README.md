@@ -4,23 +4,23 @@
 
 | Metric | Count |
 |--------|-------|
-| Total Articles (JSON) | **5642** |
-| Total in Database | 575 |
-| Added Today | 45 |
+| Total Articles (JSON) | **5725** |
+| Total in Database | 545 |
+| Added Today | 83 |
 
 ## Articles by Newspaper
 
 | Paper | Count |
 |-------|-------|
-| Jago News 24 | 1422 |
-| The Daily Star | 878 |
+| Jago News 24 | 1441 |
+| The Daily Star | 882 |
 | Prothom Alo | 791 |
-| Rising BD | 728 |
-| Daily Naya Diganta | 583 |
-| The Business Standard | 315 |
-| Dhaka Post | 293 |
-| Jugantor | 211 |
-| Barta24 | 155 |
+| Rising BD | 747 |
+| Daily Naya Diganta | 591 |
+| The Business Standard | 316 |
+| Dhaka Post | 300 |
+| Jugantor | 226 |
+| Barta24 | 165 |
 | BBC Bangla | 91 |
 | BD News 24 | 65 |
 | Dhaka Tribune | 63 |
