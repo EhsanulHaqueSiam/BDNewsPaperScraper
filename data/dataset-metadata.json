@@ -1,0 +1,48 @@
+{
+  "title": "Bangladesh News Articles Dataset",
+  "subtitle": "Daily scraped news from 74+ major Bangladeshi newspapers (English & Bangla)",
+  "description": "A comprehensive collection of news articles from major Bangladeshi newspapers, automatically updated daily via GitHub Actions.\n\n## 📰 Content\n\nThis dataset contains news articles scraped from 74+ Bangladeshi newspapers including:\n- **English**: Prothom Alo, Daily Star, BD News 24, Dhaka Tribune, TBS News, UNB\n- **Bangla**: Jugantor, Samakal, Jago News 24, Rising BD, Naya Diganta, Manab Zamin\n\n## 📂 Files\n\n| File | Format | Description |\n|------|--------|-------------|\n| `articles.json` | JSON | All articles with full metadata |\n| `articles.csv` | CSV | Tabular format for easy analysis |\n| `articles.xlsx` | Excel | Native Excel format |\n| `articles.parquet` | Parquet | Compressed columnar format for big data tools |\n\n## 📋 Columns\n\n- `headline` - Article title/headline\n- `sub_title` - Article subtitle (if available)\n- `article_body` - Full article text\n- `url` - Original article URL\n- `publication_date` - When the article was published\n- `category` - News category (Politics, Sports, Business, etc.)\n- `paper_name` - Source newspaper name\n- `scraped_at` - When the article was scraped\n\n## 🎯 Use Cases\n\n- **NLP Tasks**: Sentiment analysis, text classification, summarization\n- **Topic Modeling**: Discover trending topics in Bangladeshi news\n- **Named Entity Recognition**: Extract people, places, organizations\n- **Language Modeling**: Train Bengali language models\n- **Media Analysis**: Compare coverage across newspapers\n\n## 🔄 Updates\n\nThis dataset is **automatically updated daily** at 12:00 PM Bangladesh Time via GitHub Actions.\n\n## 📦 Source\n\nData collected using [BDNewsPaperScraper](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper) - the largest open-source Bangladeshi news scraping project.",
+  "isPrivate": false,
+  "licenses": [
+    {
+      "name": "CC0-1.0"
+    }
+  ],
+  "keywords": [
+    "news",
+    "bangladesh",
+    "nlp",
+    "bengali",
+    "text classification",
+    "sentiment analysis",
+    "newspapers",
+    "bangla",
+    "south asia",
+    "text mining",
+    "journalism",
+    "media",
+    "topic modeling"
+  ],
+  "resources": [
+    {
+      "path": "articles.json",
+      "description": "All articles in JSON format - ideal for web apps and JavaScript. Contains headline, article_body, url, publication_date, category, paper_name, scraped_at fields."
+    },
+    {
+      "path": "articles.csv",
+      "description": "Tabular format with all articles - universal format compatible with Excel, Google Sheets, pandas, R, and most data tools."
+    },
+    {
+      "path": "articles.xlsx",
+      "description": "Native Excel format - open directly in Microsoft Excel or LibreOffice Calc for easy viewing and filtering."
+    },
+    {
+      "path": "articles.parquet",
+      "description": "Compressed columnar format - optimized for Spark, Dask, and big data analytics. Uses snappy compression for fast I/O."
+    },
+    {
+      "path": "README.md",
+      "description": "Dataset documentation with statistics, file descriptions, and update history."
+    }
+  ]
+}

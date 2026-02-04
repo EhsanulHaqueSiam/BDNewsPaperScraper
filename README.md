@@ -72,9 +72,65 @@ All 13 planned robustness subsystems are **fully implemented**:
 
 ---
 
+## 🔄 CI/CD & Automated Daily Scraping
+
+This repository includes **fully automated daily scraping** via GitHub Actions.
+
+### ⏰ Schedule
+
+The scraper runs automatically every day at **12:00 PM Bangladesh Time (6:00 AM UTC)** and:
+1. Scrapes top 20 most reliable newspapers
+2. Exports data in **5 standard formats**
+3. Uploads to Kaggle dataset
+4. Commits results to the `data/` directory
+
+### 📂 Data Formats
+
+| Format | File | Size | Use Case |
+|--------|------|------|----------|
+| **JSON** | `data/articles.json` | ~25 MB | Web apps, JavaScript |
+| **CSV** | `data/articles.csv` | ~15 MB | Universal, Excel/Sheets |
+| **Excel** | `data/articles.xlsx` | ~5 MB | Native Excel viewing |
+| **Parquet** | `data/articles.parquet` | ~3 MB | Data science, Spark, analytics |
+| **SQLite** | `data/database/news_articles.db` | ~1 MB | Local SQL queries |
+
+### 🏃 Manual Trigger
+
+You can manually trigger the workflow via GitHub Actions UI or CLI:
+
+```bash
+# Using GitHub CLI
+gh workflow run daily-scrape.yml
+
+# Run specific spiders
+gh workflow run daily-scrape.yml -f spiders="prothomalo,dailysun"
+
+# Run ALL 71 spiders (takes ~2 hours)
+gh workflow run daily-scrape.yml -f run_all=true
+```
+
+### 📊 Kaggle Dataset
+
+The scraped data is automatically published to Kaggle:
+
+**[bangladesh-news-articles](https://www.kaggle.com/datasets/YOUR_USERNAME/bangladesh-news-articles)** (updated daily)
+
+To enable Kaggle uploads, add these secrets to your repository:
+- `KAGGLE_USERNAME` - Your Kaggle username
+- `KAGGLE_KEY` - Your Kaggle API key
+
+### 📦 GitHub Artifacts
+
+Each run creates downloadable artifacts (retained for 30 days):
+- All 5 data formats (JSON, CSV, XLSX, Parquet, SQLite)
+- README with summary statistics
+
+---
+
 ## 📑 Table of Contents
 
 - [Features](#-features)
+- [CI/CD & Daily Scraping](#-cicd--automated-daily-scraping)
 - [Quick Start](#-quick-start)
 - [Available Spiders](#-available-spiders)
 - [Usage](#%EF%B8%8F-usage)
