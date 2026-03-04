@@ -42,8 +42,8 @@ This repository is the **most comprehensive Scrapy-based news scraping project**
 | Category | Implemented Features |
 |----------|---------------------|
 | **🤖 Self-Healing Architecture** | Universal `autonews` spider works on ANY news website, JSON-LD extraction, 22 fallback CSS selectors, pattern-based link discovery |
-| **☁️ Cloudflare Bypass** | 7-level escalation system (stealth headers → Playwright → Flaresolverr → TLS fingerprinting) |
-| **🛡️ Anti-Bot Evasion** | Canvas/WebGL fingerprint randomization, WebRTC leak prevention, geo-mimicry (Bangladesh IPs), timezone consistency |
+| **☁️ Cloudflare Bypass** | 8-level escalation system (stealth headers → TLS fingerprinting → Flaresolverr → Scrapling StealthyFetcher → Playwright) |
+| **🛡️ Anti-Bot Evasion** | Canvas/WebGL fingerprint randomization, WebRTC leak prevention, geo-mimicry (Bangladesh IPs), timezone consistency, Scrapling native Turnstile bypass |
 | **🔄 Robustness** | Circuit breakers, adaptive throttling, Wayback Machine fallback, honeypot detection |
 | **📈 ML & Analytics** | Topic clustering (K-Means), sentiment analysis, bias detection, content similarity, breaking news detection |
 | **� Notifications** | Telegram, Slack, Discord, Email, Webhooks |
@@ -64,7 +64,7 @@ All 13 planned robustness subsystems are **fully implemented**:
 6. ✅ Archive Fallback (`ArchiveFallbackMiddleware`)
 7. ✅ Geographic Mimicry (`geo_mimicry.py` - 350+ lines)
 8. ✅ Canary Health Checks (`scripts/canary_check.py`)
-9. ✅ Cloudflare Countermeasures (`cloudflare_bypass.py` - 650+ lines)
+9. ✅ Cloudflare Countermeasures (`cloudflare_bypass.py` - 650+ lines, `scrapling_integration.py` - native Turnstile bypass)
 10. ✅ Distributed Infrastructure (`distributed.py` - Celery/Redis)
 11. ✅ Honeypot Detection (`honeypot.py`)
 12. ✅ Prometheus Metrics (`prometheus_metrics.py`)
@@ -382,7 +382,8 @@ Key Python modules in `BDNewsPaper/`:
 | `base_spider.py` | Base class with fallback methods |
 | `auto_spider.py` | Universal self-healing spider |
 | `proxy.py` | Multi-type proxy rotation |
-| `cloudflare_bypass.py` | 7-level CF bypass |
+| `cloudflare_bypass.py` | 8-level CF bypass |
+| `scrapling_integration.py` | Scrapling native CF Turnstile bypass |
 | `stealth_headers.py` | Anti-bot headers |
 | `hybrid_request.py` | Auto HTTP→Playwright switching |
 | `honeypot.py` | Trap link detection |
@@ -673,7 +674,8 @@ This scraper includes **11 downloader middlewares** and **6 pipelines** for maxi
 | `StealthHeadersMiddleware` | 350 | Anti-bot headers | `STEALTH_HEADERS_ENABLED` |
 | `UserAgentMiddleware` | 400 | UA rotation | Always on |
 | `ProxyMiddleware` | 410 | Proxy rotation | `PROXY_ENABLED` |
-| `CloudflareBypassMiddleware` | 430 | CF bypass (7 levels) | `CF_BYPASS_ENABLED` |
+| `CloudflareBypassMiddleware` | 430 | CF bypass (8 levels incl. Scrapling) | `CF_BYPASS_ENABLED` |
+| `ScraplingMiddleware` | 435 | Scrapling fetch (opt-in) | `SCRAPLING_ENABLED` |
 | `CircuitBreakerMiddleware` | 451 | Prevents hammering failed sites | `CIRCUIT_BREAKER_*` |
 | `StatisticsMiddleware` | 460 | Request/response tracking | Always on |
 | `AdaptiveThrottlingMiddleware` | 470 | Dynamic delay adjustment | `ADAPTIVE_THROTTLE_ENABLED` |
@@ -716,14 +718,47 @@ uv run scrapy crawl prothomalo \
   -s RETRY_BACKOFF_FACTOR=2.0
 ```
 
-#### Cloudflare Bypass (7 Levels)
+#### Cloudflare Bypass (8 Levels)
 ```bash
 # Auto-escalating CF bypass (enabled by default)
+# Escalation: Stealth Headers → TLS (curl_cffi) → Flaresolverr → Scrapling → Playwright
 uv run scrapy crawl dailysun -s CF_BYPASS_ENABLED=true
 
 # With Flaresolverr (Docker)
 docker run -d -p 8191:8191 ghcr.io/flaresolverr/flaresolverr
 uv run scrapy crawl dailysun -s FLARESOLVERR_URL="http://localhost:8191/v1"
+
+# With Scrapling native Cloudflare Turnstile bypass (auto-enabled in CF escalation)
+pip install scrapling
+uv run scrapy crawl dailysun  # Scrapling is tried automatically before Playwright
+```
+
+#### Scrapling Integration (Native CF Turnstile Bypass)
+```bash
+# Install scrapling
+pip install scrapling
+# Or: pip install -e ".[scrapling]"
+
+# Scrapling is auto-used in CF bypass escalation (CF_SCRAPLING_ENABLED=true by default)
+# No spider changes needed — it sits between Flaresolverr and Playwright in the chain
+
+# Opt-in standalone middleware for any spider:
+uv run scrapy crawl prothomalo -s SCRAPLING_ENABLED=true
+
+# Use specific fetcher type: 'basic' (HTTP), 'stealthy' (CF bypass), 'dynamic' (Playwright)
+uv run scrapy crawl dailysun -s SCRAPLING_ENABLED=true -s SCRAPLING_DEFAULT_FETCHER=stealthy
+```
+
+Spiders can also opt in per-request or per-spider:
+```python
+# Per-request: use Scrapling for specific requests
+yield scrapy.Request(url, meta={'scrapling': True})           # default fetcher
+yield scrapy.Request(url, meta={'scrapling': 'stealthy'})     # specific fetcher type
+yield scrapy.Request(url, meta={'scrapling': 'dynamic'})      # Playwright via Scrapling
+
+# Per-spider: set attribute on spider class
+class MySpider(scrapy.Spider):
+    use_scrapling = True  # all requests use Scrapling
 ```
 
 #### Adaptive Throttling
@@ -807,6 +842,9 @@ uv run scrapy crawl prothomalo \
 | `DOWNLOAD_DELAY` | 0.5 | Delay between requests |
 | `PROXY_ENABLED` | false | Enable proxy rotation |
 | `CF_BYPASS_ENABLED` | true | Enable Cloudflare bypass |
+| `CF_SCRAPLING_ENABLED` | true | Use Scrapling in CF bypass escalation |
+| `SCRAPLING_ENABLED` | false | Enable Scrapling standalone middleware (opt-in) |
+| `SCRAPLING_DEFAULT_FETCHER` | stealthy | Scrapling fetcher: basic, stealthy, dynamic |
 | `HYBRID_REQUEST_ENABLED` | true | Auto HTTP→Playwright |
 | `STEALTH_HEADERS_ENABLED` | true | Anti-bot headers |
 | `ADAPTIVE_THROTTLE_ENABLED` | true | Dynamic delay adjustment |
