@@ -271,32 +271,111 @@ jobs:
           
           # === Generate cumulative summary README ===
           by_paper = {}
+          by_category = {}
+          dates = []
           for a in all_articles:
               paper = a.get('paper_name', 'Unknown')
               by_paper[paper] = by_paper.get(paper, 0) + 1
+              cat = a.get('category', 'Unknown')
+              if cat:
+                  by_category[cat] = by_category.get(cat, 0) + 1
+              pub_date = a.get('publication_date', '')
+              if pub_date:
+                  dates.append(str(pub_date)[:10])
           
           total_db = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
           
+          # Get date range
+          min_date = min(dates) if dates else 'N/A'
+          max_date = max(dates) if dates else 'N/A'
+          
           readme_path = "data/README.md"
           with open(readme_path, 'w') as f:
-              f.write(f"# 📰 Bangladesh News Archive\n\n")
-              f.write(f"**Last updated:** {today}\n\n")
-              f.write(f"| Metric | Count |\n|--------|-------|\n")
-              f.write(f"| Total Articles (JSON) | **{len(all_articles)}** |\n")
-              f.write(f"| Total in Database | {total_db} |\n")
-              f.write(f"| Added Today | {len(new_articles)} |\n\n")
-              f.write(f"## Articles by Newspaper\n\n")
-              f.write(f"| Paper | Count |\n|-------|-------|\n")
+              f.write(f"# 📰 Bangladesh News Articles Dataset\n\n")
+              f.write(f"A comprehensive collection of news articles from major Bangladeshi newspapers.\n\n")
+              f.write(f"**🔗 [View on Kaggle](https://www.kaggle.com/datasets/ehsanulhaquesiam/bangladesh-news-articles)** | ")
+              f.write(f"**📦 [Source Code](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper)**\n\n")
+              f.write(f"---\n\n")
+              f.write(f"## 📊 Dataset Statistics\n\n")
+              f.write(f"| Metric | Value |\n|--------|-------|\n")
+              f.write(f"| **Total Articles** | {len(all_articles):,} |\n")
+              f.write(f"| Total in Database | {total_db:,} |\n")
+              f.write(f"| Added Today | {len(new_articles):,} |\n")
+              f.write(f"| Date Range | {min_date} to {max_date} |\n")
+              f.write(f"| Newspapers | {len(by_paper)} |\n")
+              f.write(f"| Categories | {len(by_category)} |\n")
+              f.write(f"| Last Updated | {today} |\n\n")
+              
+              f.write(f"---\n\n## 📰 Articles by Newspaper\n\n")
+              f.write(f"| Newspaper | Articles | % |\n|-----------|----------|---|\n")
               for p, c in sorted(by_paper.items(), key=lambda x: -x[1]):
-                  f.write(f"| {p} | {c} |\n")
-              f.write(f"\n## Files\n\n")
-              f.write(f"| Format | File | Description |\n")
+                  pct = (c / len(all_articles)) * 100
+                  f.write(f"| {p} | {c:,} | {pct:.1f}% |\n")
+              
+              f.write(f"\n---\n\n## 🏷️ Articles by Category\n\n")
+              f.write(f"| Category | Articles | % |\n|----------|----------|---|\n")
+              for cat, c in sorted(by_category.items(), key=lambda x: -x[1])[:15]:
+                  pct = (c / len(all_articles)) * 100
+                  f.write(f"| {cat} | {c:,} | {pct:.1f}% |\n")
+              if len(by_category) > 15:
+                  f.write(f"| *...and {len(by_category) - 15} more* | | |\n")
+              
+              f.write(f"\n---\n\n## 📂 Available Files\n\n")
+              f.write(f"| Format | File | Size | Best For |\n")
+              f.write(f"|--------|------|------|----------|\n")
+              
+              import os
+              files = [
+                  ("JSON", "articles.json", "Web apps, APIs, JavaScript"),
+                  ("CSV", "articles.csv", "Excel, Google Sheets, pandas, R"),
+                  ("Excel", "articles.xlsx", "Microsoft Excel, LibreOffice"),
+                  ("Parquet", "articles.parquet", "Spark, Dask, big data analytics"),
+                  ("SQLite", "database/news_articles.db", "SQL queries, local analysis"),
+              ]
+              for fmt, fname, use in files:
+                  fpath = f"data/{fname}"
+                  if os.path.exists(fpath):
+                      size = os.path.getsize(fpath)
+                      if size > 1024*1024:
+                          size_str = f"{size/(1024*1024):.1f} MB"
+                      elif size > 1024:
+                          size_str = f"{size/1024:.1f} KB"
+                      else:
+                          size_str = f"{size} B"
+                  else:
+                      size_str = "-"
+                  f.write(f"| {fmt} | `{fname}` | {size_str} | {use} |\n")
+              
+              f.write(f"\n---\n\n## 🔬 Data Schema\n\n")
+              f.write(f"| Column | Type | Description |\n")
               f.write(f"|--------|------|-------------|\n")
-              f.write(f"| JSON | `articles.json` | Web apps, JavaScript |\n")
-              f.write(f"| CSV | `articles.csv` | Universal, Excel/Sheets |\n")
-              f.write(f"| Excel | `articles.xlsx` | Native Excel format |\n")
-              f.write(f"| Parquet | `articles.parquet` | Data science, analytics |\n")
-              f.write(f"| SQLite | `database/news_articles.db` | Local querying |\n")
+              f.write(f"| `headline` | string | Article title/headline |\n")
+              f.write(f"| `sub_title` | string | Article subtitle (may be null) |\n")
+              f.write(f"| `article_body` | string | Full article text content |\n")
+              f.write(f"| `url` | string | Original article URL |\n")
+              f.write(f"| `publication_date` | datetime | When the article was published |\n")
+              f.write(f"| `category` | string | News category |\n")
+              f.write(f"| `paper_name` | string | Source newspaper name |\n")
+              f.write(f"| `scraped_at` | datetime | When scraped |\n")
+              
+              f.write(f"\n---\n\n## 🚀 Quick Start\n\n")
+              f.write(f"```python\n")
+              f.write(f"import pandas as pd\n\n")
+              f.write(f"# Load data (choose your preferred format)\n")
+              f.write(f"df = pd.read_parquet('articles.parquet')  # Fastest\n")
+              f.write(f"# df = pd.read_csv('articles.csv')        # Universal\n")
+              f.write(f"# df = pd.read_json('articles.json')      # JSON\n\n")
+              f.write(f"print(f'Total articles: {{len(df):,}}')\n")
+              f.write(f"print(df['paper_name'].value_counts().head(10))\n")
+              f.write(f"```\n\n")
+              
+              f.write(f"---\n\n## 📜 License\n\n")
+              f.write(f"**CC0 1.0 Universal (Public Domain)** - Free to use for any purpose.\n\n")
+              f.write(f"---\n\n## 🙏 Citation\n\n")
+              f.write(f"```\n")
+              f.write(f"Ehsanul Haque Siam. (2026). Bangladesh News Articles Dataset.\n")
+              f.write(f"Kaggle. https://doi.org/10.34740/KAGGLE/DS/9384161\n")
+              f.write(f"```\n")
           
           print(f"📊 README updated")
           conn.close()
