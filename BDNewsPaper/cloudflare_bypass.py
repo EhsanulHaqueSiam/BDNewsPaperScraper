@@ -9,8 +9,9 @@ LEVELS IMPLEMENTED:
     3. Cookie Management - cf_clearance injection and caching
     4. Flaresolverr Integration - Docker-based challenge solving
     5. TLS Fingerprinting - curl_cffi for Chrome TLS mimicry
-    6. Challenge Detection - Automatic detection and escalation
-    7. Request Retry with Escalation - Progressive bypass attempts
+    6. Scrapling StealthyFetcher - Native Cloudflare Turnstile bypass
+    7. Challenge Detection - Automatic detection and escalation
+    8. Request Retry with Escalation - Progressive bypass attempts
 
 Usage:
     from BDNewsPaper.cloudflare_bypass import (
@@ -596,13 +597,14 @@ class CloudflareDetector:
 class CloudflareBypassMiddleware:
     """
     Complete Cloudflare bypass middleware with progressive escalation.
-    
+
     Bypass Strategy:
     1. First attempt: Use cached cookies
-    2. If challenge: Try with stealth headers
+    2. If challenge: Try TLS impersonation (curl_cffi)
     3. If still blocked: Use Flaresolverr (if available)
-    4. If still blocked: Escalate to Playwright
-    
+    4. If still blocked: Try Scrapling StealthyFetcher (if available)
+    5. If still blocked: Escalate to Playwright
+
     Settings:
         CF_BYPASS_ENABLED: Enable/disable
         CF_PROTECTED_DOMAINS: Domains to apply bypass
@@ -610,6 +612,7 @@ class CloudflareBypassMiddleware:
         FLARESOLVERR_URL: Flaresolverr endpoint
         CF_MAX_RETRIES: Max bypass attempts
         CF_TLS_CLIENT_ENABLED: Use curl_cffi for TLS
+        CF_SCRAPLING_ENABLED: Use Scrapling StealthyFetcher
     """
     
     def __init__(
@@ -620,22 +623,26 @@ class CloudflareBypassMiddleware:
         flaresolverr_url: Optional[str] = None,
         max_retries: int = 3,
         use_tls_client: bool = True,
+        use_scrapling: bool = True,
     ):
         self.enabled = enabled
         self.protected_domains = set(protected_domains or [])
         self.max_retries = max_retries
         self.use_tls_client = use_tls_client and CURL_CFFI_AVAILABLE
-        
+        self.use_scrapling = use_scrapling
+        self._scrapling_wrapper = None  # Lazy-init on first use
+
         # Initialize components
         self.cookie_cache = CloudflareCookieCache(cookies_file)
         self.detector = CloudflareDetector()
         self.flaresolverr = FlaresolverrClient(flaresolverr_url) if flaresolverr_url else None
-        
+
         self.stats = {
             'challenges_detected': 0,
             'bypassed_with_cookies': 0,
             'bypassed_with_flaresolverr': 0,
             'bypassed_with_tls': 0,
+            'bypassed_with_scrapling': 0,
             'failed': 0,
         }
     
@@ -653,6 +660,7 @@ class CloudflareBypassMiddleware:
             flaresolverr_url=crawler.settings.get('FLARESOLVERR_URL'),
             max_retries=crawler.settings.getint('CF_MAX_RETRIES', 3),
             use_tls_client=crawler.settings.getbool('CF_TLS_CLIENT_ENABLED', True),
+            use_scrapling=crawler.settings.getbool('CF_SCRAPLING_ENABLED', True),
         )
         
         crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
@@ -764,7 +772,40 @@ class CloudflareBypassMiddleware:
                     dont_filter=True,
                 )
         
-        # Method 3: Escalate to Playwright
+        # Method 3: Scrapling StealthyFetcher
+        if self.use_scrapling and not request.meta.get('_scrapling_cf_tried'):
+            # Always mark as tried to prevent retry loops
+            request.meta['_scrapling_cf_tried'] = True
+            try:
+                from BDNewsPaper.scrapling_integration import SCRAPLING_AVAILABLE, ScraplingFetcherWrapper
+
+                if SCRAPLING_AVAILABLE:
+                    spider.logger.info(f"CF: Trying Scrapling StealthyFetcher for {domain}")
+
+                    if self._scrapling_wrapper is None:
+                        self._scrapling_wrapper = ScraplingFetcherWrapper(
+                            default_fetcher='stealthy',
+                            solve_cloudflare=True,
+                        )
+
+                    proxy = request.meta.get('proxy')
+                    html, status = self._scrapling_wrapper.fetch_for_cloudflare_bypass(
+                        request.url, proxy=proxy,
+                    )
+
+                    if html and len(html) > 1000:
+                        self.stats['bypassed_with_scrapling'] += 1
+                        return HtmlResponse(
+                            url=request.url,
+                            status=status,
+                            body=html.encode('utf-8'),
+                            encoding='utf-8',
+                            request=request,
+                        )
+            except Exception as e:
+                spider.logger.debug(f"CF: Scrapling bypass failed for {domain}: {e}")
+
+        # Method 4: Escalate to Playwright
         if not request.meta.get('playwright'):
             spider.logger.info(f"CF: Escalating to Playwright for {domain}")
             return request.replace(
@@ -788,11 +829,16 @@ class CloudflareBypassMiddleware:
                 f"CookieBypass={self.stats['bypassed_with_cookies']}, "
                 f"Flaresolverr={self.stats['bypassed_with_flaresolverr']}, "
                 f"TLS={self.stats['bypassed_with_tls']}, "
+                f"Scrapling={self.stats['bypassed_with_scrapling']}, "
                 f"Failed={self.stats['failed']}"
             )
         
         # Save cookies
         self.cookie_cache.save_to_file()
+
+        # Clean up Scrapling sessions
+        if self._scrapling_wrapper:
+            self._scrapling_wrapper.close()
 
 
 # =============================================================================

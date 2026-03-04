@@ -109,7 +109,8 @@ DOWNLOADER_MIDDLEWARES = {
     "BDNewsPaper.middlewares.UserAgentMiddleware": 400,                # UA rotation backup
     "BDNewsPaper.proxy.ProxyMiddleware": 410,                          # Proxy rotation
     "BDNewsPaper.cloudflare_bypass.CloudflareBypassMiddleware": 430,   # CF bypass (all levels)
-    
+    "BDNewsPaper.middlewares.ScraplingMiddleware": 435,               # Scrapling fetch (opt-in)
+
     # === ROBUSTNESS LAYER 2: Traffic Control (450-550) ===
     "BDNewsPaper.middlewares.CircuitBreakerMiddleware": 451,           # Circuit breaker
     "BDNewsPaper.middlewares.StatisticsMiddleware": 460,               # Statistics tracking
@@ -398,6 +399,21 @@ CF_COOKIES_FILE = 'config/cf_cookies.json'
 
 # TLS fingerprinting with curl_cffi (install: pip install curl_cffi)
 CF_TLS_CLIENT_ENABLED = True  # Uses curl_cffi if available
+
+# -----------------------------------------------------------------------------
+# SCRAPLING INTEGRATION (scrapling_integration.py / middlewares.py)
+# -----------------------------------------------------------------------------
+# Scrapling provides native Cloudflare Turnstile bypass via StealthyFetcher.
+# Install: pip install scrapling  (or pip install -e ".[scrapling]")
+SCRAPLING_ENABLED = False               # Opt-in middleware (spider-level or request-level)
+SCRAPLING_DEFAULT_FETCHER = 'stealthy'  # 'basic', 'stealthy', or 'dynamic'
+SCRAPLING_HEADLESS = True               # Run browser in headless mode
+SCRAPLING_SOLVE_CLOUDFLARE = True       # Enable CF Turnstile solving
+SCRAPLING_TIMEOUT = 30000               # Fetch timeout in milliseconds
+SCRAPLING_HIDE_CANVAS = True            # Hide canvas fingerprint
+SCRAPLING_BLOCK_WEBRTC = True           # Block WebRTC IP leaks
+SCRAPLING_USE_SESSIONS = True           # Reuse sessions per domain
+CF_SCRAPLING_ENABLED = True             # Use Scrapling in CF bypass escalation chain (independent of middleware)
 
 # -----------------------------------------------------------------------------
 # 13. ADAPTIVE THROTTLING (middlewares.py)

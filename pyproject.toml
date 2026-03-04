@@ -80,6 +80,10 @@ monitoring = [
 cloudflare = [
     "curl_cffi>=0.6.0",  # TLS fingerprinting for Cloudflare bypass
     "prometheus-client>=0.19.0",  # Metrics for monitoring
+    "scrapling>=0.4.0",  # Native Cloudflare Turnstile bypass
+]
+scrapling = [
+    "scrapling>=0.4.0",  # Anti-bot fetcher with CF Turnstile bypass
 ]
 distributed = [
     "celery[redis]>=5.3.0",  # Distributed task queue
@@ -114,6 +118,7 @@ all = [
     "psycopg2-binary>=2.9.9",
     "streamlit>=1.29.0",
     "pandas>=2.0.0",
+    "scrapling>=0.4.0",
 ]
 analytics = [
     "textblob>=0.18.0",

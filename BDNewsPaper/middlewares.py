@@ -800,3 +800,99 @@ class ArchiveFallbackMiddleware:
                 f"Found={self.stats['found']}, "
                 f"NotFound={self.stats['not_found']}"
             )
+
+
+class ScraplingMiddleware:
+    """
+    Downloader middleware that intercepts requests and fetches via Scrapling.
+
+    Opt-in via:
+        - Request-level: meta={'scrapling': True} or meta={'scrapling': 'stealthy'}
+        - Spider-level: use_scrapling = True attribute on spider class
+
+    Fetcher types: 'basic', 'stealthy', 'dynamic'
+
+    Settings:
+        SCRAPLING_ENABLED: Enable/disable (default: False)
+        SCRAPLING_DEFAULT_FETCHER: Default fetcher type (default: 'stealthy')
+        SCRAPLING_HEADLESS: Run in headless mode (default: True)
+        SCRAPLING_SOLVE_CLOUDFLARE: Solve CF challenges (default: True)
+        SCRAPLING_TIMEOUT: Fetch timeout in ms (default: 30000)
+        SCRAPLING_HIDE_CANVAS: Hide canvas fingerprint (default: True)
+        SCRAPLING_BLOCK_WEBRTC: Block WebRTC leaks (default: True)
+        SCRAPLING_USE_SESSIONS: Reuse sessions per domain (default: True)
+    """
+
+    def __init__(self, wrapper):
+        self.wrapper = wrapper
+        self.stats = {
+            'requests_handled': 0,
+            'requests_failed': 0,
+        }
+
+    @classmethod
+    def from_crawler(cls, crawler):
+        from BDNewsPaper.scrapling_integration import SCRAPLING_AVAILABLE, ScraplingFetcherWrapper
+
+        if not SCRAPLING_AVAILABLE:
+            raise NotConfigured("scrapling is not installed")
+
+        if not crawler.settings.getbool('SCRAPLING_ENABLED', False):
+            raise NotConfigured("Scrapling middleware disabled (SCRAPLING_ENABLED=False)")
+
+        wrapper = ScraplingFetcherWrapper(
+            default_fetcher=crawler.settings.get('SCRAPLING_DEFAULT_FETCHER', 'stealthy'),
+            headless=crawler.settings.getbool('SCRAPLING_HEADLESS', True),
+            solve_cloudflare=crawler.settings.getbool('SCRAPLING_SOLVE_CLOUDFLARE', True),
+            timeout=crawler.settings.getint('SCRAPLING_TIMEOUT', 30000),
+            hide_canvas=crawler.settings.getbool('SCRAPLING_HIDE_CANVAS', True),
+            block_webrtc=crawler.settings.getbool('SCRAPLING_BLOCK_WEBRTC', True),
+            use_sessions=crawler.settings.getbool('SCRAPLING_USE_SESSIONS', True),
+        )
+
+        middleware = cls(wrapper)
+        crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
+        return middleware
+
+    def _should_handle(self, request, spider) -> bool:
+        """Check if this request should be handled by Scrapling."""
+        if request.meta.get('scrapling'):
+            return True
+        if getattr(spider, 'use_scrapling', False):
+            return True
+        return False
+
+    def _get_fetcher_type(self, request, spider) -> str:
+        """Determine which Scrapling fetcher type to use."""
+        scrapling_meta = request.meta.get('scrapling')
+        if isinstance(scrapling_meta, str) and scrapling_meta in ('basic', 'stealthy', 'dynamic'):
+            return scrapling_meta
+        return self.wrapper.default_fetcher
+
+    def process_request(self, request, spider):
+        """Intercept requests tagged for Scrapling."""
+        if not self._should_handle(request, spider):
+            return None
+
+        fetcher_type = self._get_fetcher_type(request, spider)
+        proxy = request.meta.get('proxy')
+
+        response = self.wrapper.fetch(request, fetcher_type=fetcher_type, proxy=proxy)
+        if response:
+            self.stats['requests_handled'] += 1
+            return response
+
+        # Return None to fall back to default Scrapy downloader
+        self.stats['requests_failed'] += 1
+        spider.logger.warning(f"Scrapling fetch failed for {request.url}, falling back to default downloader")
+        return None
+
+    def spider_closed(self, spider, reason):
+        """Clean up sessions and log stats."""
+        self.wrapper.close()
+        total = self.stats['requests_handled'] + self.stats['requests_failed']
+        if total > 0:
+            spider.logger.info(
+                f"Scrapling Stats: Handled={self.stats['requests_handled']}, "
+                f"Failed={self.stats['requests_failed']}"
+            )
