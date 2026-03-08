@@ -134,7 +134,7 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         "PLAYWRIGHT_CONTEXTS": {
             "default": {
                 "viewport": {"width": 1920, "height": 1080},
-                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             }
         },
         "CONCURRENT_REQUESTS": 2,
@@ -390,7 +390,7 @@ class GenericPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         "PLAYWRIGHT_CONTEXTS": {
             "default": {
                 "viewport": {"width": 1920, "height": 1080},
-                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             }
         },
         "CONCURRENT_REQUESTS": 2,
@@ -625,7 +625,7 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         "PLAYWRIGHT_CONTEXTS": {
             "default": {
                 "viewport": {"width": 1920, "height": 1080},
-                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36",
             }
         },
         "CONCURRENT_REQUESTS": 2,

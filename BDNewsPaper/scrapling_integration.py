@@ -13,9 +13,10 @@ Provides:
 All imports are lazy — module works even if scrapling is not installed.
 
 Scrapling fetcher types:
-    - Fetcher: Fast HTTP with TLS fingerprint impersonation (uses .get())
-    - StealthyFetcher: Camoufox-based stealth browser with CF Turnstile bypass (uses .fetch())
-    - DynamicFetcher: Playwright Chromium browser automation (uses .fetch())
+    - Fetcher: Fast HTTP with TLS fingerprint impersonation via curl_cffi (uses .get())
+    - StealthyFetcher: Patchright-based stealth browser with CF Turnstile bypass,
+      48+ stealth args, BrowserForge headers (uses .fetch())
+    - DynamicFetcher: Patchright browser automation without stealth patches (uses .fetch())
 """
 
 import logging
@@ -106,8 +107,8 @@ class ScraplingFetcherWrapper:
 
     Fetcher types:
         - 'basic': Fast HTTP with TLS fingerprint impersonation (Fetcher.get())
-        - 'stealthy': Camoufox stealth browser with CF Turnstile bypass (StealthyFetcher.fetch())
-        - 'dynamic': Playwright Chromium automation (DynamicFetcher.fetch())
+        - 'stealthy': Patchright stealth browser with CF Turnstile bypass (StealthyFetcher.fetch())
+        - 'dynamic': Patchright browser automation without stealth patches (DynamicFetcher.fetch())
     """
 
     def __init__(
@@ -118,6 +119,8 @@ class ScraplingFetcherWrapper:
         timeout: int = 30000,
         hide_canvas: bool = True,
         block_webrtc: bool = True,
+        allow_webgl: bool = False,
+        disable_images: bool = False,
         use_sessions: bool = True,
     ):
         if not SCRAPLING_AVAILABLE:
@@ -129,6 +132,8 @@ class ScraplingFetcherWrapper:
         self.timeout = timeout
         self.hide_canvas = hide_canvas
         self.block_webrtc = block_webrtc
+        self.allow_webgl = allow_webgl
+        self.disable_images = disable_images
         self.use_sessions = use_sessions
 
         session_defaults = {'headless': headless}
@@ -150,14 +155,16 @@ class ScraplingFetcherWrapper:
             kwargs['headless'] = self.headless
             kwargs['hide_canvas'] = self.hide_canvas
             kwargs['block_webrtc'] = self.block_webrtc
+            kwargs['allow_webgl'] = self.allow_webgl
+            kwargs['disable_images'] = self.disable_images
             if self.solve_cloudflare:
                 kwargs['solve_cloudflare'] = True
-            kwargs['extra_headers'] = {
-                'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'accept-language': 'en-US,en;q=0.9',
-            }
+            # google_search=True makes Scrapling navigate via Google first
+            # (looks more natural to anti-bot systems)
+            kwargs['google_search'] = True
         elif fetcher_type == 'dynamic':
             kwargs['headless'] = self.headless
+            kwargs['disable_images'] = self.disable_images
             # DynamicFetcher does NOT support hide_canvas, block_webrtc, solve_cloudflare
 
         if fetcher_type == 'basic':

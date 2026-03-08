@@ -196,7 +196,7 @@ def get_playwright_stealth_context_options() -> Dict:
     """Get Playwright context options for stealth."""
     return {
         'viewport': {'width': 1920, 'height': 1080},
-        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
         'locale': 'en-US',
         'timezone_id': 'Asia/Dhaka',
         'geolocation': {'latitude': 23.8103, 'longitude': 90.4125},  # Dhaka
