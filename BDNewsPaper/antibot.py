@@ -9,9 +9,12 @@ Features:
     - Audio context fingerprinting protection
     - Font enumeration protection
     - Screen/resolution randomization
+    - BrowserForge coherent fingerprint generation (optional)
+    - Behavioral simulation (mouse movement, scrolling)
 
 Usage:
     from BDNewsPaper.antibot import get_full_antibot_js, get_canvas_noise_js
+    from BDNewsPaper.antibot import generate_coherent_fingerprint
 
 Settings:
     ANTIBOT_ENABLED = True
@@ -19,11 +22,20 @@ Settings:
     ANTIBOT_WEBGL_NOISE = True
 """
 
+import json
 import random
 import logging
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
+
+# Lazy import for BrowserForge
+BROWSERFORGE_AVAILABLE = False
+try:
+    from browserforge.fingerprints import FingerprintGenerator
+    BROWSERFORGE_AVAILABLE = True
+except ImportError:
+    FingerprintGenerator = None
 
 
 # =============================================================================
@@ -332,14 +344,21 @@ def get_full_antibot_js(
     hardware_random: bool = True,
     plugin_simulation: bool = True,
     webrtc_protection: bool = True,
+    behavioral_simulation: bool = True,
+    use_coherent_profile: bool = True,
 ) -> str:
     """
     Get combined anti-bot JavaScript for Playwright.
-    
+
     All features enabled by default for maximum protection.
+    When use_coherent_profile=True and BrowserForge is available, generates
+    statistically coherent fingerprints instead of independent random values.
     """
+    if use_coherent_profile:
+        return get_coherent_antibot_js()
+
     scripts = []
-    
+
     if canvas_noise:
         scripts.append(CANVAS_NOISE_JS)
     if webgl_noise:
@@ -356,17 +375,25 @@ def get_full_antibot_js(
         scripts.append(PLUGIN_SIMULATION_JS)
     if webrtc_protection:
         scripts.append(WEBRTC_PROTECTION_JS)
-    
+    if behavioral_simulation:
+        scripts.append(BEHAVIORAL_SIMULATION_JS)
+
     combined = "\n\n".join(scripts)
     logger.debug(f"Generated anti-bot JS with {len(scripts)} modules, {len(combined)} chars")
-    
+
     return combined
 
 
 def get_antibot_playwright_options() -> Dict:
     """
     Get Playwright launch and context options for maximum anti-detection.
+
+    Uses BrowserForge coherent fingerprints when available to ensure
+    screen resolution, GPU, CPU cores, and memory are statistically consistent.
     """
+    profile = generate_coherent_fingerprint()
+    ua = profile.get('userAgent') or 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36'
+
     return {
         'launch_options': {
             'headless': True,
@@ -378,7 +405,7 @@ def get_antibot_playwright_options() -> Dict:
                 '--disable-infobars',
                 '--disable-dev-shm-usage',
                 '--disable-gpu',
-                '--window-size=1920,1080',
+                f'--window-size={profile["width"]},{profile["height"]}',
                 '--disable-extensions',
                 '--disable-plugins-discovery',
                 '--disable-background-networking',
@@ -390,8 +417,8 @@ def get_antibot_playwright_options() -> Dict:
             ],
         },
         'context_options': {
-            'viewport': {'width': 1920, 'height': 1080},
-            'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'viewport': {'width': profile['width'], 'height': profile['height']},
+            'user_agent': ua,
             'locale': 'en-US',
             'timezone_id': 'Asia/Dhaka',
             'geolocation': {'latitude': 23.8103, 'longitude': 90.4125},
@@ -400,8 +427,222 @@ def get_antibot_playwright_options() -> Dict:
             'java_script_enabled': True,
             'ignore_https_errors': True,
         },
-        'init_script': get_full_antibot_js(),
+        'init_script': get_coherent_antibot_js(profile),
     }
+
+
+# =============================================================================
+# BROWSERFORGE COHERENT FINGERPRINT GENERATION
+# =============================================================================
+
+# Statistically coherent device profiles — used when BrowserForge is not installed.
+# Each profile has GPU, screen, memory, and CPU that realistically co-occur.
+COHERENT_DEVICE_PROFILES = [
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (Intel, Intel(R) UHD Graphics 630)', 'width': 1920, 'height': 1080, 'cores': 8, 'memory': 16, 'colorDepth': 24},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (Intel, Intel(R) Iris(R) Xe Graphics)', 'width': 1920, 'height': 1080, 'cores': 8, 'memory': 16, 'colorDepth': 24},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (NVIDIA, NVIDIA GeForce GTX 1650)', 'width': 1920, 'height': 1080, 'cores': 8, 'memory': 16, 'colorDepth': 24},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (NVIDIA, NVIDIA GeForce RTX 3060)', 'width': 2560, 'height': 1440, 'cores': 12, 'memory': 32, 'colorDepth': 24},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (AMD, AMD Radeon RX 580)', 'width': 1920, 'height': 1080, 'cores': 8, 'memory': 16, 'colorDepth': 24},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (Intel, Intel(R) UHD Graphics 620)', 'width': 1366, 'height': 768, 'cores': 4, 'memory': 8, 'colorDepth': 24},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (Intel, Intel(R) HD Graphics 530)', 'width': 1536, 'height': 864, 'cores': 4, 'memory': 8, 'colorDepth': 24},
+    {'vendor': 'Apple Inc.', 'renderer': 'Apple GPU', 'width': 1440, 'height': 900, 'cores': 8, 'memory': 8, 'colorDepth': 30},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (NVIDIA, NVIDIA GeForce RTX 4070)', 'width': 2560, 'height': 1440, 'cores': 16, 'memory': 32, 'colorDepth': 24},
+    {'vendor': 'Google Inc.', 'renderer': 'ANGLE (Intel, Intel(R) UHD Graphics 770)', 'width': 1920, 'height': 1080, 'cores': 12, 'memory': 16, 'colorDepth': 24},
+]
+
+
+def generate_coherent_fingerprint() -> Dict:
+    """
+    Generate a statistically coherent browser fingerprint.
+
+    Uses BrowserForge if installed (Bayesian model trained on real browser traffic),
+    otherwise falls back to curated device profiles with realistic co-occurrences.
+
+    Returns:
+        Dict with keys: vendor, renderer, width, height, cores, memory, colorDepth, userAgent
+    """
+    if BROWSERFORGE_AVAILABLE:
+        try:
+            gen = FingerprintGenerator()
+            fp = gen.generate()
+            screen = fp.screen if hasattr(fp, 'screen') else None
+            navigator = fp.navigator if hasattr(fp, 'navigator') else None
+
+            profile = {
+                'vendor': getattr(fp, 'webgl_vendor', 'Google Inc.') if hasattr(fp, 'webgl_vendor') else 'Google Inc.',
+                'renderer': getattr(fp, 'webgl_renderer', 'ANGLE (Intel, Intel(R) UHD Graphics 630)') if hasattr(fp, 'webgl_renderer') else 'ANGLE (Intel, Intel(R) UHD Graphics 630)',
+                'width': getattr(screen, 'width', 1920) if screen else 1920,
+                'height': getattr(screen, 'height', 1080) if screen else 1080,
+                'cores': getattr(navigator, 'hardwareConcurrency', 8) if navigator else 8,
+                'memory': getattr(navigator, 'deviceMemory', 16) if navigator else 16,
+                'colorDepth': getattr(screen, 'colorDepth', 24) if screen else 24,
+                'userAgent': getattr(navigator, 'userAgent', None) if navigator else None,
+            }
+            logger.debug(f"BrowserForge fingerprint: {profile['renderer']}, {profile['width']}x{profile['height']}")
+            return profile
+        except Exception as e:
+            logger.debug(f"BrowserForge generation failed, using built-in profiles: {e}")
+
+    # Fallback: use curated coherent profiles
+    profile = random.choice(COHERENT_DEVICE_PROFILES).copy()
+    logger.debug(f"Coherent profile: {profile['renderer']}, {profile['width']}x{profile['height']}")
+    return profile
+
+
+def get_coherent_antibot_js(profile: Optional[Dict] = None) -> str:
+    """
+    Generate anti-bot JS using a coherent fingerprint profile instead of
+    independent random values.
+
+    Args:
+        profile: Optional coherent fingerprint dict. If None, generates one.
+
+    Returns:
+        Combined JavaScript string for Playwright init_script.
+    """
+    if profile is None:
+        profile = generate_coherent_fingerprint()
+
+    # Build WebGL script with coherent GPU
+    webgl_js = f"""
+(function() {{
+    const vendor = {json.dumps(profile['vendor'])};
+    const renderer = {json.dumps(profile['renderer'])};
+    const handler = {{
+        apply: function(target, thisArg, args) {{
+            if (args[0] === 37445) return vendor;
+            if (args[0] === 37446) return renderer;
+            return target.apply(thisArg, args);
+        }}
+    }};
+    if (WebGLRenderingContext.prototype.getParameter)
+        WebGLRenderingContext.prototype.getParameter = new Proxy(WebGLRenderingContext.prototype.getParameter, handler);
+    if (typeof WebGL2RenderingContext !== 'undefined' && WebGL2RenderingContext.prototype.getParameter)
+        WebGL2RenderingContext.prototype.getParameter = new Proxy(WebGL2RenderingContext.prototype.getParameter, handler);
+}})();"""
+
+    # Build screen script with coherent resolution
+    w, h = profile['width'], profile['height']
+    cd = profile['colorDepth']
+    screen_js = f"""
+(function() {{
+    Object.defineProperty(screen, 'width', {{ get: () => {w} }});
+    Object.defineProperty(screen, 'height', {{ get: () => {h} }});
+    Object.defineProperty(screen, 'availWidth', {{ get: () => {w} }});
+    Object.defineProperty(screen, 'availHeight', {{ get: () => {h - 40} }});
+    Object.defineProperty(screen, 'colorDepth', {{ get: () => {cd} }});
+    Object.defineProperty(screen, 'pixelDepth', {{ get: () => {cd} }});
+    Object.defineProperty(window, 'innerWidth', {{ get: () => {w - random.randint(0, 15)}, configurable: true }});
+    Object.defineProperty(window, 'innerHeight', {{ get: () => {h - 100 - random.randint(0, 15)}, configurable: true }});
+}})();"""
+
+    # Build hardware script with coherent CPU/memory
+    hw_js = f"""
+(function() {{
+    Object.defineProperty(navigator, 'hardwareConcurrency', {{ get: () => {profile['cores']} }});
+    Object.defineProperty(navigator, 'deviceMemory', {{ get: () => {profile['memory']} }});
+}})();"""
+
+    scripts = [
+        CANVAS_NOISE_JS,
+        webgl_js,
+        AUDIO_NOISE_JS,
+        screen_js,
+        LOCALE_CONSISTENCY_JS,
+        hw_js,
+        PLUGIN_SIMULATION_JS,
+        WEBRTC_PROTECTION_JS,
+        BEHAVIORAL_SIMULATION_JS,
+    ]
+
+    return "\n\n".join(scripts)
+
+
+# =============================================================================
+# BEHAVIORAL SIMULATION (mouse movement, scrolling)
+# =============================================================================
+
+BEHAVIORAL_SIMULATION_JS = """
+// Behavioral simulation — synthetic human-like interactions
+// Adds realistic mouse movement and scroll patterns to defeat behavioral analysis
+(function() {
+    // Generate Bezier curve points for natural mouse movement
+    function bezierPoint(t, p0, p1, p2, p3) {
+        const u = 1 - t;
+        return u*u*u*p0 + 3*u*u*t*p1 + 3*u*t*t*p2 + t*t*t*p3;
+    }
+
+    let lastX = Math.random() * window.innerWidth * 0.6 + window.innerWidth * 0.2;
+    let lastY = Math.random() * window.innerHeight * 0.6 + window.innerHeight * 0.2;
+    let moveCount = 0;
+
+    function simulateMouseMove() {
+        if (moveCount > 20) return; // Don't overdo it
+        moveCount++;
+
+        const targetX = Math.random() * window.innerWidth * 0.8 + window.innerWidth * 0.1;
+        const targetY = Math.random() * window.innerHeight * 0.8 + window.innerHeight * 0.1;
+
+        // Control points for Bezier curve (creates natural arc)
+        const cp1x = lastX + (targetX - lastX) * 0.3 + (Math.random() - 0.5) * 100;
+        const cp1y = lastY + (targetY - lastY) * 0.1 + (Math.random() - 0.5) * 100;
+        const cp2x = lastX + (targetX - lastX) * 0.7 + (Math.random() - 0.5) * 50;
+        const cp2y = lastY + (targetY - lastY) * 0.9 + (Math.random() - 0.5) * 50;
+
+        const steps = 8 + Math.floor(Math.random() * 8);
+        let step = 0;
+
+        function doStep() {
+            if (step >= steps) {
+                lastX = targetX;
+                lastY = targetY;
+                // Schedule next move with random delay (2-8 seconds)
+                setTimeout(simulateMouseMove, 2000 + Math.random() * 6000);
+                return;
+            }
+            const t = step / steps;
+            const x = bezierPoint(t, lastX, cp1x, cp2x, targetX);
+            const y = bezierPoint(t, lastY, cp1y, cp2y, targetY);
+
+            window.dispatchEvent(new MouseEvent('mousemove', {
+                clientX: x, clientY: y, bubbles: true
+            }));
+
+            step++;
+            setTimeout(doStep, 20 + Math.random() * 40);
+        }
+        doStep();
+    }
+
+    // Start mouse simulation after a natural delay
+    setTimeout(simulateMouseMove, 1500 + Math.random() * 3000);
+
+    // Simulate occasional scrolling
+    let scrollCount = 0;
+    function simulateScroll() {
+        if (scrollCount > 5) return;
+        scrollCount++;
+
+        const scrollAmount = 100 + Math.floor(Math.random() * 300);
+        const direction = Math.random() > 0.3 ? 1 : -1; // 70% down, 30% up
+
+        let scrolled = 0;
+        function doScroll() {
+            if (scrolled >= scrollAmount) {
+                setTimeout(simulateScroll, 3000 + Math.random() * 8000);
+                return;
+            }
+            const chunk = 20 + Math.floor(Math.random() * 40);
+            window.scrollBy(0, chunk * direction);
+            scrolled += chunk;
+            setTimeout(doScroll, 30 + Math.random() * 50);
+        }
+        doScroll();
+    }
+
+    setTimeout(simulateScroll, 3000 + Math.random() * 5000);
+})();
+"""
 
 
 # =============================================================================
@@ -417,3 +658,4 @@ get_locale_consistency_js = lambda: LOCALE_CONSISTENCY_JS
 get_hardware_randomization_js = lambda: HARDWARE_RANDOMIZATION_JS
 get_plugin_simulation_js = lambda: PLUGIN_SIMULATION_JS
 get_webrtc_protection_js = lambda: WEBRTC_PROTECTION_JS
+get_behavioral_simulation_js = lambda: BEHAVIORAL_SIMULATION_JS

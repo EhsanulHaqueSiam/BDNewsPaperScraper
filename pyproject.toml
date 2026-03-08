@@ -78,9 +78,10 @@ monitoring = [
     "py-spy>=0.3.14",
 ]
 cloudflare = [
-    "curl_cffi>=0.6.0",  # TLS fingerprinting for Cloudflare bypass
+    "curl_cffi>=0.14.0",  # TLS/JA4/HTTP2 fingerprinting (latest Chrome profiles, HTTP/3 support)
     "prometheus-client>=0.19.0",  # Metrics for monitoring
     "scrapling>=0.4.0",  # Native Cloudflare Turnstile bypass
+    "browserforge>=1.2.0",  # Statistically coherent browser fingerprint generation
 ]
 scrapling = [
     "scrapling>=0.4.0",  # Anti-bot fetcher with CF Turnstile bypass
@@ -119,6 +120,8 @@ all = [
     "streamlit>=1.29.0",
     "pandas>=2.0.0",
     "scrapling>=0.4.0",
+    "curl_cffi>=0.14.0",
+    "browserforge>=1.2.0",
 ]
 analytics = [
     "textblob>=0.18.0",

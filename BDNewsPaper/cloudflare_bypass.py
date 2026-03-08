@@ -24,9 +24,10 @@ Usage:
 Settings:
     CF_BYPASS_ENABLED = True
     CF_PROTECTED_DOMAINS = ['daily-sun.com']
-    FLARESOLVERR_URL = 'http://localhost:8191/v1'
+    FLARESOLVERR_URL = 'http://localhost:8191/v1'  # Works with Byparr (recommended) or FlareSolverr
     CF_COOKIES_FILE = 'config/cf_cookies.json'
     CF_TLS_CLIENT_ENABLED = True
+    CF_SCRAPLING_ENABLED = True
 """
 
 import json
@@ -335,11 +336,14 @@ class FlaresolverrResponse:
 
 class FlaresolverrClient:
     """
-    Full-featured Flaresolverr client.
-    
-    Install Flaresolverr:
+    Client for FlareSolverr-compatible APIs (FlareSolverr, Byparr, Solvearr).
+
+    Byparr (recommended — drop-in replacement using Camoufox):
+        docker run -d --name=byparr -p 8191:8191 \\
+            ghcr.io/thephaseless/byparr:latest
+
+    FlareSolverr (legacy — deprecated Jan 2026, unreliable):
         docker run -d --name=flaresolverr -p 8191:8191 \\
-            -e LOG_LEVEL=info \\
             ghcr.io/flaresolverr/flaresolverr:latest
     """
     
@@ -476,17 +480,20 @@ except ImportError:
 
 def make_tls_impersonated_request(
     url: str,
-    browser: str = 'chrome120',
+    browser: str = 'chrome',
     timeout: int = 30,
 ) -> Optional[str]:
     """
     Make request with Chrome TLS fingerprint using curl_cffi.
-    
+
+    Uses impersonate="chrome" which auto-targets the latest known-good
+    Chrome profile (including correct JA3/JA4 and HTTP/2 SETTINGS frames).
+
     Args:
         url: URL to request
-        browser: Browser to impersonate (chrome120, chrome119, firefox120, etc.)
+        browser: Browser to impersonate ('chrome' = latest, or explicit like 'chrome131')
         timeout: Request timeout
-        
+
     Returns:
         Response text or None
     """

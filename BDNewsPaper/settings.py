@@ -393,8 +393,10 @@ CF_PROTECTED_DOMAINS = [
 # Cookie cache file for persistence across runs
 CF_COOKIES_FILE = 'config/cf_cookies.json'
 
-# Flaresolverr Docker endpoint (install: docker run -d -p 8191:8191 ghcr.io/flaresolverr/flaresolverr)
-# Uncomment when Flaresolverr is running:
+# Byparr/Flaresolverr-compatible API endpoint
+# Byparr (recommended): docker run -d -p 8191:8191 ghcr.io/thephaseless/byparr:latest
+# FlareSolverr (legacy): docker run -d -p 8191:8191 ghcr.io/flaresolverr/flaresolverr
+# Uncomment when running:
 # FLARESOLVERR_URL = 'http://localhost:8191/v1'
 
 # TLS fingerprinting with curl_cffi (install: pip install curl_cffi)
