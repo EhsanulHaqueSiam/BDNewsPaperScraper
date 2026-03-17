@@ -4,7 +4,7 @@ Daily Sangram Spider (Bangla)
 Scrapes articles from Daily Sangram (dailysangram.com) - Established Bangla Daily
 
 Features:
-    - Category-based scraping
+    - Category-based scraping with Cloudflare bypass (stealthy browser rendering)
     - HTML content extraction
     - Date filtering (client-side)
     - Search query filtering
@@ -64,40 +64,44 @@ class DailySangramSpider(BaseNewsSpider):
         'health': 'bangladesh/health',
     }
     
-    custom_settings = {
-        'DOWNLOAD_DELAY': 0.5,
-        'RANDOMIZE_DOWNLOAD_DELAY': True,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
-        'AUTOTHROTTLE_ENABLED': True,
+    # Request headers to help bypass Cloudflare
+    DEFAULT_REQUEST_HEADERS = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
     }
-    
+
+    custom_settings = {
+        'DOWNLOAD_DELAY': 1.0,
+        'RANDOMIZE_DOWNLOAD_DELAY': True,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
+        'AUTOTHROTTLE_ENABLED': True,
+        'DOWNLOAD_TIMEOUT': 60,
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.logger.info(f"Daily Sangram spider initialized")
+        self.logger.info(f"Daily Sangram spider initialized (stealthy mode for CF bypass)")
         self.logger.info(f"Categories: {self.categories or 'default'}")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate initial requests to category pages with stealthy browser rendering."""
         self.stats['requests_made'] = 0
-        
+
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
-                
-                if cat_lower in self.CATEGORIES:
-                    cat_path = self.CATEGORIES[cat_lower]
-                else:
-                    cat_path = cat_lower
-                
+                cat_path = self.CATEGORIES.get(cat_lower, cat_lower)
                 url = f"{self.BASE_URL}/{cat_path}/"
-                
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': category, 'cat_path': cat_path, 'page': 1},
+                    meta={'category': category, 'cat_path': cat_path, 'page': 1, 'scrapling': 'stealthy'},
+                    headers=self.DEFAULT_REQUEST_HEADERS,
                     errback=self.handle_request_failure,
                 )
         else:
@@ -106,14 +110,15 @@ class DailySangramSpider(BaseNewsSpider):
             for cat in default_cats:
                 cat_path = self.CATEGORIES.get(cat, cat)
                 url = f"{self.BASE_URL}/{cat_path}/"
-                
+
                 self.logger.info(f"Crawling category: {cat} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': cat, 'cat_path': cat_path, 'page': 1},
+                    meta={'category': cat, 'cat_path': cat_path, 'page': 1, 'scrapling': 'stealthy'},
+                    headers=self.DEFAULT_REQUEST_HEADERS,
                     errback=self.handle_request_failure,
                 )
     
@@ -174,21 +179,23 @@ class DailySangramSpider(BaseNewsSpider):
             yield Request(
                 url=url,
                 callback=self.parse_article,
-                meta={'category': category},
+                meta={'category': category, 'scrapling': 'stealthy'},
+                headers=self.DEFAULT_REQUEST_HEADERS,
                 errback=self.handle_request_failure,
             )
-        
+
         # Pagination - try next page if we found articles
         if found_count > 0 and page < self.max_pages:
             next_page = page + 1
             next_url = f"{self.BASE_URL}/{cat_path}/?page={next_page}"
-            
+
             self.stats['requests_made'] += 1
-            
+
             yield Request(
                 url=next_url,
                 callback=self.parse_category,
-                meta={'category': category, 'cat_path': cat_path, 'page': next_page},
+                meta={'category': category, 'cat_path': cat_path, 'page': next_page, 'scrapling': 'stealthy'},
+                headers=self.DEFAULT_REQUEST_HEADERS,
                 errback=self.handle_request_failure,
             )
     

@@ -1,20 +1,23 @@
 """
 Dainik Amader Shomoy Spider (Bangla)
 ====================================
-Scrapes articles from Dainik Amader Shomoy (dainikamadershomoy.com)
+Scrapes articles from Amader Shomoy (amadershomoy.com)
 
 Features:
-    - Category-based scraping
+    - Sitemap as primary source (302 article URLs)
+    - Category-based scraping as fallback
     - Date filtering (client-side)
     - Bangla newspaper
 """
 
+import re
 from datetime import datetime
 from html import unescape
 from typing import Generator
 
 import scrapy
 from scrapy.http import Request, Response
+from scrapy.selector import Selector
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
@@ -22,18 +25,19 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 
 class DainikAmaderShomoySpider(BaseNewsSpider):
     """
-    Spider for Dainik Amader Shomoy (Bangla Daily).
-    
-    Uses HTML scraping with category navigation.
-    
+    Spider for Amader Shomoy (Bangla Daily).
+
+    Uses sitemap as primary source, HTML scraping as fallback.
+    URL pattern: www.amadershomoy.com/{category}/article/{ID}/{slug}
+
     Usage:
         scrapy crawl amadershomoy -a categories=national,politics
         scrapy crawl amadershomoy -a max_pages=10
     """
-    
+
     name = 'amadershomoy'
     paper_name = 'Amader Shomoy'
-    allowed_domains = ['dainikamadershomoy.com', 'www.dainikamadershomoy.com']
+    allowed_domains = ['amadershomoy.com', 'www.amadershomoy.com']
     language = 'Bangla'
     
     # API/filter capabilities
@@ -65,21 +69,42 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.logger.info("Dainik Amader Shomoy spider initialized")
-    
+        self._sitemap_urls_seen = set()
+        self.logger.info("Amader Shomoy spider initialized")
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate initial requests: sitemap first, then category fallback."""
         self.stats['requests_made'] = 0
-        
+
+        # Primary: Sitemap (302 article URLs)
+        sitemap_url = "https://amadershomoy.com/sitemap.xml"
+        self.logger.info(f"Fetching sitemap: {sitemap_url}")
+        self.stats['requests_made'] += 1
+        yield Request(
+            url=sitemap_url,
+            callback=self.parse_sitemap,
+            headers={'Accept': 'application/xml, text/xml'},
+            errback=self._sitemap_failed,
+            meta={'source': 'sitemap'},
+        )
+
+    def _sitemap_failed(self, failure):
+        """If sitemap fails, fall back to category-based HTML scraping."""
+        self.logger.warning(f"Sitemap failed: {failure.value}. Falling back to category scraping.")
+        self.stats['errors'] += 1
+        yield from self._generate_category_requests()
+
+    def _generate_category_requests(self) -> Generator[Request, None, None]:
+        """Generate requests for category pages (fallback mode)."""
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
                 cat_slug = self.CATEGORIES.get(cat_lower, cat_lower)
-                url = f"https://dainikamadershomoy.com/category/all/{cat_slug}/"
-                
+                url = f"https://www.amadershomoy.com/{cat_slug}/"
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
@@ -88,7 +113,7 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
                 )
         else:
             # Default: main page for latest articles
-            url = "https://dainikamadershomoy.com/"
+            url = "https://www.amadershomoy.com/"
             self.stats['requests_made'] += 1
             yield Request(
                 url=url,
@@ -96,6 +121,68 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
                 meta={'category': 'General', 'cat_slug': '', 'page': 1},
                 errback=self.handle_request_failure,
             )
+
+    # ================================================================
+    # Sitemap Parsing (Primary Source)
+    # ================================================================
+
+    def parse_sitemap(self, response: Response) -> Generator:
+        """Parse sitemap XML to extract article URLs."""
+        sel = Selector(response)
+        sel.remove_namespaces()
+        urls = sel.xpath('//url')
+
+        self.logger.info(f"Sitemap: Found {len(urls)} URLs")
+
+        sitemap_count = 0
+
+        for url_node in urls:
+            loc = url_node.xpath('loc/text()').get('').strip()
+            lastmod = url_node.xpath('lastmod/text()').get('').strip()
+
+            if not loc:
+                continue
+
+            if 'amadershomoy.com' not in loc:
+                continue
+
+            # Filter for article URLs matching /{category}/article/{ID}/{slug}
+            if not re.search(r'/article/\d+/', loc):
+                continue
+
+            self._sitemap_urls_seen.add(loc)
+
+            if self.is_url_in_db(loc):
+                continue
+
+            # Date filter on lastmod
+            if lastmod:
+                parsed_date = self._parse_date_string(lastmod)
+                if parsed_date and not self.is_date_in_range(parsed_date):
+                    self.stats['date_filtered'] += 1
+                    continue
+
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+            sitemap_count += 1
+
+            yield Request(
+                url=loc,
+                callback=self.parse_article,
+                meta={'category': 'General'},
+                errback=self.handle_request_failure,
+            )
+
+        self.logger.info(f"Sitemap: Queued {sitemap_count} articles for scraping")
+
+        # Also launch category fallback for broader coverage
+        if sitemap_count < 5:
+            self.logger.info("Sitemap returned few items, launching category fallback")
+            yield from self._generate_category_requests()
+
+    # ================================================================
+    # Category Page Parsing (Fallback)
+    # ================================================================
     
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""
@@ -103,8 +190,8 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
         cat_slug = response.meta.get('cat_slug')
         page = response.meta.get('page', 1)
         
-        # Extract article links - site uses /details/{id} pattern
-        article_links = response.css('a[href*="/details/"]::attr(href)').getall()
+        # Extract article links - site uses /{category}/article/{ID}/{slug} pattern
+        article_links = response.css('a[href*="/article/"]::attr(href)').getall()
         article_links = list(set(article_links))
         
         # ROBUST FALLBACK: Use universal link discovery if selectors fail
@@ -124,7 +211,7 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
         found_count = 0
         for url in article_links:
             if not url.startswith('http'):
-                url = f"https://dainikamadershomoy.com{url}"
+                url = f"https://www.amadershomoy.com{url}"
             
             if self.is_url_in_db(url):
                 continue
@@ -145,7 +232,7 @@ class DainikAmaderShomoySpider(BaseNewsSpider):
             next_page_link = response.css('a.next::attr(href), a[rel="next"]::attr(href)').get()
             if next_page_link:
                 if not next_page_link.startswith('http'):
-                    next_page_link = f"https://dainikamadershomoy.com{next_page_link}"
+                    next_page_link = f"https://www.amadershomoy.com{next_page_link}"
                 
                 self.stats['requests_made'] += 1
                 yield Request(

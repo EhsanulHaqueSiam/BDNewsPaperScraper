@@ -4,8 +4,9 @@ BSS Bangla Spider (Bangla)
 Scrapes articles from BSS Bangla (bssnews.net/bangla)
 
 Features:
+    - Sitemap as primary source (1032 URLs)
     - Official news agency (Bangladesh Sangbad Sangstha)
-    - Category-based scraping
+    - Category-based scraping as fallback
     - Date filtering (client-side)
 """
 
@@ -16,6 +17,7 @@ from typing import Generator
 
 import scrapy
 from scrapy.http import Request, Response
+from scrapy.selector import Selector
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
@@ -24,23 +26,24 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 class BSSBanglaSpider(BaseNewsSpider):
     """
     Spider for BSS Bangla (Official News Agency).
-    
+
     Bangladesh Sangbad Sangstha - State news agency.
-    
+    Uses sitemap as primary source, HTML scraping as fallback.
+
     Usage:
         scrapy crawl bssbangla -a categories=national,politics
         scrapy crawl bssbangla -a max_pages=10
     """
-    
+
     name = 'bssbangla'
     paper_name = 'BSS Bangla'
     allowed_domains = ['bssnews.net']
     language = 'Bangla'
-    
+
     # API/filter capabilities
     supports_api_date_filter = False
     supports_api_category_filter = True
-    
+
     # Category slug mappings (Bangla URL encoded)
     CATEGORIES = {
         'national': '%E0%A6%9C%E0%A6%BE%E0%A6%A4%E0%A7%80%E0%A7%9F',
@@ -49,22 +52,37 @@ class BSSBanglaSpider(BaseNewsSpider):
         'international': '%E0%A6%86%E0%A6%A8%E0%A7%8D%E0%A6%A4%E0%A6%B0%E0%A7%8D%E0%A6%9C%E0%A6%BE%E0%A6%A4%E0%A6%BF%E0%A6%95',
         'sports': '%E0%A6%96%E0%A7%87%E0%A6%B2%E0%A6%BE%E0%A6%A7%E0%A7%81%E0%A6%B2%E0%A6%BE',
     }
-    
+
     custom_settings = {
         'DOWNLOAD_DELAY': 0.5,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         'AUTOTHROTTLE_ENABLED': True,
     }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._sitemap_urls_seen = set()
         self.logger.info("BSS Bangla spider initialized (Official Agency)")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests."""
+        """Generate initial requests: sitemap first, then HTML fallback."""
         self.stats['requests_made'] = 0
-        
+
+        # Primary: Sitemap (1032 URLs)
+        self.stats['requests_made'] += 1
+        yield Request(
+            url='https://bssnews.net/bangla/sitemap.xml',
+            callback=self.parse_sitemap,
+            headers={'Accept': 'application/xml, text/xml'},
+            errback=self._sitemap_failed,
+            meta={'source': 'sitemap'},
+        )
+
+    def _sitemap_failed(self, failure):
+        """If sitemap fails, fall back to HTML scraping."""
+        self.logger.warning(f"Sitemap failed: {failure.value}. Falling back to HTML scraping.")
+        self.stats['errors'] += 1
         # Default: main bangla page for latest articles
         url = "https://bssnews.net/bangla"
         self.stats['requests_made'] += 1
@@ -74,61 +92,124 @@ class BSSBanglaSpider(BaseNewsSpider):
             meta={'category': 'General', 'page': 1},
             errback=self.handle_request_failure,
         )
-    
+
+    # ================================================================
+    # Sitemap Parsing (Primary Source)
+    # ================================================================
+
+    def parse_sitemap(self, response: Response) -> Generator:
+        """Parse sitemap XML to extract article URLs."""
+        sel = Selector(response)
+        sel.remove_namespaces()
+        urls = sel.xpath('//url')
+
+        self.logger.info(f"Sitemap: Found {len(urls)} URLs")
+
+        sitemap_count = 0
+
+        for url_node in urls:
+            loc = url_node.xpath('loc/text()').get('').strip()
+            lastmod = url_node.xpath('lastmod/text()').get('').strip()
+
+            if not loc:
+                continue
+
+            # Only follow /bangla/ article URLs (numeric ID in path, not at end)
+            # URL pattern: /bangla/category-slug/numeric-id/bangla-slug
+            if '/bangla/' not in loc:
+                continue
+
+            # Match URLs with a numeric segment in the path (article ID)
+            if not re.search(r'/bangla/.*/\d+/', loc) and not re.search(r'/bangla/.*/\d+$', loc):
+                continue
+
+            # Skip subscriber-only pages
+            if '/subscriber/' in loc:
+                continue
+
+            self._sitemap_urls_seen.add(loc)
+
+            if self.is_url_in_db(loc):
+                continue
+
+            # Date filter on lastmod
+            if lastmod:
+                parsed_date = self._parse_date_string(lastmod)
+                if parsed_date and not self.is_date_in_range(parsed_date):
+                    self.stats['date_filtered'] += 1
+                    continue
+
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+            sitemap_count += 1
+
+            yield Request(
+                url=loc,
+                callback=self.parse_article,
+                meta={'category': 'General'},
+                errback=self.handle_request_failure,
+            )
+
+        self.logger.info(f"Sitemap: Queued {sitemap_count} articles for scraping")
+
+    # ================================================================
+    # Category Page Parsing (Fallback)
+    # ================================================================
+
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""
         category = response.meta.get('category', 'Unknown')
         page = response.meta.get('page', 1)
-        
+
         # Extract article links - BSS uses /bangla/category/title/id pattern
         article_links = response.css('a::attr(href)').getall()
+        # Fixed: match URLs with numeric ID segment in path (not necessarily at end)
         article_links = [
             l for l in article_links
             if 'bssnews.net/bangla/' in l
-            and re.search(r'/\d+$', l)  # Ends with article ID
+            and (re.search(r'/bangla/.*/\d+/', l) or re.search(r'/bangla/.*/\d+$', l))
         ]
         article_links = list(set(article_links))
-        
+
         # ROBUST FALLBACK: Use universal link discovery if selectors fail
         if not article_links:
             self.logger.info("CSS selectors failed, using universal link discovery")
             article_links = self.discover_links(response, limit=50)
 
-        
-        
-
-        
         self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
-        
+
         if not article_links:
             return
-        
+
         found_count = 0
         for url in article_links:
             if not url.startswith('http'):
                 url = f"https://bssnews.net{url}"
-            
+
+            if url in self._sitemap_urls_seen:
+                continue
+
             if self.is_url_in_db(url):
                 continue
-            
+
             self.stats['articles_found'] += 1
             self.stats['requests_made'] += 1
             found_count += 1
-            
+
             yield Request(
                 url=url,
                 callback=self.parse_article,
                 meta={'category': category},
                 errback=self.handle_request_failure,
             )
-        
+
         # Pagination
         if found_count > 0 and page < self.max_pages:
             next_page_link = response.css('a.next::attr(href), a[rel="next"]::attr(href)').get()
             if next_page_link:
                 if not next_page_link.startswith('http'):
                     next_page_link = f"https://bssnews.net{next_page_link}"
-                
+
                 self.stats['requests_made'] += 1
                 yield Request(
                     url=next_page_link,
@@ -136,11 +217,11 @@ class BSSBanglaSpider(BaseNewsSpider):
                     meta={'category': category, 'page': page + 1},
                     errback=self.handle_request_failure,
                 )
-    
+
     def parse_article(self, response: Response) -> Generator[NewsArticleItem, None, None]:
         """Parse individual article page."""
         url = response.url
-        
+
         # ROBUST FALLBACK: Try universal extraction first
         fallback = self.extract_article_fallback(response)
         if fallback and fallback.get('headline') and fallback.get('article_body'):
@@ -162,59 +243,59 @@ class BSSBanglaSpider(BaseNewsSpider):
                     category=response.meta.get('category', 'General'),
                 )
                 return
-        
+
         # Original extraction
-        
+
         # Extract headline
         headline = (
             response.css('h1::text').get() or
             response.css('meta[property="og:title"]::attr(content)').get() or
             ''
         )
-        
+
         if not headline:
             return
-        
+
         headline = unescape(headline.strip())
-        
+
         # Extract body
         body_parts = response.css(
             '.news-content p::text, '
             '.entry-content p::text, '
             'article p::text'
         ).getall()
-        
+
         if not body_parts:
             body_parts = response.css('p::text').getall()
-        
+
         article_body = ' '.join(unescape(p.strip()) for p in body_parts if p.strip())
-        
+
         if len(article_body) < 100:
             return
-        
+
         if not self.filter_by_search_query(headline, article_body):
             return
-        
+
         # Parse date
         pub_date = None
         date_text = response.css('meta[property="article:published_time"]::attr(content)').get()
         if not date_text:
             date_text = response.css('time::attr(datetime)').get()
-        
+
         if date_text:
             pub_date = self._parse_date_string(date_text.strip())
-        
+
         if pub_date and not self.is_date_in_range(pub_date):
             self.stats['date_filtered'] += 1
             return
-        
+
         category = response.meta.get('category', 'General')
         image_url = response.css('meta[property="og:image"]::attr(content)').get()
-        
+
         author = self.extract_author(response)
-        
+
         self.stats['articles_processed'] += 1
-        
+
         yield self.create_article_item(
             url=url,
             headline=headline,

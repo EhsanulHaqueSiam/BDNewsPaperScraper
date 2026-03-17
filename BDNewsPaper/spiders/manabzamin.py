@@ -60,6 +60,11 @@ class ManabZaminSpider(BaseNewsSpider):
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         'AUTOTHROTTLE_ENABLED': True,
+        'DEFAULT_REQUEST_HEADERS': {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': 'https://www.mzamin.com/',
+        },
     }
     
     def __init__(self, *args, **kwargs):

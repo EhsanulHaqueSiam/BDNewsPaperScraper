@@ -4,7 +4,8 @@ Dainik Bangla Spider (Bangla)
 Scrapes articles from Dainik Bangla (dainikbangla.com.bd)
 
 Features:
-    - Category-based scraping
+    - Sitemap as primary source (994 article URLs)
+    - Category-based scraping as fallback
     - Date filtering (client-side)
     - Search query filtering
 """
@@ -15,6 +16,7 @@ from typing import Generator
 
 import scrapy
 from scrapy.http import Request, Response
+from scrapy.selector import Selector
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
@@ -23,9 +25,9 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 class DainikBanglaSpider(BaseNewsSpider):
     """
     Spider for Dainik Bangla (State Newspaper - Bangla).
-    
-    Uses HTML scraping with category navigation.
-    
+
+    Uses sitemap as primary source, HTML scraping as fallback.
+
     Usage:
         scrapy crawl dainikbangla -a categories=politics,international
         scrapy crawl dainikbangla -a max_pages=10
@@ -72,27 +74,43 @@ class DainikBanglaSpider(BaseNewsSpider):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._sitemap_urls_seen = set()
         self.logger.info(f"Dainik Bangla spider initialized")
         self.logger.info(f"Categories: {self.categories or 'default'}")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate initial requests: sitemap first, then category fallback."""
         self.stats['requests_made'] = 0
-        
+
+        # Primary: Sitemap (994 article URLs)
+        sitemap_url = "https://dainikbangla.com.bd/sitemap.xml"
+        self.logger.info(f"Fetching sitemap: {sitemap_url}")
+        self.stats['requests_made'] += 1
+        yield Request(
+            url=sitemap_url,
+            callback=self.parse_sitemap,
+            headers={'Accept': 'application/xml, text/xml'},
+            errback=self._sitemap_failed,
+            meta={'source': 'sitemap'},
+        )
+
+    def _sitemap_failed(self, failure):
+        """If sitemap fails, fall back to category-based HTML scraping."""
+        self.logger.warning(f"Sitemap failed: {failure.value}. Falling back to category scraping.")
+        self.stats['errors'] += 1
+        yield from self._generate_category_requests()
+
+    def _generate_category_requests(self) -> Generator[Request, None, None]:
+        """Generate requests for category pages (fallback mode)."""
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
-                
-                if cat_lower in self.CATEGORIES:
-                    cat_slug = self.CATEGORIES[cat_lower]
-                else:
-                    cat_slug = cat_lower
-                
+                cat_slug = self.CATEGORIES.get(cat_lower, cat_lower)
                 url = f"https://www.dainikbangla.com.bd/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
@@ -104,16 +122,78 @@ class DainikBanglaSpider(BaseNewsSpider):
             for cat in default_cats:
                 cat_slug = self.CATEGORIES.get(cat, cat)
                 url = f"https://www.dainikbangla.com.bd/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {cat} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
                     meta={'category': cat, 'cat_slug': cat_slug, 'page': 1},
                     errback=self.handle_request_failure,
                 )
+
+    # ================================================================
+    # Sitemap Parsing (Primary Source)
+    # ================================================================
+
+    def parse_sitemap(self, response: Response) -> Generator:
+        """Parse sitemap XML to extract article URLs."""
+        sel = Selector(response)
+        sel.remove_namespaces()
+        urls = sel.xpath('//url')
+
+        self.logger.info(f"Sitemap: Found {len(urls)} URLs")
+
+        sitemap_count = 0
+
+        for url_node in urls:
+            loc = url_node.xpath('loc/text()').get('').strip()
+            lastmod = url_node.xpath('lastmod/text()').get('').strip()
+
+            if not loc:
+                continue
+
+            if 'dainikbangla.com.bd' not in loc:
+                continue
+
+            # Filter for article URLs matching /{category}/{id}/ pattern
+            if not re.search(r'/[a-z-]+/\d+', loc):
+                continue
+
+            self._sitemap_urls_seen.add(loc)
+
+            if self.is_url_in_db(loc):
+                continue
+
+            # Date filter on lastmod
+            if lastmod:
+                parsed_date = self._parse_date_string(lastmod)
+                if parsed_date and not self.is_date_in_range(parsed_date):
+                    self.stats['date_filtered'] += 1
+                    continue
+
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+            sitemap_count += 1
+
+            yield Request(
+                url=loc,
+                callback=self.parse_article,
+                meta={'category': 'General'},
+                errback=self.handle_request_failure,
+            )
+
+        self.logger.info(f"Sitemap: Queued {sitemap_count} articles for scraping")
+
+        # Also launch category fallback for broader coverage
+        if sitemap_count < 5:
+            self.logger.info("Sitemap returned few items, launching category fallback")
+            yield from self._generate_category_requests()
+
+    # ================================================================
+    # Category Page Parsing (Fallback)
+    # ================================================================
     
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""

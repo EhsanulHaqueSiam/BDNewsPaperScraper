@@ -4,7 +4,9 @@ Bhorer Kagoj Spider (Bangla)
 Scrapes articles from Bhorer Kagoj (bhorerkagoj.com)
 
 Features:
-    - Category-based scraping
+    - Category-based scraping with HTTP (HTTPS/SSL is broken)
+    - Stealthy browser rendering for unreliable server
+    - Extended timeouts for slow responses
     - Date filtering (client-side)
     - Search query filtering
 """
@@ -69,40 +71,37 @@ class BhorerKagojSpider(BaseNewsSpider):
     }
     
     custom_settings = {
-        'DOWNLOAD_DELAY': 0.5,
+        'DOWNLOAD_DELAY': 1.0,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
-        'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
+        'CONCURRENT_REQUESTS_PER_DOMAIN': 2,
         'AUTOTHROTTLE_ENABLED': True,
+        'DOWNLOAD_TIMEOUT': 60,
+        'RETRY_TIMES': 3,
     }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.logger.info(f"Bhorer Kagoj spider initialized")
+        self.logger.info(f"Bhorer Kagoj spider initialized (HTTP mode, SSL broken)")
         self.logger.info(f"Categories: {self.categories or 'default'}")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate initial requests to category pages using HTTP (SSL is broken)."""
         self.stats['requests_made'] = 0
-        
+
         # If categories specified, crawl those
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
-                
-                if cat_lower in self.CATEGORIES:
-                    cat_slug = self.CATEGORIES[cat_lower]
-                else:
-                    cat_slug = cat_lower
-                
-                url = f"https://bhorerkagoj.com/{cat_slug}"
-                
+                cat_slug = self.CATEGORIES.get(cat_lower, cat_lower)
+                url = f"http://bhorerkagoj.com/{cat_slug}"
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1, 'scrapling': 'stealthy'},
                     errback=self.handle_request_failure,
                 )
         else:
@@ -110,15 +109,15 @@ class BhorerKagojSpider(BaseNewsSpider):
             default_cats = ['national', 'politics', 'sports', 'economics']
             for cat in default_cats:
                 cat_slug = self.CATEGORIES.get(cat, cat)
-                url = f"https://bhorerkagoj.com/{cat_slug}"
-                
+                url = f"http://bhorerkagoj.com/{cat_slug}"
+
                 self.logger.info(f"Crawling category: {cat} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1, 'scrapling': 'stealthy'},
                     errback=self.handle_request_failure,
                 )
     
@@ -132,7 +131,8 @@ class BhorerKagojSpider(BaseNewsSpider):
         article_links = response.css('a::attr(href)').getall()
         
         # Filter to article links (contain bhorerkagoj.com and numeric IDs)
-        article_links = [l for l in article_links if 'bhorerkagoj.com' in l and re.search(r'/\d+$', l)]
+        # Normalize HTTPS to HTTP since SSL is broken
+        article_links = [l.replace('https://', 'http://') for l in article_links if 'bhorerkagoj.com' in l and re.search(r'/\d+$', l)]
         
         # Deduplicate
         article_links = list(set(article_links))
@@ -171,21 +171,21 @@ class BhorerKagojSpider(BaseNewsSpider):
             yield Request(
                 url=url,
                 callback=self.parse_article,
-                meta={'category': category},
+                meta={'category': category, 'scrapling': 'stealthy'},
                 errback=self.handle_request_failure,
             )
-        
+
         # Pagination
         if found_count > 0 and page < self.max_pages:
             next_page = page + 1
-            next_url = f"https://bhorerkagoj.com/{cat_slug}?page={next_page}"
-            
+            next_url = f"http://bhorerkagoj.com/{cat_slug}?page={next_page}"
+
             self.stats['requests_made'] += 1
-            
+
             yield Request(
                 url=next_url,
                 callback=self.parse_category,
-                meta={'category': category, 'cat_slug': cat_slug, 'page': next_page},
+                meta={'category': category, 'cat_slug': cat_slug, 'page': next_page, 'scrapling': 'stealthy'},
                 errback=self.handle_request_failure,
             )
     
