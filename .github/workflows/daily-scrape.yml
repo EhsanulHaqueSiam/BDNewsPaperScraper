@@ -65,8 +65,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[cloudflare]" --quiet
-          uv pip install --system scrapling curl_cffi browserforge patchright --quiet
+          uv pip install --system scrapy pytz requests lxml itemadapter itemloaders w3lib trafilatura langdetect --quiet
+          uv pip install --system scrapling curl_cffi browserforge patchright --quiet || true
           uv pip install --system pandas openpyxl pyarrow --quiet
 
       - name: Install browser for anti-bot spiders

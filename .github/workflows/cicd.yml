@@ -47,8 +47,9 @@ jobs:
 
       - name: Install dependencies
         run: |
-          uv pip install --system -e ".[cloudflare]" --quiet
-          uv pip install --system scrapling curl_cffi browserforge patchright --quiet
+          uv pip install --system scrapy pytz requests lxml itemadapter itemloaders w3lib trafilatura langdetect --quiet
+          uv pip install --system fastapi uvicorn pydantic --quiet
+          uv pip install --system scrapling curl_cffi browserforge patchright --quiet || true
 
       - name: Install browser for anti-bot spiders
         run: python -m patchright install chromium
