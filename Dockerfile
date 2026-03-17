@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 WORKDIR /app
 
@@ -6,23 +6,30 @@ WORKDIR /app
 RUN apt-get update && apt-get install -y \
     gcc \
     libffi-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install
-COPY pyproject.toml .
-RUN pip install --no-cache-dir pip --upgrade && \
-    pip install --no-cache-dir .
-
-# Copy application code
+# Copy project files needed for install
+COPY pyproject.toml scrapy.cfg ./
 COPY BDNewsPaper/ BDNewsPaper/
-COPY scrapy.cfg .
+COPY scripts/ scripts/
+COPY app.py quickstart.py run_spiders_optimized.py ./
+
+# Install Python dependencies
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -e ".[cloudflare,api]" && \
+    pip install --no-cache-dir scrapling curl_cffi browserforge patchright
+
+# Install browser for stealth fetching
+RUN python -m patchright install chromium --with-deps 2>/dev/null || true
 
 # Create directories
-RUN mkdir -p /app/data /app/logs /app/.checkpoints
+RUN mkdir -p /app/data /app/logs /app/.checkpoints /app/config
 
 # Environment variables
 ENV PYTHONPATH=/app
 ENV DATABASE_PATH=/app/data/news_articles.db
+ENV SCRAPLING_ENABLED=true
 ENV LOG_LEVEL=INFO
 
 # Expose API port
