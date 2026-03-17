@@ -2,7 +2,7 @@
 
 A comprehensive collection of news articles from major Bangladeshi newspapers.
 
-**🔗 [View on Kaggle](https://www.kaggle.com/datasets/ehsanulhaquesiam/bangladesh-news-articles)** | **📦 [Source Code](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper)**
+**🔗 [View on Kaggle](https://www.kaggle.com/datasets/ehsanulhaque2111/bangladesh-news-articles)** | **📦 [Source Code](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper)**
 
 ---
 
@@ -115,7 +115,13 @@ print(df['paper_name'].value_counts().head(10))
 
 ## 🙏 Citation
 
-```
-Ehsanul Haque Siam. (2026). Bangladesh News Articles Dataset.
-Kaggle. https://doi.org/10.34740/KAGGLE/DS/9384161
+```bibtex
+@misc{ehsanul_haque_siam_2026,
+    title={Bangladesh News Articles Dataset},
+    url={https://www.kaggle.com/ds/9384161},
+    DOI={10.34740/KAGGLE/DS/9384161},
+    publisher={Kaggle},
+    author={Ehsanul Haque Siam},
+    year={2026}
+}
 ```
