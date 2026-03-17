@@ -9,10 +9,9 @@ Features:
     - Date filtering (client-side)
 """
 
-import re
 from datetime import datetime
 from html import unescape
-from typing import Generator, Optional
+from typing import Generator
 
 import scrapy
 from scrapy.http import Request, Response

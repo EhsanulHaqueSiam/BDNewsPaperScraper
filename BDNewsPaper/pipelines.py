@@ -16,6 +16,7 @@ from scrapy.exceptions import DropItem
 from w3lib.html import remove_tags
 
 from BDNewsPaper.config import MIN_ARTICLE_LENGTH, MIN_HEADLINE_LENGTH, DHAKA_TZ
+from BDNewsPaper.items import clean_text, validate_url
 
 
 logger = logging.getLogger(__name__)
@@ -83,9 +84,7 @@ class ValidationPipeline:
     
     def _is_valid_url(self, url: str) -> bool:
         """Basic URL validation."""
-        if not url or not isinstance(url, str):
-            return False
-        return url.startswith(('http://', 'https://'))
+        return validate_url(url) is not None
 
 
 # ============================================================================
@@ -277,22 +276,14 @@ class CleanArticlePipeline:
         
         cleaned_body = str(article_body)
         
-        # Remove HTML tags
-        cleaned_body = remove_tags(cleaned_body)
-        
-        # Replace HTML entities
-        html_entities = {
-            '&lt;': '<', '&gt;': '>', '&amp;': '&', '&quot;': '"',
-            '&apos;': "'", '&nbsp;': ' ', '&#39;': "'", '&#x27;': "'"
-        }
-        for entity, char in html_entities.items():
-            cleaned_body = cleaned_body.replace(entity, char)
-        
+        # Clean HTML tags, entities, and normalize whitespace
+        cleaned_body = clean_text(cleaned_body)
+
         # Remove unwanted patterns
         for pattern in self.UNWANTED_PATTERNS:
             cleaned_body = re.sub(pattern, '', cleaned_body, flags=re.IGNORECASE | re.MULTILINE)
-        
-        # Normalize whitespace
+
+        # Re-normalize whitespace after pattern removal
         cleaned_body = re.sub(r'\s+', ' ', cleaned_body).strip()
         
         return cleaned_body

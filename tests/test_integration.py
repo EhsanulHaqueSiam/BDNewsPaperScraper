@@ -170,26 +170,23 @@ class TestMiddlewareChain:
     def test_request_flows_through_all_middlewares(self, mock_crawler, mock_spider):
         """Test that a request successfully flows through all middlewares."""
         from BDNewsPaper.stealth_headers import StealthHeadersMiddleware
-        from BDNewsPaper.middlewares import UserAgentMiddleware, CircuitBreakerMiddleware
-        
+        from BDNewsPaper.middlewares import CircuitBreakerMiddleware
+
         # Initialize middlewares
+        # UserAgentMiddleware removed — StealthHeadersMiddleware handles UA rotation
         stealth = StealthHeadersMiddleware.from_crawler(mock_crawler)
-        ua = UserAgentMiddleware()
         circuit = CircuitBreakerMiddleware()
-        
+
         # Create request
         request = Request(url='https://prothomalo.com/article/123')
-        
+
         # Process through middlewares
-        result = ua.process_request(request, mock_spider)
-        assert result is None  # Pass through
-        
         result = stealth.process_request(request, mock_spider)
         assert result is None  # Pass through
-        
+
         result = circuit.process_request(request, mock_spider)
         assert result is None  # Pass through
-        
+
         # Verify headers were added
         assert 'User-Agent' in request.headers
     

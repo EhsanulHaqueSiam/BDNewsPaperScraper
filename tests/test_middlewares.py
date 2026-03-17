@@ -15,7 +15,6 @@ from scrapy.exceptions import IgnoreRequest
 from BDNewsPaper.middlewares import (
     SmartRetryMiddleware,
     CircuitBreakerMiddleware,
-    UserAgentMiddleware,
     StatisticsMiddleware,
 )
 
@@ -175,32 +174,4 @@ class TestCircuitBreakerMiddleware:
         assert middleware.circuits[domain]['state'] == middleware.CLOSED
 
 
-class TestUserAgentMiddleware:
-    """Tests for UserAgentMiddleware."""
-    
-    @pytest.fixture
-    def middleware(self):
-        return UserAgentMiddleware()
-    
-    def test_sets_user_agent(self, middleware, mock_spider):
-        """Test that User-Agent header is set."""
-        request = Request(url='http://test.com')
-        
-        middleware.process_request(request, mock_spider)
-        
-        assert 'User-Agent' in request.headers
-        ua = request.headers['User-Agent'].decode()
-        assert 'Mozilla' in ua
-    
-    def test_rotates_user_agents(self, middleware, mock_spider):
-        """Test that User-Agents are rotated."""
-        user_agents = set()
-        
-        for _ in range(50):
-            request = Request(url='http://test.com')
-            middleware.process_request(request, mock_spider)
-            ua = request.headers['User-Agent'].decode()
-            user_agents.add(ua)
-        
-        # Should have used multiple different UAs
-        assert len(user_agents) > 1
+## UserAgentMiddleware removed — StealthHeadersMiddleware handles UA rotation

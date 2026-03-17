@@ -8,7 +8,6 @@ Requires: psycopg2-binary or asyncpg
 
 import logging
 import os
-import hashlib
 from datetime import datetime
 from typing import Optional
 from contextlib import contextmanager

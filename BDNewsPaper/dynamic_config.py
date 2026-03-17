@@ -18,7 +18,6 @@ Usage:
 
 import json
 import logging
-import sqlite3
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
 from typing import Dict, List, Optional, Any

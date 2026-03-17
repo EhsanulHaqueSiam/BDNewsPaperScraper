@@ -53,6 +53,22 @@ if STRAWBERRY_AVAILABLE:
         word_count: Optional[int] = None
         scraped_at: Optional[str] = None
 
+    def _row_to_article(row) -> 'Article':
+        return Article(
+            id=row['id'],
+            url=row['url'],
+            paper_name=row['paper_name'],
+            headline=row['headline'],
+            article=row['article'],
+            sub_title=row['sub_title'],
+            category=row['category'],
+            author=row['author'],
+            publication_date=row['publication_date'],
+            keywords=row['keywords'],
+            word_count=row['word_count'],
+            scraped_at=row['scraped_at'],
+        )
+
     @strawberry.type
     class PaperStats:
         """Newspaper statistics."""
@@ -76,20 +92,7 @@ if STRAWBERRY_AVAILABLE:
                 cursor.execute("SELECT * FROM articles WHERE id = ?", (id,))
                 row = cursor.fetchone()
                 if row:
-                    return Article(
-                        id=row['id'],
-                        url=row['url'],
-                        paper_name=row['paper_name'],
-                        headline=row['headline'],
-                        article=row['article'],
-                        sub_title=row['sub_title'],
-                        category=row['category'],
-                        author=row['author'],
-                        publication_date=row['publication_date'],
-                        keywords=row['keywords'],
-                        word_count=row['word_count'],
-                        scraped_at=row['scraped_at'],
-                    )
+                    return _row_to_article(row)
                 return None
 
         @strawberry.field
@@ -124,20 +127,7 @@ if STRAWBERRY_AVAILABLE:
                 """, params + [limit, offset])
                 
                 return [
-                    Article(
-                        id=row['id'],
-                        url=row['url'],
-                        paper_name=row['paper_name'],
-                        headline=row['headline'],
-                        article=row['article'],
-                        sub_title=row['sub_title'],
-                        category=row['category'],
-                        author=row['author'],
-                        publication_date=row['publication_date'],
-                        keywords=row['keywords'],
-                        word_count=row['word_count'],
-                        scraped_at=row['scraped_at'],
-                    )
+                    _row_to_article(row)
                     for row in cursor.fetchall()
                 ]
 
@@ -156,20 +146,7 @@ if STRAWBERRY_AVAILABLE:
                 """, (search_term, search_term, limit))
                 
                 return [
-                    Article(
-                        id=row['id'],
-                        url=row['url'],
-                        paper_name=row['paper_name'],
-                        headline=row['headline'],
-                        article=row['article'],
-                        sub_title=row['sub_title'],
-                        category=row['category'],
-                        author=row['author'],
-                        publication_date=row['publication_date'],
-                        keywords=row['keywords'],
-                        word_count=row['word_count'],
-                        scraped_at=row['scraped_at'],
-                    )
+                    _row_to_article(row)
                     for row in cursor.fetchall()
                 ]
 

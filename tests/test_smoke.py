@@ -204,28 +204,27 @@ class TestMiddlewareIntegration:
         from BDNewsPaper.middlewares import (
             SmartRetryMiddleware,
             CircuitBreakerMiddleware,
-            UserAgentMiddleware,
         )
-        
+
         # Initialize all middlewares
+        # UserAgentMiddleware removed — StealthHeadersMiddleware handles UA rotation
         stealth = StealthHeadersMiddleware.from_crawler(mock_crawler)
         cf_bypass = CloudflareBypassMiddleware.from_crawler(mock_crawler)
         retry = SmartRetryMiddleware(mock_crawler.settings)
         circuit = CircuitBreakerMiddleware()
-        ua = UserAgentMiddleware()
-        
+
         # Create a test request
         request = Request(url='https://example.com/article')
-        
+
         # Process through ALL middlewares in order
-        middlewares = [ua, stealth, circuit, cf_bypass]
-        
+        middlewares = [stealth, circuit, cf_bypass]
+
         for mw in middlewares:
             if hasattr(mw, 'process_request'):
                 result = mw.process_request(request, mock_spider)
                 # Should return None (pass through) or a modified request
                 assert result is None or isinstance(result, Request)
-        
+
         # Verify headers are set
         assert 'User-Agent' in request.headers
     

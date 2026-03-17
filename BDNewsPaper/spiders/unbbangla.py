@@ -14,7 +14,7 @@ import json
 import re
 from datetime import datetime, timedelta
 from html import unescape
-from typing import Any, Dict, Generator, List, Optional
+from typing import Any, Dict, Generator, List
 
 import scrapy
 from scrapy.http import Request, Response

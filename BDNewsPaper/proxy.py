@@ -302,42 +302,6 @@ class ProxyMiddleware:
 
 
 # =============================================================================
-# Scrapy Settings Integration
-# =============================================================================
-
-PROXY_SETTINGS = {
-    # Enable proxy middleware
-    'PROXY_ENABLED': False,
-    
-    # Proxy type: single, rotating, residential, socks5
-    'PROXY_TYPE': 'single',
-    
-    # Single proxy or list file
-    'PROXY_URL': '',
-    'PROXY_LIST': '',
-    
-    # Rotation strategy: round_robin, random, smart
-    'PROXY_ROTATION': 'round_robin',
-    
-    # Authentication
-    'PROXY_USER': '',
-    'PROXY_PASS': '',
-    
-    # Residential proxy provider
-    'RESIDENTIAL_PROVIDER': '',  # brightdata, oxylabs, smartproxy
-    'RESIDENTIAL_COUNTRY': 'bd',
-    
-    # SOCKS5/VPN
-    'SOCKS5_HOST': '',
-    'SOCKS5_PORT': '1080',
-    
-    # Retry settings
-    'PROXY_MAX_RETRIES': 3,
-    'PROXY_BAN_THRESHOLD': 5,
-}
-
-
-# =============================================================================
 # CLI Tool
 # =============================================================================
 

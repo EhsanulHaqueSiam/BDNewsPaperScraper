@@ -12,7 +12,6 @@ Features:
 
 import json
 import re
-from datetime import datetime
 from html import unescape
 from typing import Any, Dict, Generator, Optional
 from urllib.parse import urlencode

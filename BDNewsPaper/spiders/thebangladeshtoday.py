@@ -9,7 +9,6 @@ Features:
     - Category-based scraping
 """
 
-from datetime import datetime
 from typing import Generator, Optional
 
 import scrapy

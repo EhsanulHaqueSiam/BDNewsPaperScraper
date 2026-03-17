@@ -91,7 +91,7 @@ DOWNLOADER_MIDDLEWARES = {
     
     # === ROBUSTNESS LAYER 1: Request Preparation (300-450) ===
     "BDNewsPaper.stealth_headers.StealthHeadersMiddleware": 350,       # Anti-bot headers
-    "BDNewsPaper.middlewares.UserAgentMiddleware": 400,                # UA rotation backup
+    # UserAgentMiddleware removed — StealthHeadersMiddleware handles UA rotation
     "BDNewsPaper.proxy.ProxyMiddleware": 410,                          # Proxy rotation
     "BDNewsPaper.cloudflare_bypass.CloudflareBypassMiddleware": 430,   # CF bypass (all levels)
     "BDNewsPaper.middlewares.ScraplingMiddleware": 435,               # Scrapling fetch (opt-in)

@@ -89,29 +89,6 @@ class BdnewspaperSpiderMiddleware:
         spider.logger.info(f"Closed reason: {reason}")
 
 
-class UserAgentMiddleware:
-    def __init__(self):
-        self.user_agents = [
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:138.0) Gecko/20100101 Firefox/138.0',
-            'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.3 Safari/605.1.15',
-            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36 Edg/136.0.0.0'
-        ]
-
-    @classmethod
-    def from_crawler(cls, crawler):
-        return cls()
-
-    def process_request(self, request, spider):
-        ua = random.choice(self.user_agents)
-        request.headers['User-Agent'] = ua
-        spider.logger.debug(f"Set User-Agent for {request.url}: {ua[:50]}...")
-        return None
-
-
 class SmartRetryMiddleware(RetryMiddleware):
     """
     Enhanced retry middleware with exponential backoff and jitter.

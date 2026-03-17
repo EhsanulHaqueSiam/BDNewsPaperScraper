@@ -994,14 +994,6 @@ PLAYWRIGHT_STEALTH_SETTINGS = {
 }
 
 
-# =============================================================================
-# BACKWARDS COMPATIBILITY
-# =============================================================================
-
-# Keep old names for compatibility
-CloudflareCookieMiddleware = CloudflareBypassMiddleware
-get_stealth_js = get_comprehensive_stealth_js
-
 def get_flaresolverr_cookies(url: str, flaresolverr_url: str = 'http://localhost:8191/v1', timeout: int = 60) -> Dict[str, str]:
     """Backwards compatible function."""
     cookies, _ = solve_with_flaresolverr(url, flaresolverr_url, timeout)
