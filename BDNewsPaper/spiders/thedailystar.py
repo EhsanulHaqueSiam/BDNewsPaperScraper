@@ -6,15 +6,16 @@ Scrapes English news articles from The Daily Star.
 Website Structure:
     - Framework: Drupal 7
     - Pagination: ?page=X query parameter
-    - RSS Feed: /rss.xml for structured data
+    - RSS Feed: /rss.xml and category-specific RSS feeds
     - Search: Google Custom Search at /search?t={query}
 
 Features:
-    - Standard HTML pagination with ?page=X
-    - RSS feed support for efficient article discovery
+    - Category RSS feeds as primary article discovery source
+    - Standard HTML pagination with ?page=X as fallback
     - JSON-LD structured data extraction (NewsArticle schema)
     - Multiple content extraction strategies
     - Category-based scraping
+    - TLS client headers for Cloudflare handling
 """
 
 import json
@@ -33,23 +34,27 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 
 class TheDailyStarSpider(BaseNewsSpider):
     """
-    The Daily Star scraper with Drupal pagination and JSON-LD support.
-    
+    The Daily Star scraper with category RSS feeds, Drupal pagination, and JSON-LD support.
+
+    Primary: Category-specific RSS feeds for article discovery.
+    Secondary: HTML category page pagination.
+    Article pages are visited for full content extraction via JSON-LD.
+
     Usage:
         scrapy crawl thedailystar -a start_date=2024-12-01 -a end_date=2024-12-25
         scrapy crawl thedailystar -a categories=Bangladesh,Sports,Business
         scrapy crawl thedailystar -a use_rss=true
     """
-    
+
     name = "thedailystar"
     paper_name = "The Daily Star"
     allowed_domains = ["thedailystar.net", "www.thedailystar.net"]
-    
+
     # API capabilities
     supports_api_date_filter = False  # Date filtering done client-side
     supports_api_category_filter = True
     supports_keyword_search = True  # Via Google CSE
-    
+
     # Custom settings
     custom_settings = {
         'DOWNLOAD_DELAY': 0.5,
@@ -58,11 +63,35 @@ class TheDailyStarSpider(BaseNewsSpider):
         'AUTOTHROTTLE_START_DELAY': 0.5,
         'AUTOTHROTTLE_MAX_DELAY': 5.0,
     }
-    
+
     # Base URLs
     BASE_URL = "https://www.thedailystar.net"
     RSS_URL = "https://www.thedailystar.net/rss.xml"
-    
+
+    # Category-specific RSS feeds (category name -> RSS URL path)
+    CATEGORY_RSS_FEEDS = {
+        "Bangladesh": "news/bangladesh/rss.xml",
+        "Sports": "sports/rss.xml",
+        "Business": "business/rss.xml",
+        "Opinion": "opinion/rss.xml",
+        "Entertainment": "entertainment/rss.xml",
+        "Lifestyle": "lifestyle/rss.xml",
+        "Tech": "tech-startup/rss.xml",
+    }
+
+    # TLS client headers for Cloudflare handling on article pages
+    ARTICLE_HEADERS = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Cache-Control': 'no-cache',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'same-origin',
+        'Sec-Fetch-User': '?1',
+        'Upgrade-Insecure-Requests': '1',
+    }
+
     # Category mappings (name -> URL path)
     CATEGORIES = {
         # News Categories
@@ -76,7 +105,7 @@ class TheDailyStarSpider(BaseNewsSpider):
         "Europe": "world/europe",
         "Americas": "world/americas",
         "MiddleEast": "world/middle-east",
-        
+
         # Other Categories
         "Business": "business",
         "Economy": "business/economy",
@@ -133,22 +162,44 @@ class TheDailyStarSpider(BaseNewsSpider):
     # ================================================================
     # Request Generation
     # ================================================================
-    
+
     def start_requests(self) -> Generator[scrapy.Request, None, None]:
-        """Generate initial requests."""
+        """Generate initial requests.
+
+        Always starts with category RSS feeds for efficient discovery,
+        then falls back to HTML category page pagination for deeper coverage.
+        """
+        # Primary: Category RSS feeds (each returns ~10 items with title, link, pubDate)
+        rss_categories_sent = set()
+        for cat_name, rss_path in self.CATEGORY_RSS_FEEDS.items():
+            # Only send RSS for categories we're actually scraping
+            if cat_name in self.category_map or not self.categories:
+                rss_url = f"{self.BASE_URL}/{rss_path}"
+                self.stats['requests_made'] += 1
+                rss_categories_sent.add(cat_name)
+                self.logger.info(f"Requesting category RSS: {cat_name} -> {rss_url}")
+                yield scrapy.Request(
+                    url=rss_url,
+                    callback=self.parse_category_rss,
+                    headers={'Accept': 'application/rss+xml, application/xml, text/xml'},
+                    meta={"category": cat_name, "request_type": "category_rss"},
+                    errback=self.handle_request_failure,
+                )
+
         if self.use_rss:
-            # RSS feed mode for broader coverage
+            # Also fetch the main RSS feed for broader coverage
             yield scrapy.Request(
                 url=self.RSS_URL,
                 callback=self.parse_rss,
+                headers={'Accept': 'application/rss+xml, application/xml, text/xml'},
                 meta={"request_type": "rss"},
                 errback=self.handle_request_failure,
             )
-        else:
-            # Category-based scraping
-            for category, path in self.category_map.items():
-                self.consecutive_old_articles[category] = 0
-                yield self._make_category_request(category, path, page=0)
+
+        # Secondary: Category HTML page scraping for deeper pagination
+        for category, path in self.category_map.items():
+            self.consecutive_old_articles[category] = 0
+            yield self._make_category_request(category, path, page=0)
     
     def _make_category_request(
         self, category: str, path: str, page: int = 0
@@ -203,10 +254,11 @@ class TheDailyStarSpider(BaseNewsSpider):
                 
                 if not self.is_url_in_db(link):
                     self.stats['articles_found'] += 1
-                    
+
                     yield scrapy.Request(
                         url=link,
                         callback=self.parse_article,
+                        headers=self.ARTICLE_HEADERS,
                         meta={
                             "category": "RSS",
                             "rss_title": title,
@@ -219,7 +271,55 @@ class TheDailyStarSpider(BaseNewsSpider):
         except ET.ParseError as e:
             self.logger.error(f"RSS parse error: {e}")
             self.stats['errors'] += 1
-    
+
+    def parse_category_rss(self, response: Response) -> Generator:
+        """Parse category-specific RSS feed for article discovery.
+
+        Each category RSS returns ~10 items with title, link, description, pubDate.
+        The body is NOT in the RSS, so we must visit each article page for full content.
+        """
+        category = response.meta.get("category", "Unknown")
+
+        try:
+            root = ET.fromstring(response.text)
+            items = root.findall('.//item')
+
+            self.logger.info(f"Category RSS '{category}': Found {len(items)} items")
+
+            for item in items:
+                title = item.findtext('title', '')
+                link = item.findtext('link', '')
+                description = item.findtext('description', '')
+                pub_date = item.findtext('pubDate', '')
+
+                if not link:
+                    continue
+
+                # Check date
+                if pub_date and not self._is_date_valid(pub_date):
+                    continue
+
+                if not self.is_url_in_db(link):
+                    self.stats['articles_found'] += 1
+                    self.stats['requests_made'] += 1
+
+                    yield scrapy.Request(
+                        url=link,
+                        callback=self.parse_article,
+                        headers=self.ARTICLE_HEADERS,
+                        meta={
+                            "category": category,
+                            "rss_title": title,
+                            "rss_description": description,
+                            "rss_date": pub_date,
+                        },
+                        errback=self.handle_request_failure,
+                    )
+
+        except ET.ParseError as e:
+            self.logger.error(f"Category RSS parse error for {category}: {e}")
+            self.stats['errors'] += 1
+
     # ================================================================
     # Category Page Parsing
     # ================================================================
@@ -267,10 +367,11 @@ class TheDailyStarSpider(BaseNewsSpider):
             
             if not self.is_url_in_db(full_url):
                 self.stats['articles_found'] += 1
-                
+
                 yield scrapy.Request(
                     url=full_url,
                     callback=self.parse_article,
+                    headers=self.ARTICLE_HEADERS,
                     meta={
                         "category": category,
                         "list_date": date_el,

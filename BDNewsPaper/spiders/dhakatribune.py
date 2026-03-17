@@ -21,7 +21,8 @@ from datetime import datetime
 from typing import Generator, Optional
 
 import scrapy
-from scrapy.http import Response
+from scrapy.http import Request, Response
+from scrapy.selector import Selector
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
@@ -113,15 +114,73 @@ class DhakaTribuneSpider(BaseNewsSpider):
     # ================================================================
     
     def start_requests(self) -> Generator[scrapy.Request, None, None]:
-        """Generate initial requests for categories."""
+        """Generate initial requests: news sitemap first, then categories/search as fallback."""
+        # Primary: News sitemap for recent article discovery
+        sitemap_url = 'https://www.dhakatribune.com/news-sitemap.xml'
+        self.logger.info(f"Fetching news sitemap: {sitemap_url}")
+        self.stats['requests_made'] += 1
+        yield scrapy.Request(
+            url=sitemap_url,
+            callback=self.parse_sitemap,
+            errback=self.handle_request_failure,
+            headers={
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Referer': 'https://www.dhakatribune.com/',
+            },
+        )
+
+        # Fallback: Search or category mode
         if self.search_query:
-            # Search mode
             yield self._make_search_request(page=1)
         else:
-            # Category mode
             for category, path in self.category_map.items():
                 self.consecutive_old_articles[category] = 0
                 yield self._make_category_request(category, path, page=1)
+
+    def parse_sitemap(self, response: Response) -> Generator[scrapy.Request, None, None]:
+        """Parse news sitemap XML to extract article URLs with dates."""
+        sel = Selector(response)
+        sel.remove_namespaces()
+        urls = sel.xpath('//url')
+
+        found_count = 0
+        for url_node in urls:
+            loc = url_node.xpath('loc/text()').get()
+            title = url_node.xpath('news/title/text()').get()
+            pub_date = url_node.xpath('news/publication_date/text()').get()
+
+            if not loc:
+                continue
+
+            # Filter by date range if publication date is available
+            if pub_date:
+                parsed_date = self._parse_date_string(pub_date)
+                if parsed_date and not self.is_date_in_range(parsed_date):
+                    self.stats['date_filtered'] += 1
+                    continue
+
+            full_url = loc if loc.startswith('http') else f"{self.BASE_URL}{loc}"
+
+            if full_url in self.processed_urls or self.is_url_in_db(full_url):
+                continue
+
+            self.processed_urls.add(full_url)
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+            found_count += 1
+
+            yield scrapy.Request(
+                url=full_url,
+                callback=self.parse_article,
+                meta={'category': 'Sitemap', 'sitemap_title': title},
+                errback=self.handle_request_failure,
+                headers={
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Referer': 'https://www.dhakatribune.com/',
+                },
+            )
+
+        self.logger.info(f"Sitemap yielded {found_count} article URLs from {len(urls)} entries")
     
     def _make_category_request(
         self, category: str, path: str, page: int = 1

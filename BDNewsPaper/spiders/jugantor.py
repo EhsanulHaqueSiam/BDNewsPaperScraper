@@ -86,6 +86,7 @@ class JugantorSpider(BaseNewsSpider):
         'DEFAULT_REQUEST_HEADERS': {
             'Accept': 'application/json, text/plain, */*',
             'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'https://www.jugantor.com/',
         },
     }
     
@@ -122,10 +123,16 @@ class JugantorSpider(BaseNewsSpider):
                 yield Request(
                     url=url,
                     callback=self.parse_api_response,
+                    headers={
+                        'Accept': 'application/json, text/plain, */*',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': 'https://www.jugantor.com/',
+                    },
                     meta={
                         'category': category,
                         'cat_id': cat_id,
                         'offset': 0,
+                        'handle_httpstatus_list': [403, 503],
                     },
                     errback=self.handle_request_failure,
                 )
@@ -139,10 +146,16 @@ class JugantorSpider(BaseNewsSpider):
             yield Request(
                 url=url,
                 callback=self.parse_api_response,
+                headers={
+                    'Accept': 'application/json, text/plain, */*',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': 'https://www.jugantor.com/',
+                },
                 meta={
                     'category': 'all',
                     'cat_id': 0,
                     'offset': 0,
+                    'handle_httpstatus_list': [403, 503],
                 },
                 errback=self.handle_request_failure,
             )
@@ -153,7 +166,34 @@ class JugantorSpider(BaseNewsSpider):
         cat_id = response.meta.get('cat_id', 0)
         offset = response.meta.get('offset', 0)
         page = (offset // self.ITEMS_PER_PAGE) + 1
-        
+
+        # Handle Cloudflare blocks - retry with Playwright
+        if response.status in (403, 503):
+            if not response.meta.get('playwright'):
+                self.logger.warning(
+                    f"Got {response.status} from API, retrying with Playwright: {response.url}"
+                )
+                yield Request(
+                    url=response.url,
+                    callback=self.parse_api_response,
+                    headers={
+                        'Accept': 'application/json, text/plain, */*',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': 'https://www.jugantor.com/',
+                    },
+                    meta={
+                        **response.meta,
+                        'playwright': True,
+                    },
+                    errback=self.handle_request_failure,
+                    dont_filter=True,
+                )
+                return
+            else:
+                self.logger.error(f"Still blocked ({response.status}) even with Playwright: {response.url}")
+                self.stats['errors'] += 1
+                return
+
         try:
             articles = json.loads(response.text)
         except json.JSONDecodeError:
@@ -200,10 +240,16 @@ class JugantorSpider(BaseNewsSpider):
             yield Request(
                 url=next_url,
                 callback=self.parse_api_response,
+                headers={
+                    'Accept': 'application/json, text/plain, */*',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Referer': 'https://www.jugantor.com/',
+                },
                 meta={
                     'category': category,
                     'cat_id': cat_id,
                     'offset': next_offset,
+                    'handle_httpstatus_list': [403, 503],
                 },
                 errback=self.handle_request_failure,
             )

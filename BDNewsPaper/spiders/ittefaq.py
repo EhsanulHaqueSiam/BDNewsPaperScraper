@@ -16,7 +16,7 @@ from typing import Generator, Optional
 from urllib.parse import quote
 
 import scrapy
-from scrapy.http import JsonRequest, Response
+from scrapy.http import Response
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
@@ -51,6 +51,12 @@ class IttefaqSpider(BaseNewsSpider):
         'CONCURRENT_REQUESTS_PER_DOMAIN': 1,
         'ROBOTSTXT_OBEY': False,
         'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter',
+        'DEFAULT_REQUEST_HEADERS': {
+            'Accept': 'application/json, text/javascript, */*; q=0.01',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'https://en.ittefaq.com.bd/',
+            'Accept-Encoding': 'gzip, deflate, br',
+        },
     }
     
     BASE_URL = "https://en.ittefaq.com.bd"
@@ -75,6 +81,7 @@ class IttefaqSpider(BaseNewsSpider):
     API_HEADERS = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
         "X-Requested-With": "XMLHttpRequest",
+        "Accept-Encoding": "gzip, deflate, br",
     }
     
     def __init__(self, *args, **kwargs):
@@ -135,19 +142,19 @@ class IttefaqSpider(BaseNewsSpider):
                 self.current_start[category] = 0
                 yield self._make_category_request(category, info, start=0)
     
-    def _make_category_request(self, category: str, info: dict, start: int) -> JsonRequest:
+    def _make_category_request(self, category: str, info: dict, start: int) -> scrapy.Request:
         """Create API request for a category."""
         widget = info["widget"]
         page_id = info["page_id"]
         path = info["path"]
-        
+
         api_url = self._get_api_url(widget, page_id, start, self.ARTICLES_PER_PAGE)
         self.stats['requests_made'] += 1
-        
+
         headers = self.API_HEADERS.copy()
         headers["Referer"] = f"{self.BASE_URL}/{path}"
-        
-        return JsonRequest(
+
+        return scrapy.Request(
             api_url,
             headers=headers,
             callback=self.parse_api,
@@ -156,6 +163,8 @@ class IttefaqSpider(BaseNewsSpider):
                 'category': category,
                 'category_info': info,
                 'current_start': start,
+                'handle_httpstatus_list': [403, 503],
+                '_stealth_headers_applied': True,
             },
         )
     
@@ -215,14 +224,43 @@ class IttefaqSpider(BaseNewsSpider):
         """Parse API response and extract article links."""
         if self.should_stop:
             return
-        
+
         category = response.meta.get('category', 'Unknown')
         category_info = response.meta.get('category_info', {})
         current_start = response.meta.get('current_start', 0)
-        
+
+        # Handle Cloudflare blocks - retry with Playwright
+        if response.status in (403, 503):
+            if not response.meta.get('playwright'):
+                self.logger.warning(
+                    f"Got {response.status} from API, retrying with Playwright: {response.url}"
+                )
+                yield scrapy.Request(
+                    url=response.url,
+                    callback=self.parse_api,
+                    headers=self.API_HEADERS,
+                    meta={
+                        **response.meta,
+                        'playwright': True,
+                    },
+                    errback=self.handle_request_failure,
+                    dont_filter=True,
+                )
+                return
+            else:
+                self.logger.error(f"Still blocked ({response.status}) even with Playwright: {response.url}")
+                self.stats['errors'] += 1
+                return
+
         try:
-            data = json.loads(response.text)
-        except json.JSONDecodeError as e:
+            # Use response.body to avoid "Response content isn't text" errors
+            # when the server returns a non-text content-type
+            try:
+                body_text = response.text
+            except AttributeError:
+                body_text = response.body.decode('utf-8', errors='replace')
+            data = json.loads(body_text)
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
             self.logger.error(f"JSON decode error: {e}")
             self.stats['errors'] += 1
             return

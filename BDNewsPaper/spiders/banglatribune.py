@@ -15,6 +15,7 @@ from typing import Generator
 
 import scrapy
 from scrapy.http import Request, Response
+from scrapy.selector import Selector
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
@@ -76,24 +77,38 @@ class BanglaTribuneSpider(BaseNewsSpider):
         self.logger.info(f"Categories: {self.categories or 'default'}")
     
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate initial requests: news sitemap first, then category pages as fallback."""
         self.stats['requests_made'] = 0
-        
-        # If categories specified, crawl those
+
+        # Primary: News sitemap for recent article discovery
+        sitemap_url = 'https://www.banglatribune.com/news-sitemap.xml'
+        self.logger.info(f"Fetching news sitemap: {sitemap_url}")
+        self.stats['requests_made'] += 1
+        yield Request(
+            url=sitemap_url,
+            callback=self.parse_sitemap,
+            errback=self.handle_request_failure,
+            headers={
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Referer': 'https://www.banglatribune.com/',
+            },
+        )
+
+        # Fallback: Category-based crawling
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
-                
+
                 if cat_lower in self.CATEGORIES:
                     cat_slug = self.CATEGORIES[cat_lower]
                 else:
                     cat_slug = cat_lower
-                
+
                 url = f"https://www.banglatribune.com/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
@@ -106,16 +121,58 @@ class BanglaTribuneSpider(BaseNewsSpider):
             for cat in default_cats:
                 cat_slug = self.CATEGORIES[cat]
                 url = f"https://www.banglatribune.com/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {cat} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
                     meta={'category': cat, 'cat_slug': cat_slug, 'page': 1},
                     errback=self.handle_request_failure,
                 )
+
+    def parse_sitemap(self, response: Response) -> Generator[Request, None, None]:
+        """Parse news sitemap XML to extract article URLs with dates."""
+        sel = Selector(response)
+        sel.remove_namespaces()
+        urls = sel.xpath('//url')
+
+        found_count = 0
+        for url_node in urls:
+            loc = url_node.xpath('loc/text()').get()
+            title = url_node.xpath('news/title/text()').get()
+            pub_date = url_node.xpath('news/publication_date/text()').get()
+
+            if not loc:
+                continue
+
+            # Filter by date range if publication date is available
+            if pub_date:
+                parsed_date = self._parse_date_string(pub_date)
+                if parsed_date and not self.is_date_in_range(parsed_date):
+                    self.stats['date_filtered'] += 1
+                    continue
+
+            if self.is_url_in_db(loc):
+                continue
+
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+            found_count += 1
+
+            yield Request(
+                url=loc,
+                callback=self.parse_article,
+                meta={'category': 'Sitemap', 'sitemap_title': title},
+                errback=self.handle_request_failure,
+                headers={
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Referer': 'https://www.banglatribune.com/',
+                },
+            )
+
+        self.logger.info(f"Sitemap yielded {found_count} article URLs from {len(urls)} entries")
     
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""

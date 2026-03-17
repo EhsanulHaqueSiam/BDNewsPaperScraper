@@ -179,9 +179,11 @@ class StealthHeadersMiddleware:
         else:
             headers = self._get_chrome_headers(request)
         
-        # Apply headers
+        # Apply headers (only if not already set by spider)
+        # Scrapy stores header keys as bytes, so normalize for comparison
+        existing = {h.lower() if isinstance(h, bytes) else h.lower().encode() for h in request.headers.keys()}
         for key, value in headers.items():
-            if key.lower() not in [h.lower() for h in request.headers.keys()]:
+            if key.lower().encode() not in existing:
                 request.headers[key] = value
         
         request.meta['_stealth_headers_applied'] = True

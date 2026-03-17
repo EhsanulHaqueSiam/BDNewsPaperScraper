@@ -68,6 +68,11 @@ class ProthomaloSpider(BaseNewsSpider):
         'AUTOTHROTTLE_START_DELAY': 0.1,
         'AUTOTHROTTLE_MAX_DELAY': 2.0,
         'AUTOTHROTTLE_TARGET_CONCURRENCY': 8.0,
+        'DEFAULT_REQUEST_HEADERS': {
+            'Accept': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+            'Referer': 'https://en.prothomalo.com/',
+        },
     }
     
     # API Endpoints
@@ -192,12 +197,18 @@ class ProthomaloSpider(BaseNewsSpider):
         return scrapy.Request(
             url=api_url,
             callback=self.parse_api_response,
+            headers={
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': 'https://en.prothomalo.com/',
+            },
             meta={
                 "category": category,
                 "section_id": section_id,
                 "offset": offset,
                 "page_num": offset // self.page_limit + 1,
                 "request_type": "category",
+                "handle_httpstatus_list": [403, 503],
             },
             errback=self.handle_request_failure,
             dont_filter=True,
@@ -224,11 +235,17 @@ class ProthomaloSpider(BaseNewsSpider):
         return scrapy.Request(
             url=api_url,
             callback=self.parse_api_response,
+            headers={
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+                'Referer': 'https://en.prothomalo.com/',
+            },
             meta={
                 "category": f"search:{self.search_query}",
                 "offset": offset,
                 "page_num": offset // self.page_limit + 1,
                 "request_type": "search",
+                "handle_httpstatus_list": [403, 503],
             },
             errback=self.handle_request_failure,
             dont_filter=True,
@@ -240,6 +257,33 @@ class ProthomaloSpider(BaseNewsSpider):
     
     def parse_api_response(self, response: Response) -> Generator:
         """Parse API response and extract article URLs."""
+        # Handle Cloudflare blocks - retry with Playwright
+        if response.status in (403, 503):
+            if not response.meta.get('playwright'):
+                self.logger.warning(
+                    f"Got {response.status} from API, retrying with Playwright: {response.url}"
+                )
+                yield scrapy.Request(
+                    url=response.url,
+                    callback=self.parse_api_response,
+                    headers={
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': 'https://en.prothomalo.com/',
+                    },
+                    meta={
+                        **response.meta,
+                        'playwright': True,
+                    },
+                    errback=self.handle_request_failure,
+                    dont_filter=True,
+                )
+                return
+            else:
+                self.logger.error(f"Still blocked ({response.status}) even with Playwright: {response.url}")
+                self.stats['errors'] += 1
+                return
+
         try:
             data = json.loads(response.text)
         except json.JSONDecodeError as e:
@@ -277,10 +321,15 @@ class ProthomaloSpider(BaseNewsSpider):
                 
                 # Use route-data.json API for full article content
                 route_data_url = f"{self.ROUTE_DATA_URL}?path={quote(url)}"
-                
+
                 yield scrapy.Request(
                     url=route_data_url,
                     callback=self.parse_route_data,
+                    headers={
+                        'Accept': 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Referer': 'https://en.prothomalo.com/',
+                    },
                     meta={
                         "category": category,
                         "api_data": item,

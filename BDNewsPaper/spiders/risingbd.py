@@ -4,17 +4,20 @@ Rising BD Spider (Bangla)
 Scrapes articles from Rising BD (risingbd.com)
 
 Features:
-    - Category-based scraping
+    - RSS feed for article URL discovery (primary)
+    - Category-based HTML scraping (fallback)
     - Date filtering (client-side)
     - Search query filtering
 """
 
 import re
+from datetime import datetime
 from html import unescape
-from typing import Generator
+from typing import Generator, Optional
 
 import scrapy
 from scrapy.http import Request, Response
+from w3lib.html import remove_tags
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
@@ -23,24 +26,28 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 class RisingBDSpider(BaseNewsSpider):
     """
     Spider for Rising BD (Bangla Newspaper).
-    
-    Uses HTML scraping with category navigation.
-    
+
+    Primary: RSS feed for article URL discovery, then visits pages for full content.
+    Fallback: HTML scraping with category navigation.
+
     Usage:
         scrapy crawl risingbd -a categories=national,politics,sports
         scrapy crawl risingbd -a max_pages=10
         scrapy crawl risingbd -a start_date=2024-01-01
     """
-    
+
     name = 'risingbd'
     paper_name = 'Rising BD'
     allowed_domains = ['risingbd.com', 'www.risingbd.com']
     language = 'Bangla'
-    
+
     # API/filter capabilities
     supports_api_date_filter = False
     supports_api_category_filter = True
-    
+
+    # RSS feed URL
+    RSS_URL = 'https://www.risingbd.com/rss/rss.xml'
+
     # Category slug mappings
     CATEGORIES = {
         'national': 'national',
@@ -62,38 +69,51 @@ class RisingBDSpider(BaseNewsSpider):
         'travel': 'travel',
         'probash': 'probash',
     }
-    
+
     custom_settings = {
         'DOWNLOAD_DELAY': 0.5,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         'AUTOTHROTTLE_ENABLED': True,
     }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger.info(f"Rising BD spider initialized")
         self.logger.info(f"Categories: {self.categories or 'default'}")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate requests: RSS feed first, then category pages."""
         self.stats['requests_made'] = 0
-        
-        # If categories specified, crawl those
+
+        # Always fetch the RSS feed for broad article discovery
+        self.logger.info(f"Fetching RSS feed: {self.RSS_URL}")
+        self.stats['requests_made'] += 1
+        yield Request(
+            url=self.RSS_URL,
+            callback=self.parse_rss,
+            headers={
+                'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+            },
+            errback=self.handle_request_failure,
+        )
+
+        # Also crawl category pages for additional coverage
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
-                
+
                 if cat_lower in self.CATEGORIES:
                     cat_slug = self.CATEGORIES[cat_lower]
                 else:
                     cat_slug = cat_lower
-                
+
                 url = f"https://www.risingbd.com/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
@@ -101,21 +121,118 @@ class RisingBDSpider(BaseNewsSpider):
                     errback=self.handle_request_failure,
                 )
         else:
-            # Crawl default categories
+            # Crawl default categories as supplement
             default_cats = ['national', 'politics', 'sports', 'economy']
             for cat in default_cats:
                 cat_slug = self.CATEGORIES.get(cat, cat)
                 url = f"https://www.risingbd.com/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {cat} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
                     meta={'category': cat, 'cat_slug': cat_slug, 'page': 1},
                     errback=self.handle_request_failure,
                 )
+
+    # ================================================================
+    # RSS Parsing (Primary URL discovery)
+    # ================================================================
+
+    def parse_rss(self, response: Response) -> Generator:
+        """Parse RSS feed to discover article URLs, then visit each for full content."""
+        # Use scrapy.Selector to parse RSS XML with namespace removal
+        selector = scrapy.Selector(response, type='xml')
+        selector.remove_namespaces()
+
+        items = selector.xpath('//item')
+
+        if not items:
+            self.logger.warning(f"No items found in RSS feed: {response.url}")
+            return
+
+        self.logger.info(f"Found {len(items)} items in RSS feed: {response.url}")
+
+        for item in items:
+            link = item.xpath('link/text()').get()
+            if not link:
+                continue
+
+            link = link.strip()
+
+            # Ensure full URL
+            if link.startswith('/'):
+                link = f"https://www.risingbd.com{link}"
+
+            # Skip if already in DB
+            if self.is_url_in_db(link):
+                continue
+
+            # Get title and pub date from RSS for pre-filtering
+            title = item.xpath('title/text()').get()
+            title = unescape(title.strip()) if title else ''
+
+            pub_date_str = item.xpath('pubDate/text()').get()
+            pub_date = self._parse_rss_date(pub_date_str)
+
+            # Date filter
+            if pub_date and not self.is_date_in_range(pub_date):
+                self.stats['date_filtered'] += 1
+                continue
+
+            # Extract category from URL path
+            category = 'General'
+            url_match = re.search(r'risingbd\.com/([^/]+)', link)
+            if url_match:
+                url_category = url_match.group(1)
+                if url_category not in ('rss', 'www', 'news'):
+                    category = url_category
+
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+
+            # Visit article page for full content
+            yield Request(
+                url=link,
+                callback=self.parse_article,
+                meta={
+                    'category': category,
+                    'rss_title': title,
+                    'rss_pub_date': pub_date,
+                },
+                headers={
+                    'User-Agent': 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'bn,en;q=0.9',
+                },
+                errback=self.handle_request_failure,
+            )
+
+    def _parse_rss_date(self, date_str: str) -> Optional[datetime]:
+        """Parse RSS pubDate format (RFC 822)."""
+        if not date_str:
+            return None
+
+        date_str = date_str.strip()
+
+        # RFC 822 formats commonly used in RSS
+        formats = [
+            '%a, %d %b %Y %H:%M:%S %z',    # Mon, 17 Mar 2026 10:30:00 +0600
+            '%a, %d %b %Y %H:%M:%S %Z',     # Mon, 17 Mar 2026 10:30:00 GMT
+            '%d %b %Y %H:%M:%S %z',          # 17 Mar 2026 10:30:00 +0600
+            '%Y-%m-%dT%H:%M:%S%z',           # 2026-03-17T10:30:00+06:00
+        ]
+
+        for fmt in formats:
+            try:
+                return datetime.strptime(date_str, fmt)
+            except ValueError:
+                continue
+
+        # Fallback to base spider's date parser
+        return self._parse_date_string(date_str)
     
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""
