@@ -27,7 +27,7 @@ COPY app.py quickstart.py run_spiders_optimized.py ./
 # Upgrade pip
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Install core scrapy + dependencies (exclude playwright from initial install)
+# Install all required dependencies explicitly
 RUN pip install --no-cache-dir \
     "scrapy>=2.14.0" \
     "pytz>=2024.1" \
@@ -37,37 +37,29 @@ RUN pip install --no-cache-dir \
     "itemloaders>=1.3.0" \
     "w3lib>=2.2.0" \
     "trafilatura>=2.0.0" \
-    "langdetect>=1.0.9"
-
-# Install API dependencies
-RUN pip install --no-cache-dir \
+    "langdetect>=1.0.9" \
     "fastapi>=0.115.0" \
     "uvicorn[standard]>=0.34.0" \
     "pydantic>=2.10.0"
 
-# Install the project itself (deps already satisfied above)
-RUN pip install --no-cache-dir --no-deps .
-
 # Install anti-bot dependencies (optional — non-fatal if any fail)
 RUN pip install --no-cache-dir scrapling curl_cffi browserforge patchright 2>/dev/null || \
-    echo "Warning: Some anti-bot deps unavailable (scraping still works via Scrapy)"
+    echo "Warning: Some anti-bot deps unavailable"
 
 # Install browser for stealth fetching (optional)
-RUN (python -m patchright install chromium 2>/dev/null || \
-     python -m playwright install chromium 2>/dev/null) || \
-    echo "Warning: Browser not installed (API-only mode)"
+RUN (python -m patchright install chromium 2>/dev/null || true) && \
+    (python -m playwright install chromium 2>/dev/null || true)
 
 # Create directories
 RUN mkdir -p /app/data /app/logs /app/.checkpoints /app/config
 
-# Environment variables
+# PYTHONPATH makes BDNewsPaper importable without pip install
 ENV PYTHONPATH=/app
 ENV DATABASE_PATH=/app/data/news_articles.db
 ENV SCRAPLING_ENABLED=true
 ENV LOG_LEVEL=INFO
+ENV SCRAPY_SETTINGS_MODULE=BDNewsPaper.settings
 
-# Expose API port
 EXPOSE 8000
 
-# Default command: run API server
 CMD ["uvicorn", "BDNewsPaper.api:app", "--host", "0.0.0.0", "--port", "8000"]
