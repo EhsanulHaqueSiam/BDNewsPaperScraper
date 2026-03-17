@@ -17,7 +17,7 @@ COPY app.py quickstart.py run_spiders_optimized.py ./
 
 # Install Python dependencies
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e ".[cloudflare,api]" && \
+    pip install --no-cache-dir ".[cloudflare,api]" && \
     pip install --no-cache-dir scrapling curl_cffi browserforge patchright
 
 # Install browser for stealth fetching
