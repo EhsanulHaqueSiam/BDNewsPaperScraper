@@ -392,7 +392,7 @@ TLS_ROTATE_PROFILE = True  # Rotate profile per request
 # -----------------------------------------------------------------------------
 # Scrapling provides native Cloudflare Turnstile bypass via StealthyFetcher.
 # Install: pip install scrapling  (or pip install -e ".[scrapling]")
-SCRAPLING_ENABLED = False               # Opt-in middleware (spider-level or request-level)
+SCRAPLING_ENABLED = True                # Enabled by default — Scrapling provides TLS fingerprint impersonation and CF bypass
 SCRAPLING_DEFAULT_FETCHER = 'stealthy'  # 'basic', 'stealthy', or 'dynamic'
 SCRAPLING_HEADLESS = True               # Run browser in headless mode
 SCRAPLING_SOLVE_CLOUDFLARE = True       # Enable CF Turnstile solving

@@ -85,9 +85,10 @@ class BaseNewsSpider(scrapy.Spider):
     # ================================================================
     # Class Attributes (override in subclasses)
     # ================================================================
-    
+
     paper_name = "Unknown"
-    
+    use_scrapling = True  # Use Scrapling for TLS fingerprint impersonation
+
     # Filtering capabilities
     supports_api_date_filter = False
     supports_api_category_filter = False

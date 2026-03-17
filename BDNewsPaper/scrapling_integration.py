@@ -28,7 +28,9 @@ from scrapy.http import HtmlResponse, Request
 
 logger = logging.getLogger(__name__)
 
-# Lazy import check
+# Lazy import check — import each component independently so that the
+# basic Fetcher (HTTP-only, no browser deps) works even when heavier
+# browser-based fetchers fail to import (e.g. missing msgspec/patchright).
 SCRAPLING_AVAILABLE = False
 _Fetcher = None
 _StealthyFetcher = None
@@ -38,13 +40,25 @@ _DynamicSession = None
 
 try:
     from scrapling import Fetcher as _Fetcher
-    from scrapling import StealthyFetcher as _StealthyFetcher
-    from scrapling import DynamicFetcher as _DynamicFetcher
-    from scrapling.fetchers import StealthySession as _StealthySession
-    from scrapling.fetchers import DynamicSession as _DynamicSession
-    SCRAPLING_AVAILABLE = True
+    SCRAPLING_AVAILABLE = True  # At minimum the basic Fetcher works
 except ImportError:
     pass
+
+try:
+    from scrapling import StealthyFetcher as _StealthyFetcher
+except ImportError:
+    logger.debug("scrapling.StealthyFetcher not available (missing optional deps)")
+
+try:
+    from scrapling import DynamicFetcher as _DynamicFetcher
+except ImportError:
+    logger.debug("scrapling.DynamicFetcher not available (missing optional deps)")
+
+try:
+    from scrapling.fetchers import StealthySession as _StealthySession
+    from scrapling.fetchers import DynamicSession as _DynamicSession
+except ImportError:
+    logger.debug("scrapling session classes not available (missing optional deps)")
 
 
 class ScraplingSessionManager:
@@ -126,6 +140,14 @@ class ScraplingFetcherWrapper:
         if not SCRAPLING_AVAILABLE:
             raise RuntimeError("scrapling is not installed. Install with: pip install scrapling")
 
+        # Fall back to 'basic' if the requested fetcher class is unavailable
+        if default_fetcher == 'stealthy' and _StealthyFetcher is None:
+            logger.warning("StealthyFetcher unavailable, falling back to basic Fetcher")
+            default_fetcher = 'basic'
+        elif default_fetcher == 'dynamic' and _DynamicFetcher is None:
+            logger.warning("DynamicFetcher unavailable, falling back to basic Fetcher")
+            default_fetcher = 'basic'
+
         self.default_fetcher = default_fetcher
         self.headless = headless
         self.solve_cloudflare = solve_cloudflare
@@ -169,30 +191,41 @@ class ScraplingFetcherWrapper:
 
         if fetcher_type == 'basic':
             # Fetcher.get() accepts different params
+            # Use stealthy_headers and follow_redirects for best results
             basic_kwargs = {'stealthy_headers': True, 'follow_redirects': True}
             if proxy:
                 basic_kwargs['proxy'] = proxy
+            # Try Fetcher.configure() API (Scrapling 0.4.2+) if available
+            if hasattr(_Fetcher, 'configure'):
+                try:
+                    _Fetcher.configure(stealthy_headers=True, follow_redirects=True)
+                except Exception:
+                    pass  # Fall back to per-request kwargs
             return basic_kwargs
 
         return kwargs
 
     def _extract_html(self, response) -> str:
-        """Extract HTML content from a Scrapling response object."""
-        # Scrapling response: .html_content (str), .body (bytes), .text (text content)
+        """Extract HTML content from a Scrapling response object.
+
+        Prefer ``html_content`` (returns full HTML string on Scrapling 0.4+).
+        Fall back to ``body`` (bytes).  Do NOT use ``.text`` — it returns empty
+        on some responses and strips tags.
+        """
+        # 1. Preferred: .html_content (str) — verified working on Scrapling 0.4.2
         html_content = getattr(response, 'html_content', None)
         if html_content and isinstance(html_content, str):
             return html_content
 
+        # 2. Fallback: .body (bytes)
         body = getattr(response, 'body', None)
         if body:
             if isinstance(body, bytes):
                 return body.decode('utf-8', errors='replace')
             return str(body)
 
-        text = getattr(response, 'text', None)
-        if text and isinstance(text, str):
-            return text
-
+        # NOTE: .text is intentionally NOT used here — it returns empty on
+        # some Scrapling responses and strips HTML tags.
         return ''
 
     def _extract_status(self, response) -> int:
@@ -221,10 +254,16 @@ class ScraplingFetcherWrapper:
 
         # Classmethod-based fetch (opens/closes browser per call)
         if fetcher_type == 'basic':
+            if _Fetcher is None:
+                raise RuntimeError("scrapling Fetcher is not available")
             return _Fetcher.get(url, **fetch_kwargs)
         elif fetcher_type == 'stealthy':
+            if _StealthyFetcher is None:
+                raise RuntimeError("scrapling StealthyFetcher is not available (missing deps?)")
             return _StealthyFetcher.fetch(url, **fetch_kwargs)
         elif fetcher_type == 'dynamic':
+            if _DynamicFetcher is None:
+                raise RuntimeError("scrapling DynamicFetcher is not available (missing deps?)")
             return _DynamicFetcher.fetch(url, **fetch_kwargs)
         else:
             raise ValueError(f"Unknown fetcher type: {fetcher_type}")

@@ -799,8 +799,9 @@ class ScraplingMiddleware:
         SCRAPLING_USE_SESSIONS: Reuse sessions per domain (default: True)
     """
 
-    def __init__(self, wrapper):
+    def __init__(self, wrapper, cf_domains=None):
         self.wrapper = wrapper
+        self.cf_domains = cf_domains or []
         self.stats = {
             'requests_handled': 0,
             'requests_failed': 0,
@@ -828,16 +829,25 @@ class ScraplingMiddleware:
             use_sessions=crawler.settings.getbool('SCRAPLING_USE_SESSIONS', True),
         )
 
-        middleware = cls(wrapper)
+        cf_domains = crawler.settings.getlist('CF_PROTECTED_DOMAINS', [])
+
+        middleware = cls(wrapper, cf_domains=cf_domains)
         crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
         return middleware
 
     def _should_handle(self, request, spider) -> bool:
         """Check if this request should be handled by Scrapling."""
+        # 1. Explicit request-level opt-in
         if request.meta.get('scrapling'):
             return True
+        # 2. Spider-level opt-in
         if getattr(spider, 'use_scrapling', False):
             return True
+        # 3. Auto-activate for CF-protected domains
+        if self.cf_domains:
+            domain = urlparse(request.url).netloc
+            if any(d in domain for d in self.cf_domains):
+                return True
         return False
 
     def _get_fetcher_type(self, request, spider) -> str:
