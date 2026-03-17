@@ -235,7 +235,7 @@ def generate_status_page(test_results: List[Dict] = None) -> str:
                     status = '<span class="warning">⚠️ ' + str(days_ago) + 'd ago</span>'
                 else:
                     status = '<span class="error">❌ ' + str(days_ago) + 'd ago</span>'
-            except:
+            except Exception:
                 status = '<span class="warning">⚠️ Unknown</span>'
         else:
             status = '<span class="error">❌ Never</span>'

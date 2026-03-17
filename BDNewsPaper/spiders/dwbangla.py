@@ -313,38 +313,3 @@ class DWBanglaSpider(BaseNewsSpider):
                 return self._clean_html_content(body)
         
         return ''
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from DW format."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        # DW uses ISO 8601 format
-        formats = [
-            '%Y-%m-%dT%H:%M:%S.%fZ',
-            '%Y-%m-%dT%H:%M:%SZ',
-            '%Y-%m-%dT%H:%M:%S%z',
-            '%Y-%m-%dT%H:%M:%S',
-            '%Y-%m-%d',
-        ]
-        
-        # Remove Z and add UTC offset for parsing
-        clean_date = date_str.replace('Z', '+00:00')
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        # Try with fromisoformat for newer Python
-        try:
-            dt = datetime.fromisoformat(clean_date)
-            return self.dhaka_tz.localize(dt.replace(tzinfo=None))
-        except ValueError:
-            pass
-        
-        return None

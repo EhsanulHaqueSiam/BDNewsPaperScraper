@@ -2,8 +2,9 @@ import random
 import time
 import logging
 from collections import defaultdict
-from typing import Optional, Union, Dict, List
+from typing import Optional, Union, Dict
 from datetime import datetime, timedelta
+from urllib.parse import urlparse
 
 import scrapy
 from scrapy import signals
@@ -12,6 +13,7 @@ from scrapy.exceptions import NotConfigured, IgnoreRequest
 from scrapy.utils.response import response_status_message
 from scrapy.downloadermiddlewares.retry import RetryMiddleware
 from itemadapter import is_item, ItemAdapter
+from BDNewsPaper.enums import CircuitState
 
 
 class BdnewspaperSpiderMiddleware:
@@ -150,7 +152,7 @@ class SmartRetryMiddleware(RetryMiddleware):
         
         # Track successful retry
         if request.meta.get('retry_times', 0) > 0:
-            from urllib.parse import urlparse
+
             domain = urlparse(request.url).netloc
             self.domain_retries[domain]['successful_retries'] += 1
         
@@ -165,7 +167,7 @@ class SmartRetryMiddleware(RetryMiddleware):
         return None
 
     def _retry_with_backoff(self, request, reason, spider):
-        from urllib.parse import urlparse
+
         domain = urlparse(request.url).netloc
         
         retry_times = request.meta.get('retry_times', 0) + 1
@@ -221,9 +223,9 @@ class CircuitBreakerMiddleware:
         - HALF_OPEN -> OPEN: On any failure
     """
     
-    CLOSED = 'closed'
-    OPEN = 'open'
-    HALF_OPEN = 'half_open'
+    CLOSED = CircuitState.CLOSED
+    OPEN = CircuitState.OPEN
+    HALF_OPEN = CircuitState.HALF_OPEN
     
     def __init__(self, failure_threshold: int = 5, recovery_timeout: float = 60.0,
                  half_open_max_calls: int = 3):
@@ -250,7 +252,7 @@ class CircuitBreakerMiddleware:
         )
     
     def _get_domain(self, url: str) -> str:
-        from urllib.parse import urlparse
+
         return urlparse(url).netloc
     
     def _check_half_open_transition(self, circuit: Dict) -> bool:
@@ -408,7 +410,7 @@ class AdaptiveThrottlingMiddleware:
     
     def _get_domain(self, url: str) -> str:
         """Extract domain from URL."""
-        from urllib.parse import urlparse
+
         return urlparse(url).netloc
     
     def process_request(self, request, spider):
@@ -533,7 +535,7 @@ class StatisticsMiddleware:
         self.stats[spider.name]['requests_total'] += 1
         request.meta['request_start_time'] = time.time()
         
-        from urllib.parse import urlparse
+
         domain = urlparse(request.url).netloc
         self.stats[spider.name]['domains'][domain] += 1
         
@@ -591,7 +593,7 @@ class RateLimitMiddleware:
         return cls(delay=delay, randomize=randomize)
 
     def process_request(self, request, spider):
-        from urllib.parse import urlparse
+
         domain = urlparse(request.url).netloc
         
         now = time.time()
@@ -606,9 +608,9 @@ class RateLimitMiddleware:
             
             if elapsed < delay:
                 sleep_time = delay - elapsed
-                spider.logger.debug(f"Rate limiting {domain}: sleeping {sleep_time:.2f}s")
-                time.sleep(sleep_time)
-        
+                spider.logger.debug(f"Rate limiting {domain}: delaying next request by {sleep_time:.2f}s")
+                request.meta['download_delay'] = sleep_time
+
         self.last_request_time[domain] = time.time()
         return None
 
@@ -661,9 +663,6 @@ class BdnewspaperDownloaderMiddleware:
     def spider_opened(self, spider):
         spider.logger.info(f"Enhanced downloader middleware activated for {spider.name}")
 
-
-class BdnewspaperRetryMiddleware(SmartRetryMiddleware):
-    pass
 
 
 # ============================================================================

@@ -57,12 +57,10 @@ class TestSmartRetryMiddleware:
         response = Response(url='http://test.com', status=500, request=request)
         
         result = middleware.process_response(request, response, mock_spider)
-        
-        # Should return new request or original response
-        if isinstance(result, Request):
-            assert result.meta.get('retry_times') == 1
-        else:
-            assert result == response
+
+        # 500 is in RETRY_HTTP_CODES and retry_times=0 < max=3, so must retry
+        assert isinstance(result, Request), "500 response should trigger a retry Request"
+        assert result.meta.get('retry_times') == 1
     
     def test_429_error_triggers_retry(self, middleware, mock_spider):
         """Test that 429 rate limit errors trigger retry."""
@@ -70,9 +68,10 @@ class TestSmartRetryMiddleware:
         response = Response(url='http://test.com', status=429, request=request)
         
         result = middleware.process_response(request, response, mock_spider)
-        
-        if isinstance(result, Request):
-            assert result.meta.get('retry_times') == 1
+
+        # 429 is in RETRY_HTTP_CODES and retry_times=0 < max=3, so must retry
+        assert isinstance(result, Request), "429 response should trigger a retry Request"
+        assert result.meta.get('retry_times') == 1
     
     def test_max_retries_exceeded(self, middleware, mock_spider):
         """Test that requests are dropped after max retries."""

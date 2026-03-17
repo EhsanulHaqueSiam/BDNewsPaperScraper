@@ -12,6 +12,8 @@ import scrapy
 from itemloaders.processors import TakeFirst, Compose, MapCompose, Identity
 from w3lib.html import remove_tags
 
+from BDNewsPaper.enums import Language
+
 
 # ============================================================================
 # Field Processors
@@ -154,7 +156,7 @@ class NewsArticleItem(scrapy.Item):
         - source_language: 'Bengali' or 'English'
         - word_count: Number of words in body
         - reading_time_minutes: Estimated reading time
-        - content_hash: MD5 hash for deduplication
+        - content_hash: SHA-256 hash for deduplication
     """
     
     # ===== Required Core Fields =====
@@ -261,11 +263,11 @@ class NewsArticleItem(scrapy.Item):
         
         # Detect language (Bengali Unicode range: U+0980-U+09FF)
         has_bengali = any('\u0980' <= char <= '\u09FF' for char in body)
-        super().__setitem__('source_language', 'Bengali' if has_bengali else 'English')
+        super().__setitem__('source_language', Language.BENGALI if has_bengali else Language.ENGLISH)
         
         # Generate content hash for deduplication
         content = f"{self.get('headline', '')}{body}".encode('utf-8')
-        super().__setitem__('content_hash', hashlib.md5(content).hexdigest())
+        super().__setitem__('content_hash', hashlib.sha256(content).hexdigest())
     
     def get_required_fields(self) -> List[str]:
         """Return list of required fields for validation."""

@@ -541,8 +541,10 @@ class DateFilterPipeline:
             if self.end_date and pub_date > self.end_date:
                 raise DropItem(f"Article date {pub_date} after end date {self.end_date}")
             
+        except DropItem:
+            raise
         except Exception as e:
-            logger.debug(f"Date parsing error for {adapter.get('url')}: {e}")
+            logger.warning(f"Date parsing error for {adapter.get('url')}: {e}")
         
         return item
     
@@ -576,7 +578,7 @@ class SharedSQLitePipeline:
     Thread-safe SQLite database for all spiders.
     
     Features:
-        - Thread-safe connection pooling
+        - Thread-safe thread-local connections
         - WAL mode for better concurrency
         - Automatic schema creation
         - Duplicate URL detection

@@ -83,7 +83,7 @@ services:
       - "5432:5432"
     environment:
       - POSTGRES_USER=${POSTGRES_USER:-bdnews}
-      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-bdnews123}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       - POSTGRES_DB=${POSTGRES_DB:-bdnews}
     volumes:
       - postgres-data:/var/lib/postgresql/data
@@ -104,7 +104,7 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     networks:
       - bdnews-network

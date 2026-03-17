@@ -245,37 +245,3 @@ class AjkerPatrikaSpider(BaseNewsSpider):
         if blog_image and isinstance(blog_image, dict):
             return blog_image.get('download_url')
         return None
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from various formats."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        # Handle ISO format with timezone
-        if 'T' in date_str:
-            try:
-                clean_date = date_str.replace('Z', '+00:00')
-                dt = datetime.fromisoformat(clean_date)
-                return dt
-            except ValueError:
-                pass
-        
-        formats = [
-            '%Y-%m-%dT%H:%M:%S.%fZ',
-            '%Y-%m-%dT%H:%M:%SZ',
-            '%Y-%m-%dT%H:%M:%S%z',
-            '%Y-%m-%dT%H:%M:%S',
-            '%Y-%m-%d %H:%M:%S',
-            '%Y-%m-%d',
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return self.dhaka_tz.localize(dt) if dt.tzinfo is None else dt
-            except ValueError:
-                continue
-        
-        return None

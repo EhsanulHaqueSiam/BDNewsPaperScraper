@@ -18,7 +18,7 @@ DHAKA_TZ = pytz.timezone('Asia/Dhaka')
 # Database configuration
 DEFAULT_DB_PATH = 'news_articles.db'
 
-# Default date range (last 30 days if not specified)
+# Default start date for scraping if not specified
 DEFAULT_START_DATE = '2024-01-01'
 
 def get_default_end_date() -> str:

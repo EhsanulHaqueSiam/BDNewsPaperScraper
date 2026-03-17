@@ -261,7 +261,7 @@ class TestSpiderBaseFunctionality:
         assert isinstance(links, list)
         # Should find article-like links
         article_links = [l for l in links if 'article' in l.lower() or 'news' in l.lower()]
-        assert len(article_links) >= 0  # May or may not find depending on patterns
+        assert len(article_links) >= 1, "Should find links with 'article' or 'news' in the path"
 
 
 class TestErrorHandling:

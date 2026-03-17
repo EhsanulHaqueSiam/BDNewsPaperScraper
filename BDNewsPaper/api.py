@@ -21,9 +21,12 @@ from contextlib import contextmanager
 from collections import defaultdict
 import threading
 
-from fastapi import FastAPI, HTTPException, Query, Depends, Request, Response
+from fastapi import FastAPI, HTTPException, Query, Depends, Request, Response, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+
+# Admin API key for protected endpoints
+ADMIN_API_KEY = os.getenv('ADMIN_API_KEY', '')
 
 
 # ==============================================================================
@@ -132,11 +135,12 @@ async def rate_limit_middleware(request: Request, call_next):
 
 
 # CORS middleware
+ALLOWED_ORIGINS = os.getenv('CORS_ORIGINS', '*').split(',')
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_credentials=False,
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -228,7 +232,7 @@ async def root():
     return {
         "status": "ok",
         "message": "BDNewsPaper API is running",
-        "version": "1.0.0",
+        "version": "2.0.0",
     }
 
 
@@ -480,15 +484,15 @@ async def search_articles(
                 search_term = f"%{q}%"
                 
                 cursor.execute("""
-                    SELECT COUNT(*) FROM articles 
-                    WHERE headline LIKE ? OR article_body LIKE ?
+                    SELECT COUNT(*) FROM articles
+                    WHERE headline LIKE ? OR article LIKE ?
                 """, (search_term, search_term))
                 total = cursor.fetchone()[0]
-                
+
                 cursor.execute("""
                     SELECT id, url, paper_name, headline, category, author, publication_date
-                    FROM articles 
-                    WHERE headline LIKE ? OR article_body LIKE ?
+                    FROM articles
+                    WHERE headline LIKE ? OR article LIKE ?
                     ORDER BY publication_date DESC
                     LIMIT ? OFFSET ?
                 """, (search_term, search_term, per_page, offset))
@@ -520,9 +524,17 @@ async def search_articles(
         raise HTTPException(status_code=500, detail="Search module not available")
 
 
-@app.post("/search/index", tags=["Search"])
+async def verify_admin_key(x_api_key: str = Header(..., description="Admin API key")):
+    """Verify admin API key for protected endpoints."""
+    if not ADMIN_API_KEY:
+        raise HTTPException(status_code=503, detail="Admin API key not configured on server")
+    if x_api_key != ADMIN_API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid API key")
+
+
+@app.post("/search/index", tags=["Search"], dependencies=[Depends(verify_admin_key)])
 async def rebuild_search_index():
-    """Rebuild the FTS5 search index. Admin only."""
+    """Rebuild the FTS5 search index. Requires X-API-Key header."""
     try:
         from BDNewsPaper.search import search_engine
         success = search_engine.create_fts_index()
@@ -565,4 +577,4 @@ async def search_suggestions(
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)

@@ -29,9 +29,12 @@ import json
 # Import base spider
 try:
     from BDNewsPaper.spiders.base_spider import BaseNewsSpider
-    from BDNewsPaper.items import ArticleItem
 except ImportError:
     BaseNewsSpider = scrapy.Spider
+
+try:
+    from BDNewsPaper.items import ArticleItem
+except ImportError:
     ArticleItem = dict
 
 # Import PageMethod for Playwright actions
@@ -264,7 +267,7 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         if page:
             try:
                 await page.wait_for_selector("h1, .container", timeout=10000)
-            except:
+            except Exception:
                 pass
             finally:
                 await page.close()
@@ -332,9 +335,9 @@ class KalerKanthoPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             page = failure.request.meta.get("playwright_page")
             if page:
                 await page.close()
-        except:
+        except Exception:
             pass
-    
+
     def closed(self, reason):
         """Log statistics when spider closes."""
         self.logger.info(f"Spider closed: {reason}")
@@ -524,7 +527,7 @@ class GenericPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         if page:
             try:
                 await page.wait_for_selector(self.content_selector, timeout=10000)
-            except:
+            except Exception:
                 pass
             finally:
                 await page.close()
@@ -576,9 +579,9 @@ class GenericPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             page = failure.request.meta.get("playwright_page")
             if page:
                 await page.close()
-        except:
+        except Exception:
             pass
-    
+
     def closed(self, reason):
         """Log statistics."""
         self.logger.info(f"Spider closed: {reason}")
@@ -695,9 +698,9 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         if page:
             try:
                 await page.close()
-            except:
+            except Exception:
                 pass
-        
+
         # Extract article links - UPDATED selectors for current Daily Sun layout (2024-2025)
         # NOTE: Site changed from /post/{id} to /{category}/{id}/{slug} pattern
         # Primary: Use a.linkOverlay which found 27 links on browser inspection
@@ -753,9 +756,9 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
         if page:
             try:
                 await page.close()
-            except:
+            except Exception:
                 pass
-        
+
         # Extract headline
         headline = (
             response.css('h1.post-title::text').get() or
@@ -823,9 +826,9 @@ class DailySunPlaywrightSpider(scrapy.Spider, PlaywrightMixin):
             page = failure.request.meta.get("playwright_page")
             if page:
                 await page.close()
-        except:
+        except Exception:
             pass
-    
+
     def closed(self, reason):
         """Log statistics when spider closes."""
         self.logger.info("=" * 50)

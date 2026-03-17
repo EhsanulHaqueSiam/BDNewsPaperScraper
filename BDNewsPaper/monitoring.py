@@ -184,17 +184,16 @@ class MetricsCollector:
     
     def _get_database_metrics(self) -> Dict:
         """Get database metrics."""
+        conn = None
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             cursor.execute("SELECT COUNT(*) FROM articles")
             total = cursor.fetchone()[0]
-            
-            # Get database file size
+
             size_bytes = os.path.getsize(self.db_path) if os.path.exists(self.db_path) else 0
-            
-            conn.close()
+
             return {
                 "total_articles": total,
                 "size_bytes": size_bytes,
@@ -202,46 +201,54 @@ class MetricsCollector:
             }
         except Exception as e:
             return {"error": str(e)}
-    
+        finally:
+            if conn:
+                conn.close()
+
     def _get_paper_metrics(self) -> Dict:
         """Get per-paper article counts."""
+        conn = None
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             cursor.execute("""
-                SELECT paper_name, COUNT(*) as count 
+                SELECT paper_name, COUNT(*) as count
                 FROM articles GROUP BY paper_name
             """)
-            result = {row[0]: row[1] for row in cursor.fetchall()}
-            conn.close()
-            return result
+            return {row[0]: row[1] for row in cursor.fetchall()}
         except Exception as e:
             return {"error": str(e)}
-    
+        finally:
+            if conn:
+                conn.close()
+
     def _get_recent_metrics(self) -> Dict:
         """Get recent activity metrics."""
+        conn = None
         try:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
-            
+
             periods = {
                 "last_1h": "-1 hour",
                 "last_24h": "-24 hours",
                 "last_7d": "-7 days",
             }
-            
+
             result = {}
             for name, delta in periods.items():
-                cursor.execute(f"""
-                    SELECT COUNT(*) FROM articles 
-                    WHERE scraped_at >= datetime('now', '{delta}')
-                """)
+                cursor.execute(
+                    "SELECT COUNT(*) FROM articles WHERE scraped_at >= datetime('now', ?)",
+                    (delta,)
+                )
                 result[name] = cursor.fetchone()[0]
-            
-            conn.close()
+
             return result
         except Exception as e:
             return {"error": str(e)}
+        finally:
+            if conn:
+                conn.close()
 
 
 def run_health_check():

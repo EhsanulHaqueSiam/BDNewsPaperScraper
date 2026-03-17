@@ -195,24 +195,3 @@ class EkusheyTVSpider(BaseNewsSpider):
             author=author,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date string to datetime."""
-        if not date_str:
-            return None
-        
-        formats = [
-            '%Y-%m-%dT%H:%M:%S%z',
-            '%Y-%m-%dT%H:%M:%S',
-            '%Y-%m-%d %H:%M:%S',
-            '%Y-%m-%d',
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str.split('+')[0].split('Z')[0], fmt.split('%z')[0])
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

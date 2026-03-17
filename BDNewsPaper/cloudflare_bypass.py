@@ -8,10 +8,11 @@ LEVELS IMPLEMENTED:
     2. Stealth Playwright - Full automation hiding with JS injection
     3. Cookie Management - cf_clearance injection and caching
     4. Flaresolverr Integration - Docker-based challenge solving
-    5. TLS Fingerprinting - curl_cffi for Chrome TLS mimicry
+    5. TLS Fingerprinting - curl_cffi for Chrome/Firefox/Safari TLS mimicry (JA3/JA4/HTTP2)
     6. Scrapling StealthyFetcher - Native Cloudflare Turnstile bypass
-    7. Challenge Detection - Automatic detection and escalation
-    8. Request Retry with Escalation - Progressive bypass attempts
+    7. Camoufox - Firefox-based stealth browser (harder to detect than Chromium)
+    8. Challenge Detection - Automatic detection and escalation
+    9. Request Retry with Escalation - Progressive bypass attempts
 
 Usage:
     from BDNewsPaper.cloudflare_bypass import (
@@ -28,10 +29,13 @@ Settings:
     CF_COOKIES_FILE = 'config/cf_cookies.json'
     CF_TLS_CLIENT_ENABLED = True
     CF_SCRAPLING_ENABLED = True
+    CAMOUFOX_ENABLED = True  # Firefox-based stealth browser
+    TLS_PROFILES = ['chrome128', 'chrome131', 'chrome133', 'safari18_0', 'firefox133']
 """
 
 import json
 import logging
+import random
 import re
 import time
 import hashlib
@@ -44,6 +48,8 @@ from urllib.parse import urlparse
 from scrapy import signals
 from scrapy.http import Request, Response, HtmlResponse
 from scrapy.exceptions import NotConfigured, IgnoreRequest
+
+from BDNewsPaper.enums import ProtectionType
 
 logger = logging.getLogger(__name__)
 
@@ -361,7 +367,8 @@ class FlaresolverrClient:
             import httpx
             response = httpx.get(f"{self.url.replace('/v1', '')}/health", timeout=5)
             self._available = response.status_code == 200
-        except:
+        except Exception as e:
+            logger.debug(f"FlareSolverr not available: {e}")
             self._available = False
         
         return self._available
@@ -436,8 +443,8 @@ class FlaresolverrClient:
                 timeout=10,
             )
             self._session_id = None
-        except:
-            pass
+        except Exception as e:
+            logger.debug(f"Failed to destroy FlareSolverr session: {e}")
 
 
 def solve_with_flaresolverr(
@@ -477,22 +484,32 @@ except ImportError:
     CURL_CFFI_AVAILABLE = False
     curl_requests = None
 
+# Latest browser impersonation profiles for JA3/JA4/HTTP2 fingerprint matching.
+# Includes Chrome 128+, Firefox 133+, and Safari 18+ profiles.
+DEFAULT_TLS_PROFILES = [
+    'chrome128', 'chrome131', 'chrome133',
+    'safari18_0', 'safari18_2',
+    'firefox133',
+]
+
 
 def make_tls_impersonated_request(
     url: str,
     browser: str = 'chrome',
     timeout: int = 30,
+    profiles: Optional[List[str]] = None,
 ) -> Optional[str]:
     """
-    Make request with Chrome TLS fingerprint using curl_cffi.
+    Make request with browser TLS fingerprint using curl_cffi.
 
-    Uses impersonate="chrome" which auto-targets the latest known-good
-    Chrome profile (including correct JA3/JA4 and HTTP/2 SETTINGS frames).
+    Supports Chrome 128+, Firefox 133+, and Safari 18+ JA4 fingerprints
+    with correct HTTP/2 SETTINGS frames and HTTP/3/QUIC when available.
 
     Args:
         url: URL to request
-        browser: Browser to impersonate ('chrome' = latest, or explicit like 'chrome131')
+        browser: Browser to impersonate ('chrome' = latest, or explicit like 'chrome133')
         timeout: Request timeout
+        profiles: List of profiles to randomly rotate through. If None, uses browser param.
 
     Returns:
         Response text or None
@@ -500,12 +517,25 @@ def make_tls_impersonated_request(
     if not CURL_CFFI_AVAILABLE:
         logger.warning("curl_cffi not available - install with: pip install curl_cffi")
         return None
-    
+
     try:
+        # Rotate between latest browser profiles if provided
+        profile = random.choice(profiles) if profiles else browser
+
         response = curl_requests.get(
             url,
-            impersonate=browser,
+            impersonate=profile,
             timeout=timeout,
+            headers={
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.9,bn;q=0.8',
+                'Accept-Encoding': 'gzip, deflate, br',
+                'Sec-Fetch-Dest': 'document',
+                'Sec-Fetch-Mode': 'navigate',
+                'Sec-Fetch-Site': 'none',
+                'Sec-Fetch-User': '?1',
+                'Upgrade-Insecure-Requests': '1',
+            },
             allow_redirects=True,
         )
         return response.text
@@ -555,41 +585,41 @@ class CloudflareDetector:
         self.block_re = [re.compile(p, re.I) for p in self.BLOCK_PATTERNS]
         self.ratelimit_re = [re.compile(p, re.I) for p in self.RATELIMIT_PATTERNS]
     
-    def detect(self, response: Response) -> str:
+    def detect(self, response: Response) -> ProtectionType:
         """
         Detect protection type.
-        
+
         Returns:
-            'challenge', 'blocked', 'ratelimited', or 'none'
+            ProtectionType enum value (serializes as 'challenge', 'blocked', 'ratelimited', or 'none')
         """
         # Check status code first
         if response.status == 403:
-            return 'blocked'
+            return ProtectionType.BLOCKED
         if response.status == 429:
-            return 'ratelimited'
+            return ProtectionType.RATELIMITED
         if response.status == 503:
-            return 'challenge'
-        
+            return ProtectionType.CHALLENGE
+
         # Check content - safely access response.text
         try:
             text = response.text[:5000]  # Only check first 5KB
         except Exception:
             # Response is not text (e.g., binary, or encoding issue)
-            return 'none'
-        
+            return ProtectionType.NONE
+
         for pattern in self.challenge_re:
             if pattern.search(text):
-                return 'challenge'
-        
+                return ProtectionType.CHALLENGE
+
         for pattern in self.block_re:
             if pattern.search(text):
-                return 'blocked'
-        
+                return ProtectionType.BLOCKED
+
         for pattern in self.ratelimit_re:
             if pattern.search(text):
-                return 'ratelimited'
-        
-        return 'none'
+                return ProtectionType.RATELIMITED
+
+        return ProtectionType.NONE
     
     def has_cf_cookies(self, cookies: Dict) -> bool:
         """Check if cookies contain Cloudflare clearance."""
@@ -607,10 +637,11 @@ class CloudflareBypassMiddleware:
 
     Bypass Strategy:
     1. First attempt: Use cached cookies
-    2. If challenge: Try TLS impersonation (curl_cffi)
+    2. If challenge: Try TLS impersonation (curl_cffi with JA4 fingerprints)
     3. If still blocked: Use Flaresolverr (if available)
     4. If still blocked: Try Scrapling StealthyFetcher (if available)
-    5. If still blocked: Escalate to Playwright
+    5. If still blocked: Try Camoufox Firefox-based stealth browser
+    6. If still blocked: Escalate to Playwright
 
     Settings:
         CF_BYPASS_ENABLED: Enable/disable
@@ -620,6 +651,8 @@ class CloudflareBypassMiddleware:
         CF_MAX_RETRIES: Max bypass attempts
         CF_TLS_CLIENT_ENABLED: Use curl_cffi for TLS
         CF_SCRAPLING_ENABLED: Use Scrapling StealthyFetcher
+        CAMOUFOX_ENABLED: Use Camoufox Firefox-based stealth browser
+        TLS_PROFILES: Browser profiles for curl_cffi rotation
     """
     
     def __init__(
@@ -631,12 +664,16 @@ class CloudflareBypassMiddleware:
         max_retries: int = 3,
         use_tls_client: bool = True,
         use_scrapling: bool = True,
+        use_camoufox: bool = True,
+        tls_profiles: Optional[List[str]] = None,
     ):
         self.enabled = enabled
         self.protected_domains = set(protected_domains or [])
         self.max_retries = max_retries
         self.use_tls_client = use_tls_client and CURL_CFFI_AVAILABLE
         self.use_scrapling = use_scrapling
+        self.use_camoufox = use_camoufox
+        self.tls_profiles = tls_profiles or DEFAULT_TLS_PROFILES
         self._scrapling_wrapper = None  # Lazy-init on first use
 
         # Initialize components
@@ -650,6 +687,7 @@ class CloudflareBypassMiddleware:
             'bypassed_with_flaresolverr': 0,
             'bypassed_with_tls': 0,
             'bypassed_with_scrapling': 0,
+            'bypassed_with_camoufox': 0,
             'failed': 0,
         }
     
@@ -668,6 +706,8 @@ class CloudflareBypassMiddleware:
             max_retries=crawler.settings.getint('CF_MAX_RETRIES', 3),
             use_tls_client=crawler.settings.getbool('CF_TLS_CLIENT_ENABLED', True),
             use_scrapling=crawler.settings.getbool('CF_SCRAPLING_ENABLED', True),
+            use_camoufox=crawler.settings.getbool('CAMOUFOX_ENABLED', True),
+            tls_profiles=crawler.settings.getlist('TLS_PROFILES', DEFAULT_TLS_PROFILES),
         )
         
         crawler.signals.connect(middleware.spider_closed, signal=signals.spider_closed)
@@ -718,7 +758,7 @@ class CloudflareBypassMiddleware:
         # Detect protection type
         protection = self.detector.detect(response)
         
-        if protection == 'none':
+        if protection == ProtectionType.NONE:
             return response
         
         self.stats['challenges_detected'] += 1
@@ -738,6 +778,87 @@ class CloudflareBypassMiddleware:
         
         return response
     
+    def _cache_cookies(self, domain: str, cookies: Dict[str, str], user_agent: str = ''):
+        """Cache cookies for a domain."""
+        self.cookie_cache.set(domain, cookies, user_agent)
+
+    def _try_tls_client(self, url: str, domain: str) -> Optional[HtmlResponse]:
+        """Level: TLS fingerprinting with curl_cffi.
+        Uses latest browser impersonation profiles for JA3/JA4/HTTP2 fingerprint matching.
+        Supports Chrome 128+, Firefox 133+, and Safari 18+ profiles.
+        """
+        try:
+            from curl_cffi import requests as curl_requests
+
+            # Rotate between latest browser profiles
+            profile = random.choice(self.tls_profiles)
+
+            resp = curl_requests.get(
+                url,
+                impersonate=profile,
+                timeout=30,
+                headers={
+                    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+                    'Accept-Language': 'en-US,en;q=0.9,bn;q=0.8',
+                    'Accept-Encoding': 'gzip, deflate, br',
+                    'Sec-Fetch-Dest': 'document',
+                    'Sec-Fetch-Mode': 'navigate',
+                    'Sec-Fetch-Site': 'none',
+                    'Sec-Fetch-User': '?1',
+                    'Upgrade-Insecure-Requests': '1',
+                },
+                allow_redirects=True,
+            )
+
+            if resp.status_code == 200 and len(resp.text) > 500:
+                # Extract and cache cookies
+                cookies = dict(resp.cookies)
+                if cookies:
+                    self._cache_cookies(domain, cookies)
+
+                return HtmlResponse(
+                    url=str(resp.url),
+                    body=resp.content,
+                    encoding=resp.encoding or 'utf-8',
+                    status=resp.status_code,
+                )
+        except ImportError:
+            logger.debug("curl_cffi not installed")
+            return None
+        except Exception as e:
+            logger.warning(f"TLS client failed for {domain}: {e}")
+            return None
+
+    def _try_camoufox(self, url: str, domain: str) -> Optional[HtmlResponse]:
+        """Level: Camoufox Firefox-based stealth browser.
+        Camoufox is a modified Firefox with anti-fingerprinting patches.
+        Harder to detect than Chromium-based solutions since bot detectors
+        primarily target Chrome automation patterns.
+        """
+        try:
+            from camoufox.sync_api import Camoufox
+            with Camoufox(headless=True) as browser:
+                page = browser.new_page()
+                page.goto(url, wait_until='networkidle', timeout=30000)
+                content = page.content()
+                cookies = {c['name']: c['value'] for c in page.context.cookies()}
+                # Cache cookies for this domain
+                if cookies:
+                    self._cache_cookies(domain, cookies)
+                page.close()
+                return HtmlResponse(
+                    url=url,
+                    body=content.encode('utf-8'),
+                    encoding='utf-8',
+                    status=200,
+                )
+        except ImportError:
+            logger.debug("Camoufox not installed: pip install camoufox")
+            return None
+        except Exception as e:
+            logger.warning(f"Camoufox bypass failed for {domain}: {e}")
+            return None
+
     def _escalate_bypass(
         self,
         request: Request,
@@ -747,16 +868,15 @@ class CloudflareBypassMiddleware:
     ) -> Optional[Request]:
         """Try progressively stronger bypass methods."""
         attempt = request.meta.get('_cf_bypass_attempt', 0)
-        
-        # Method 1: TLS Client (curl_cffi)
+
+        # Method 1: TLS Client (curl_cffi) with JA4 fingerprint rotation
         if self.use_tls_client and attempt == 0:
             spider.logger.info(f"CF: Trying TLS impersonation for {domain}")
-            content = make_tls_impersonated_request(request.url)
-            if content and 'cf_clearance' not in content.lower():
+            response = self._try_tls_client(request.url, domain)
+            if response is not None:
                 self.stats['bypassed_with_tls'] += 1
-                # Return fake response - need to parse content
-                # For now, continue to next method
-        
+                return response
+
         # Method 2: Flaresolverr
         if self.flaresolverr and self.flaresolverr.is_available():
             spider.logger.info(f"CF: Using Flaresolverr for {domain}")
@@ -767,7 +887,7 @@ class CloudflareBypassMiddleware:
             if cookies:
                 self.cookie_cache.set(domain, cookies, user_agent)
                 self.stats['bypassed_with_flaresolverr'] += 1
-                
+
                 # Retry with new cookies
                 return request.replace(
                     cookies=cookies,
@@ -778,7 +898,7 @@ class CloudflareBypassMiddleware:
                     },
                     dont_filter=True,
                 )
-        
+
         # Method 3: Scrapling StealthyFetcher
         if self.use_scrapling and not request.meta.get('_scrapling_cf_tried'):
             # Always mark as tried to prevent retry loops
@@ -812,7 +932,16 @@ class CloudflareBypassMiddleware:
             except Exception as e:
                 spider.logger.debug(f"CF: Scrapling bypass failed for {domain}: {e}")
 
-        # Method 4: Escalate to Playwright
+        # Method 4: Camoufox (Firefox-based, harder to detect than Chromium)
+        if self.use_camoufox and not request.meta.get('_camoufox_cf_tried'):
+            request.meta['_camoufox_cf_tried'] = True
+            spider.logger.info(f"CF: Trying Camoufox stealth browser for {domain}")
+            response = self._try_camoufox(request.url, domain)
+            if response is not None:
+                self.stats['bypassed_with_camoufox'] += 1
+                return response
+
+        # Method 5: Escalate to Playwright (last resort)
         if not request.meta.get('playwright'):
             spider.logger.info(f"CF: Escalating to Playwright for {domain}")
             return request.replace(
@@ -824,7 +953,7 @@ class CloudflareBypassMiddleware:
                 },
                 dont_filter=True,
             )
-        
+
         return None
     
     def spider_closed(self, spider, reason):
@@ -837,6 +966,7 @@ class CloudflareBypassMiddleware:
                 f"Flaresolverr={self.stats['bypassed_with_flaresolverr']}, "
                 f"TLS={self.stats['bypassed_with_tls']}, "
                 f"Scrapling={self.stats['bypassed_with_scrapling']}, "
+                f"Camoufox={self.stats['bypassed_with_camoufox']}, "
                 f"Failed={self.stats['failed']}"
             )
         

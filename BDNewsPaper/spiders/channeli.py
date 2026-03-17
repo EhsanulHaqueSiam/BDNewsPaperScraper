@@ -232,13 +232,3 @@ class ChannelISpider(BaseNewsSpider):
             category=category,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        if not date_str:
-            return None
-        if 'T' in date_str:
-            try:
-                return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            except ValueError:
-                pass
-        return None

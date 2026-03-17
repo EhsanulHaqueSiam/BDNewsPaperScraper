@@ -293,35 +293,3 @@ class JagoNews24Spider(BaseNewsSpider):
             author=author,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from various formats."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        # Handle ISO format from meta tags
-        if 'T' in date_str:
-            try:
-                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                return dt
-            except ValueError:
-                pass
-        
-        # Standard date formats
-        formats = [
-            '%Y-%m-%d %H:%M:%S',
-            '%Y-%m-%d',
-            '%d %B, %Y',
-            '%B %d, %Y',
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

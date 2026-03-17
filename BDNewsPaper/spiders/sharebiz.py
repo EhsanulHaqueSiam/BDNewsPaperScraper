@@ -209,19 +209,3 @@ class ShareBizSpider(BaseNewsSpider):
             pass
         text = re.sub(r'\s+', ' ', text).strip()
         return text
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse WordPress date format."""
-        if not date_str:
-            return None
-        
-        formats = ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S']
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str.split('+')[0].split('Z')[0], fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

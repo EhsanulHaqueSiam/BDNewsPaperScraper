@@ -296,8 +296,8 @@ class ProxyMiddleware:
             parsed = urlparse(proxy)
             if parsed.password:
                 return proxy.replace(parsed.password, "***")
-        except:
-            pass
+        except Exception:
+            return "<unparseable proxy URL>"
         return proxy
 
 
@@ -419,7 +419,7 @@ PROXY_BAN_THRESHOLD=5
                 )
                 print(f"✅ {proxy[:50]}... - IP: {response.json().get('origin')}")
                 working += 1
-            except:
+            except Exception:
                 print(f"❌ {proxy[:50]}...")
         
         print(f"\nResults: {working}/{len(proxies)} working")

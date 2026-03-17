@@ -1,11 +1,6 @@
-# Scrapy settings for BDNewsPaper project
-#
-# For simplicity, this file contains only settings considered important or
-# commonly used. You can find more settings consulting the documentation:
-#
-#     https://docs.scrapy.org/en/latest/topics/settings.html
-#     https://docs.scrapy.org/en/latest/topics/downloader-middleware.html
-#     https://docs.scrapy.org/en/latest/topics/spider-middleware.html
+# BDNewsPaper Scrapy Settings
+# Scraper for Bangladeshi newspaper websites (English and Bangla).
+# Docs: https://docs.scrapy.org/en/latest/topics/settings.html
 
 BOT_NAME = "BDNewsPaper"
 
@@ -51,10 +46,8 @@ PLAYWRIGHT_CONTEXTS = {
     },
 }
 
-# Twisted reactor for async Playwright
-# NOTE: Only uncomment when running Playwright spiders specifically.
-# Having this enabled globally can interfere with normal HTTP spiders.
-# TWISTED_REACTOR = "twisted.internet.asyncioreactor.AsyncioSelectorReactor"
+# NOTE: TWISTED_REACTOR is set at the bottom of this file (asyncio reactor).
+# It is required for Playwright spiders and compatible with normal HTTP spiders.
 
 
 
@@ -64,23 +57,15 @@ USER_AGENT = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Ge
 # Obey robots.txt rules
 ROBOTSTXT_OBEY = False
 
-# Configure maximum concurrent requests performed by Scrapy (default: 16)
-CONCURRENT_REQUESTS = 64
-
 # Configure a delay for requests for the same website (default: 0)
 # See https://docs.scrapy.org/en/latest/topics/settings.html#download-delay
 # See also autothrottle settings and docs
-DOWNLOAD_DELAY = 0.5  # Reduced delay for faster scraping
+DOWNLOAD_DELAY = 0.5  # Polite delay between requests (Scrapy default is 0)
 RANDOMIZE_DOWNLOAD_DELAY = True
-# The download delay setting will honor only one of:
-CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # CONCURRENT_REQUESTS_PER_IP = 16  # Disabled: incompatible with Scrapy 2.14's DownloaderAwarePriorityQueue
 
 # Download timeout (seconds) - increased for slow Bangladesh news sites
 DOWNLOAD_TIMEOUT = 180  # 3 minutes for slow Bangladesh news sites
-
-# Disable cookies (enabled by default)
-# COOKIES_ENABLED = False
 
 # Disable Telnet Console (enabled by default)
 # TELNETCONSOLE_ENABLED = False
@@ -110,6 +95,7 @@ DOWNLOADER_MIDDLEWARES = {
     "BDNewsPaper.proxy.ProxyMiddleware": 410,                          # Proxy rotation
     "BDNewsPaper.cloudflare_bypass.CloudflareBypassMiddleware": 430,   # CF bypass (all levels)
     "BDNewsPaper.middlewares.ScraplingMiddleware": 435,               # Scrapling fetch (opt-in)
+    "BDNewsPaper.captcha_bypass.CaptchaBypassMiddleware": 440,       # CAPTCHA + Akamai/DataDome/PerimeterX/Incapsula
 
     # === ROBUSTNESS LAYER 2: Traffic Control (450-550) ===
     "BDNewsPaper.middlewares.CircuitBreakerMiddleware": 451,           # Circuit breaker
@@ -201,7 +187,7 @@ POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
 POSTGRES_PORT = int(os.environ.get('POSTGRES_PORT', '5432'))
 POSTGRES_DATABASE = os.environ.get('POSTGRES_DATABASE', 'bdnews')
 POSTGRES_USER = os.environ.get('POSTGRES_USER', 'bdnews')
-POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'bdnews_password')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', '')
 
 # Connection pool settings
 POSTGRES_POOL_MIN = int(os.environ.get('POSTGRES_POOL_MIN', '2'))
@@ -218,7 +204,7 @@ DATE_FILTER_ENABLED = False
 # Language Detection settings
 LANGUAGE_DETECTION_ENABLED = True
 LANGUAGE_DETECTION_STRICT = False  # Set True to drop non-English articles
-EXPECTED_LANGUAGES = ['en']  # Expected article languages
+EXPECTED_LANGUAGES = ['en']  # Languages to tag; only enforced when strict=True
 
 # Content Quality settings
 MIN_ARTICLE_WORDS = 20
@@ -248,18 +234,9 @@ CONCURRENT_REQUESTS_PER_DOMAIN = 16
 # Disable cookies (to avoid tracking)
 COOKIES_ENABLED = False
 
-# Enable and configure HTTP caching (disabled by default)
-# See https://docs.scrapy.org/en/latest/topics/downloader-middleware.html#httpcache-middleware-settings
-# HTTPCACHE_ENABLED = True
-# HTTPCACHE_EXPIRATION_SECS = 0
-# HTTPCACHE_DIR = "httpcache"
-# HTTPCACHE_IGNORE_HTTP_CODES = []
-# HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
-
-# Enable HTTP caching to minimize duplicate requests
-# HTTPCACHE_ENABLED = True
+# HTTP caching (disabled — enable for development/debugging)
 HTTPCACHE_ENABLED = False
-# HTTPCACHE_EXPIRATION_SECS = 3600  # Cache for 1 hour (reduced from 24h)
+# HTTPCACHE_EXPIRATION_SECS = 3600  # Cache for 1 hour
 # HTTPCACHE_DIR = "httpcache"
 # HTTPCACHE_IGNORE_HTTP_CODES = [500, 502, 503, 504, 400, 403, 404, 429]
 # HTTPCACHE_STORAGE = "scrapy.extensions.httpcache.FilesystemCacheStorage"
@@ -312,14 +289,14 @@ RATELIMIT_RANDOMIZE = True
 # Disable individual features by setting their *_ENABLED flag to False.
 
 # -----------------------------------------------------------------------------
-# 1. SMART FALLBACK EXTRACTION (extractors.py, pipelines.py)
+# SMART FALLBACK EXTRACTION (extractors.py, pipelines.py)
 # -----------------------------------------------------------------------------
 # When spider selectors fail, try fallback extraction methods.
 FALLBACK_EXTRACTION_ENABLED = True
 FALLBACK_MIN_BODY_LENGTH = 50  # Trigger fallback if body shorter than this
 
 # -----------------------------------------------------------------------------
-# 2. HYBRID REQUEST ENGINE (hybrid_request.py)  
+# HYBRID REQUEST ENGINE (hybrid_request.py)
 # -----------------------------------------------------------------------------
 # Automatically switch from HTTP to Playwright when JS challenges detected.
 HYBRID_REQUEST_ENABLED = True
@@ -330,7 +307,7 @@ HYBRID_PLAYWRIGHT_DOMAINS = [
 ]
 
 # -----------------------------------------------------------------------------
-# 4. ANTI-BOT EVASION (stealth_headers.py)
+# STEALTH HEADERS / ANTI-BOT EVASION (stealth_headers.py)
 # -----------------------------------------------------------------------------
 # Realistic browser headers to avoid bot detection.
 STEALTH_HEADERS_ENABLED = True
@@ -338,7 +315,7 @@ STEALTH_BROWSER_TYPE = 'chrome'  # chrome, firefox, safari
 STEALTH_ROTATE_UA = True  # Rotate User-Agent per request
 
 # -----------------------------------------------------------------------------
-# 9. CLOUDFLARE BYPASS - FULL IMPLEMENTATION (cloudflare_bypass.py)
+# CLOUDFLARE BYPASS (cloudflare_bypass.py)
 # -----------------------------------------------------------------------------
 # 7-Level Cloudflare countermeasures system.
 # 
@@ -402,6 +379,14 @@ CF_COOKIES_FILE = 'config/cf_cookies.json'
 # TLS fingerprinting with curl_cffi (install: pip install curl_cffi)
 CF_TLS_CLIENT_ENABLED = True  # Uses curl_cffi if available
 
+# Camoufox Configuration (Firefox-based stealth browser)
+CAMOUFOX_ENABLED = True  # Use Camoufox in CF bypass escalation
+CAMOUFOX_HEADLESS = True
+
+# TLS Fingerprint Profiles (for curl_cffi)
+TLS_PROFILES = ['chrome128', 'chrome131', 'chrome133', 'safari18_0', 'firefox133']
+TLS_ROTATE_PROFILE = True  # Rotate profile per request
+
 # -----------------------------------------------------------------------------
 # SCRAPLING INTEGRATION (scrapling_integration.py / middlewares.py)
 # -----------------------------------------------------------------------------
@@ -420,7 +405,7 @@ SCRAPLING_USE_SESSIONS = True           # Reuse sessions per domain
 CF_SCRAPLING_ENABLED = True             # Use Scrapling in CF bypass escalation chain (independent of middleware)
 
 # -----------------------------------------------------------------------------
-# 13. ADAPTIVE THROTTLING (middlewares.py)
+# ADAPTIVE THROTTLING (middlewares.py)
 # -----------------------------------------------------------------------------
 # Dynamic delay adjustment based on server response times.
 ADAPTIVE_THROTTLE_ENABLED = True
@@ -453,7 +438,7 @@ HONEYPOT_DETECTION_ENABLED = False
 VALIDATION_STRICT_MODE = True
 
 # -----------------------------------------------------------------------------
-# 4. ANTI-BOT EVASION (antibot.py)
+# ADVANCED ANTI-BOT FINGERPRINTING (antibot.py)
 # -----------------------------------------------------------------------------
 # Advanced browser fingerprint randomization.
 ANTIBOT_ENABLED = True
@@ -467,7 +452,7 @@ ANTIBOT_PLUGIN_SIMULATION = True # Plugin/MIME type simulation
 ANTIBOT_WEBRTC_PROTECTION = True # WebRTC leak prevention
 
 # -----------------------------------------------------------------------------
-# 7. GEOGRAPHIC MIMICRY (geo_mimicry.py)
+# GEOGRAPHIC MIMICRY (geo_mimicry.py)
 # -----------------------------------------------------------------------------
 # Bangladesh-specific proxy and geo-location features.
 GEO_MIMICRY_ENABLED = False  # Enable when you have proxy credentials
@@ -489,3 +474,24 @@ GEO_DOMAINS = [
 
 # Retry with new IP on geo-block detection
 GEO_RETRY_ON_BLOCK = True
+
+# -----------------------------------------------------------------------------
+# CAPTCHA SOLVING (requires paid API key — disabled by default)
+# -----------------------------------------------------------------------------
+# Set CAPTCHA_API_KEY env var and enable to solve CAPTCHAs automatically.
+# Providers: 2captcha, capsolver, anticaptcha, capmonster
+CAPTCHA_ENABLED = False  # Requires paid API key — enable only if you have one
+CAPTCHA_PROVIDER = 'capsolver'
+CAPTCHA_API_KEY = os.environ.get('CAPTCHA_API_KEY', '')
+CAPTCHA_TIMEOUT = 120
+
+# -----------------------------------------------------------------------------
+# ANTI-BOT PROVIDER BYPASS (free — uses browser automation, no API key needed)
+# -----------------------------------------------------------------------------
+# These use Playwright browser automation to extract cookies and bypass
+# commercial anti-bot systems. Enabled by default for out-of-the-box protection.
+# Requires: pip install scrapy-playwright && playwright install chromium
+AKAMAI_BYPASS_ENABLED = True    # Akamai Bot Manager (_abck cookie generation)
+DATADOME_BYPASS_ENABLED = True  # DataDome (datadome cookie extraction)
+PERIMETERX_BYPASS_ENABLED = True  # PerimeterX/HUMAN (_px* cookie extraction)
+INCAPSULA_BYPASS_ENABLED = True   # Imperva/Incapsula (incap_ses_* cookie extraction)

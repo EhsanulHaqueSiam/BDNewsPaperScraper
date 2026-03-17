@@ -83,6 +83,13 @@ cloudflare = [
     "prometheus-client>=0.24.0",  # Metrics for monitoring
     "scrapling>=0.4.1",  # Native Cloudflare Turnstile bypass via Patchright
     "browserforge>=1.2.4",  # Statistically coherent browser fingerprint generation
+    "camoufox>=0.4.0",  # Firefox-based stealth browser (harder to detect than Chromium)
+]
+antibot = [
+    "curl_cffi>=0.14.0",
+    "browserforge>=1.2.4",
+    "camoufox>=0.4.0",
+    "scrapling>=0.4.1",
 ]
 scrapling = [
     "scrapling>=0.4.1",  # Anti-bot fetcher with CF Turnstile bypass
@@ -123,6 +130,7 @@ all = [
     "scrapling>=0.4.1",
     "curl_cffi>=0.14.0",
     "browserforge>=1.2.4",
+    "camoufox>=0.4.0",
 ]
 analytics = [
     "textblob>=0.19.0",
@@ -139,9 +147,9 @@ dashboard = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/your-username/BDNewsPaperScraper"
-Repository = "https://github.com/your-username/BDNewsPaperScraper"
-Issues = "https://github.com/your-username/BDNewsPaperScraper/issues"
+Homepage = "https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper"
+Repository = "https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper"
+Issues = "https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper/issues"
 
 [project.scripts]
 bdnews = "BDNewsPaper.cli:main"

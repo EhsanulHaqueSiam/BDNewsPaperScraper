@@ -235,12 +235,3 @@ class DeshRupantorSpider(BaseNewsSpider):
             author=author,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from ISO format."""
-        if not date_str:
-            return None
-        try:
-            return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-        except ValueError:
-            return None

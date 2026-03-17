@@ -4,25 +4,65 @@ Base Spider Class for BDNewsPaper Scrapers
 Common functionality shared by all newspaper spiders.
 """
 
+import json
+import re
 import sqlite3
 import threading
-from collections import defaultdict
+from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from typing import Any, Dict, Generator, List, Optional, Set
 
-import pytz
 import scrapy
-from scrapy import signals
 from scrapy.http import Request, Response
 
 from BDNewsPaper.config import (
     DHAKA_TZ,
     DEFAULT_START_DATE,
     get_default_end_date,
-    get_spider_config,
 )
 from BDNewsPaper.items import NewsArticleItem
-from BDNewsPaper.link_discovery import ArticleLinkDiscovery, discover_article_links
+from BDNewsPaper.link_discovery import discover_article_links
+
+
+@dataclass
+class SpiderStats:
+    """Statistics tracked during a spider's lifetime.
+
+    Supports both attribute access (``stats.errors += 1``) and legacy
+    dict-style access (``stats['errors'] += 1``) so that the many child
+    spiders that use bracket notation continue to work unchanged.
+    """
+
+    requests_made: int = 0
+    articles_found: int = 0
+    articles_processed: int = 0
+    duplicates_skipped: int = 0
+    date_filtered: int = 0
+    search_filtered: int = 0
+    errors: int = 0
+    start_time: datetime = field(default_factory=datetime.now)
+
+    # -- dict-style access for backward compatibility --
+
+    def __getitem__(self, key: str) -> Any:
+        try:
+            return getattr(self, key)
+        except AttributeError:
+            raise KeyError(key)
+
+    def __setitem__(self, key: str, value: Any) -> None:
+        if key in self.__dataclass_fields__:
+            object.__setattr__(self, key, value)
+        else:
+            raise KeyError(key)
+
+    def __contains__(self, key: str) -> bool:
+        return key in self.__dataclass_fields__
+
+    def get(self, key: str, default: Any = None) -> Any:
+        if key in self.__dataclass_fields__:
+            return getattr(self, key, default)
+        return default
 
 
 class BaseNewsSpider(scrapy.Spider):
@@ -147,7 +187,111 @@ class BaseNewsSpider(scrapy.Spider):
         
         dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         return self.dhaka_tz.localize(dt)
-    
+
+    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
+        """Parse date string with comprehensive format support.
+
+        Handles ISO 8601, common English date formats, relative times
+        ("X hours ago"), and various newspaper-specific patterns found
+        across all scraped sites.
+
+        Returns:
+            datetime object (timezone-aware) or None on failure.
+        """
+        if not date_str:
+            return None
+
+        date_str = date_str.strip()
+        if not date_str:
+            return None
+
+        # ---- ISO 8601 via fromisoformat (handles +06:00, Z, etc.) ----
+        if 'T' in date_str:
+            try:
+                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                return dt
+            except ValueError:
+                pass
+
+        # ---- Relative times: "X hours/minutes/days/weeks ago" ----
+        relative_match = re.match(
+            r'(\d+)\s+(hour|minute|day|week|month|second)s?\s+ago',
+            date_str,
+            re.I,
+        )
+        if relative_match:
+            amount = int(relative_match.group(1))
+            unit = relative_match.group(2).lower()
+            now = datetime.now(self.dhaka_tz)
+            if unit == 'second':
+                return now - timedelta(seconds=amount)
+            elif unit == 'minute':
+                return now - timedelta(minutes=amount)
+            elif unit == 'hour':
+                return now - timedelta(hours=amount)
+            elif unit == 'day':
+                return now - timedelta(days=amount)
+            elif unit == 'week':
+                return now - timedelta(weeks=amount)
+            elif unit == 'month':
+                return now - timedelta(days=amount * 30)
+
+        # ---- Comprehensive strptime format list ----
+        # Ordered from most specific to least specific to avoid
+        # ambiguous partial matches.
+        formats = [
+            # ISO-like with microseconds
+            '%Y-%m-%dT%H:%M:%S.%fZ',
+            '%Y-%m-%dT%H:%M:%SZ',
+            '%Y-%m-%dT%H:%M:%S%z',
+            '%Y-%m-%dT%H:%M:%S',
+            # Standard datetime
+            '%Y-%m-%d %H:%M:%S',
+            '%Y-%m-%d',
+            # Day-first with time and AM/PM
+            '%d %B, %Y %I:%M:%S %p',   # 30 January, 2022 11:12:21 AM
+            '%d %B, %Y %H:%M:%S',       # 30 January, 2022 14:30:00
+            # Day-of-week with time
+            '%A, %d %B, %Y at %I:%M %p',  # Thursday, 25 December, 2025 at 10:12 PM
+            '%A, %d %B, %Y',              # Thursday, 26 December, 2024
+            '%A, %d %B %Y',               # Thursday, 26 December 2024
+            # Full/abbreviated month name
+            '%d %B, %Y',                   # 26 December, 2024
+            '%B %d, %Y',                   # December 26, 2024
+            '%d %b %Y, %I:%M %p',         # 26 Dec 2025, 12:28 AM
+            '%d %B %Y, %I:%M %p',         # 26 December 2025, 12:28 AM
+            '%d %b %Y',                    # 26 Dec 2024
+            '%b %d, %Y',                   # Dec 26, 2024
+            # Slash-separated
+            '%d/%m/%Y',                    # 26/12/2024
+            '%m/%d/%Y',                    # 12/26/2024
+            # Dash-separated day-first
+            '%d-%m-%Y',                    # 26-12-2024
+        ]
+
+        # First, try the raw date_str against all formats
+        for fmt in formats:
+            try:
+                dt = datetime.strptime(date_str, fmt)
+                return self.dhaka_tz.localize(dt) if dt.tzinfo is None else dt
+            except ValueError:
+                continue
+
+        # ---- Fallback: strip timezone suffix and retry ----
+        # Handles strings like "2024-12-26T10:00:00+06:00" when
+        # fromisoformat and %z both failed.
+        cleaned = date_str.split('+')[0].split('Z')[0]
+        if cleaned != date_str:
+            for fmt in ['%Y-%m-%dT%H:%M:%S', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d']:
+                try:
+                    dt = datetime.strptime(cleaned, fmt)
+                    return self.dhaka_tz.localize(dt)
+                except ValueError:
+                    continue
+
+        self.logger.warning(f"Failed to parse date string: {date_str!r}")
+        return None
+
     def _parse_category_args(self, kwargs: Dict[str, Any]) -> None:
         """Parse category filter arguments."""
         categories_str = kwargs.get('categories', '')
@@ -179,16 +323,7 @@ class BaseNewsSpider(scrapy.Spider):
     
     def _init_statistics(self) -> None:
         """Initialize statistics tracking."""
-        self.stats = {
-            'requests_made': 0,
-            'articles_found': 0,
-            'articles_processed': 0,
-            'duplicates_skipped': 0,
-            'date_filtered': 0,
-            'search_filtered': 0,  # Added for search filtering
-            'errors': 0,
-            'start_time': datetime.now(),
-        }
+        self.stats = SpiderStats()
     
     # ================================================================
     # Database Operations (Thread-Safe)
@@ -218,7 +353,7 @@ class BaseNewsSpider(scrapy.Spider):
                 result = cursor.fetchone() is not None
                 
                 if result:
-                    self.stats['duplicates_skipped'] += 1
+                    self.stats.duplicates_skipped += 1
                 else:
                     self.processed_urls.add(url)
                 
@@ -294,8 +429,6 @@ class BaseNewsSpider(scrapy.Spider):
         Returns:
             Dictionary with extracted fields, or None if not found
         """
-        import json
-        
         scripts = response.css('script[type="application/ld+json"]::text').getall()
         
         for script in scripts:
@@ -565,7 +698,7 @@ class BaseNewsSpider(scrapy.Spider):
         # Store raw HTML for fallback pipeline
         item['_raw_html'] = response.text
         
-        self.stats['articles_processed'] += 1
+        self.stats.articles_processed += 1
         self.logger.info(f"Auto-extracted: {extracted.get('headline', '')[:50]}")
         
         return item
@@ -596,8 +729,8 @@ class BaseNewsSpider(scrapy.Spider):
             if self.is_url_in_db(url):
                 continue
             
-            self.stats['articles_found'] += 1
-            
+            self.stats.articles_found += 1
+
             yield Request(
                 url=url,
                 callback=self.parse_article_auto,
@@ -647,7 +780,7 @@ class BaseNewsSpider(scrapy.Spider):
         if self.matches_search_query(headline, body):
             return True
         
-        self.stats['search_filtered'] += 1
+        self.stats.search_filtered += 1
         return False
     
     def parse_article_date(self, date_str: str) -> Optional[datetime]:
@@ -691,13 +824,10 @@ class BaseNewsSpider(scrapy.Spider):
         
         Args:
             response: Scrapy Response object
-        
+
         Returns:
             Author name(s) as string, or None if not found
         """
-        import json
-        import re
-        
         author = None
         
         # Strategy 1: JSON-LD structured data
@@ -822,8 +952,6 @@ class BaseNewsSpider(scrapy.Spider):
     
     def _clean_author_name(self, name: str) -> str:
         """Clean and normalize author name."""
-        import re
-        
         if not name:
             return ''
         
@@ -874,7 +1002,7 @@ class BaseNewsSpider(scrapy.Spider):
     
     def handle_request_failure(self, failure):
         """Enhanced error handling for failed requests."""
-        self.stats['errors'] += 1
+        self.stats.errors += 1
         url = failure.request.url
         error_msg = str(failure.value)
         
@@ -893,24 +1021,24 @@ class BaseNewsSpider(scrapy.Spider):
     
     def closed(self, reason: str) -> None:
         """Log final statistics when spider closes."""
-        runtime = datetime.now() - self.stats['start_time']
-        
+        runtime = datetime.now() - self.stats.start_time
+
         self.logger.info("=" * 60)
         self.logger.info(f"{self.paper_name.upper()} SPIDER STATISTICS")
         self.logger.info("=" * 60)
         self.logger.info(f"Spider closed: {reason}")
         self.logger.info(f"Total Runtime: {runtime}")
-        self.logger.info(f"Requests made: {self.stats['requests_made']}")
-        self.logger.info(f"Articles found: {self.stats['articles_found']}")
-        self.logger.info(f"Articles processed: {self.stats['articles_processed']}")
-        self.logger.info(f"Duplicates skipped: {self.stats['duplicates_skipped']}")
-        self.logger.info(f"Date filtered: {self.stats['date_filtered']}")
+        self.logger.info(f"Requests made: {self.stats.requests_made}")
+        self.logger.info(f"Articles found: {self.stats.articles_found}")
+        self.logger.info(f"Articles processed: {self.stats.articles_processed}")
+        self.logger.info(f"Duplicates skipped: {self.stats.duplicates_skipped}")
+        self.logger.info(f"Date filtered: {self.stats.date_filtered}")
         if self.search_query:
-            self.logger.info(f"Search filtered: {self.stats['search_filtered']}")
-        self.logger.info(f"Errors: {self.stats['errors']}")
-        
+            self.logger.info(f"Search filtered: {self.stats.search_filtered}")
+        self.logger.info(f"Errors: {self.stats.errors}")
+
         if runtime.total_seconds() > 0:
-            rate = self.stats['articles_processed'] / (runtime.total_seconds() / 60)
+            rate = self.stats.articles_processed / (runtime.total_seconds() / 60)
             self.logger.info(f"Articles per minute: {rate:.1f}")
         
         self.logger.info("=" * 60)

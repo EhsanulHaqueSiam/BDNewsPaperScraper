@@ -336,28 +336,3 @@ class TheIndependentSpider(BaseNewsSpider):
             author=author,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from various formats."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        formats = [
-            '%d %B, %Y %I:%M:%S %p',  # 30 January, 2022 11:12:21 AM
-            '%d %B, %Y %H:%M:%S',
-            '%d %B, %Y',
-            '%B %d, %Y',
-            '%Y-%m-%d %H:%M:%S',
-            '%Y-%m-%d',
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

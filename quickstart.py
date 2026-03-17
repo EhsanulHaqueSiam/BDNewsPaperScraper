@@ -141,7 +141,7 @@ def print_usage(mode: str):
     print("  uv run scrapy crawl prothomalo")
     print()
     print(f"  {Colors.CYAN}# Run with articles limit{Colors.NC}")
-    print("  uv run scrapy crawl dailystar -s CLOSESPIDER_ITEMCOUNT=10")
+    print("  uv run scrapy crawl thedailystar -s CLOSESPIDER_ITEMCOUNT=10")
     print()
     print(f"  {Colors.CYAN}# Test all spiders{Colors.NC}")
     print("  uv run python scripts/test_all_spiders.py --timeout 60")
@@ -157,7 +157,7 @@ def print_usage(mode: str):
         print("  uv run uvicorn BDNewsPaper.api:app --reload")
         print()
     
-    print(f"Available: {Colors.GREEN}82 spiders{Colors.NC} (prothomalo, dailystar, jugantor, etc.)")
+    print(f"Available: {Colors.GREEN}70+ spiders{Colors.NC} (prothomalo, dailystar, jugantor, etc.)")
     print(f"Docs: README.md")
 
 

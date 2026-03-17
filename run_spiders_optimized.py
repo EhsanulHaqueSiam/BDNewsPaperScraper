@@ -299,20 +299,7 @@ class SpiderRunner:
         else:
             print(f"❌ Chunk {chunk_num}/{total_chunks} failed with exit code {exit_code}")
             return False
-        """Validate date format YYYY-MM-DD"""
-        if not date_str:
-            return True
-        
-        pattern = r'^\d{4}-\d{2}-\d{2}$'
-        if not re.match(pattern, date_str):
-            return False
-        
-        try:
-            datetime.strptime(date_str, '%Y-%m-%d')
-            return True
-        except ValueError:
-            return False
-    
+
     def _build_spider_command(self, spider_name, start_date=None, end_date=None):
         """Build the spider command with all parameters"""
         cmd = []

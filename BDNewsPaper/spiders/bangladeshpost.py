@@ -297,37 +297,3 @@ class BangladeshPostSpider(BaseNewsSpider):
             author=author,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from various formats."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        # Handle ISO format from meta tags
-        if 'T' in date_str:
-            try:
-                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                return dt
-            except ValueError:
-                pass
-        
-        # Standard date formats
-        formats = [
-            '%d %B, %Y',           # 26 December, 2024
-            '%B %d, %Y',           # December 26, 2024
-            '%Y-%m-%d',            # 2024-12-26
-            '%d/%m/%Y',            # 26/12/2024
-            '%A, %d %B %Y',        # Thursday, 26 December 2024
-            '%d %b %Y',            # 26 Dec 2024
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

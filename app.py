@@ -1,30 +1,24 @@
 #!/usr/bin/env python3
 """
-BD Newspaper Scraper - Web Interface (Premium Edition)
-======================================================
-A stunning Streamlit-based GUI for controlling and monitoring newspaper scrapers.
+BD Newspaper Scraper - Web Interface
+=====================================
+A Streamlit-based GUI for controlling and monitoring newspaper scrapers.
 
 Run with: streamlit run app.py
 """
 
+import logging
 import sqlite3
 import subprocess
 import sys
-import threading
 import time
 from datetime import datetime, date, timedelta
+from html import escape as html_escape
 from pathlib import Path
 from typing import Optional, Dict, List
-import os
 
-try:
-    import streamlit as st
-    import pandas as pd
-except ImportError:
-    print("Required packages not found. Installing...")
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "streamlit", "pandas"])
-    import streamlit as st
-    import pandas as pd
+import streamlit as st
+import pandas as pd
 
 # Page config
 st.set_page_config(
@@ -588,30 +582,29 @@ def get_database_stats() -> Dict:
     
     try:
         cursor = conn.cursor()
-        
+
         cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='articles'")
         if not cursor.fetchone():
             return {"total": 0, "by_paper": {}, "date_range": ("N/A", "N/A")}
-        
+
         cursor.execute("SELECT COUNT(*) FROM articles")
         total = cursor.fetchone()[0]
-        
+
         cursor.execute("""
-            SELECT paper_name, COUNT(*) as count 
-            FROM articles 
-            GROUP BY paper_name 
+            SELECT paper_name, COUNT(*) as count
+            FROM articles
+            GROUP BY paper_name
             ORDER BY count DESC
         """)
         by_paper = dict(cursor.fetchall())
-        
+
         cursor.execute("SELECT MIN(publication_date), MAX(publication_date) FROM articles")
         date_range = cursor.fetchone()
-        
+
         today = datetime.now().date().isoformat()
-        cursor.execute(f"SELECT COUNT(*) FROM articles WHERE date(scraped_at) = '{today}'")
+        cursor.execute("SELECT COUNT(*) FROM articles WHERE date(scraped_at) = ?", (today,))
         today_count = cursor.fetchone()[0]
-        
-        conn.close()
+
         return {
             "total": total,
             "by_paper": by_paper,
@@ -620,6 +613,8 @@ def get_database_stats() -> Dict:
         }
     except Exception as e:
         return {"total": 0, "by_paper": {}, "date_range": ("N/A", "N/A"), "error": str(e), "today": 0}
+    finally:
+        conn.close()
 
 
 def search_articles(
@@ -637,32 +632,33 @@ def search_articles(
     try:
         query = "SELECT id, paper_name, headline, publication_date, url, category, LENGTH(article) as content_length FROM articles WHERE 1=1"
         params = []
-        
+
         if paper_filter and paper_filter != "All":
             query += " AND paper_name = ?"
             params.append(paper_filter)
-        
+
         if search_query:
             query += " AND (headline LIKE ? OR article LIKE ?)"
             params.extend([f"%{search_query}%", f"%{search_query}%"])
-        
+
         if start_date:
             query += " AND publication_date >= ?"
             params.append(start_date)
-        
+
         if end_date:
             query += " AND publication_date <= ?"
             params.append(end_date)
-        
+
         query += " ORDER BY scraped_at DESC LIMIT ?"
         params.append(limit)
-        
+
         df = pd.read_sql_query(query, conn, params=params)
-        conn.close()
         return df
     except Exception as e:
         st.error(f"Database error: {e}")
         return pd.DataFrame()
+    finally:
+        conn.close()
 
 
 def get_article_content(article_id: int) -> Dict:
@@ -674,12 +670,11 @@ def get_article_content(article_id: int) -> Dict:
     try:
         cursor = conn.cursor()
         cursor.execute("""
-            SELECT headline, article, paper_name, publication_date, url, scraped_at 
+            SELECT headline, article, paper_name, publication_date, url, scraped_at
             FROM articles WHERE id = ?
         """, (article_id,))
         row = cursor.fetchone()
-        conn.close()
-        
+
         if row:
             return {
                 "headline": row[0],
@@ -690,8 +685,11 @@ def get_article_content(article_id: int) -> Dict:
                 "scraped_at": row[5]
             }
         return {}
-    except Exception:
+    except Exception as e:
+        logging.getLogger(__name__).error(f"Failed to get article {article_id}: {e}")
         return {}
+    finally:
+        conn.close()
 
 
 def run_spider(spider_name: str, start_date: str = None, end_date: str = None, 
@@ -916,11 +914,11 @@ with tab2:
         st.divider()
         
         for _, row in df.iterrows():
-            headline = str(row['headline'])[:120]
-            paper = row.get('paper_name', 'Unknown')
-            pub_date = str(row.get('publication_date', ''))[:10]
-            category = row.get('category', '') or 'General'
-            
+            headline = html_escape(str(row['headline'])[:120])
+            paper = html_escape(str(row.get('paper_name', 'Unknown')))
+            pub_date = html_escape(str(row.get('publication_date', ''))[:10])
+            category = html_escape(str(row.get('category', '') or 'General'))
+
             st.markdown(f"""
             <div class="article-card">
                 <div class="article-headline">{headline}{'...' if len(str(row['headline'])) > 120 else ''}</div>

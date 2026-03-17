@@ -37,6 +37,8 @@ from datetime import timedelta
 from typing import Dict, List, Optional, Any
 from dataclasses import dataclass, asdict
 
+from BDNewsPaper.enums import TaskStatus
+
 logger = logging.getLogger(__name__)
 
 # Check Celery availability
@@ -136,7 +138,7 @@ class SpiderResult:
     requests_made: int
     errors: int
     duration_seconds: float
-    status: str  # 'success', 'failed', 'timeout'
+    status: TaskStatus  # TaskStatus.SUCCESS, TaskStatus.FAILED, TaskStatus.TIMEOUT
     error_message: str = ''
     
     def to_dict(self) -> Dict:
@@ -228,7 +230,7 @@ def execute_spider(
             requests_made=stats.get('downloader/request_count', 0),
             errors=stats.get('log_count/ERROR', 0),
             duration_seconds=duration,
-            status='success',
+            status=TaskStatus.SUCCESS,
         )
         
     except Exception as e:
@@ -242,7 +244,7 @@ def execute_spider(
             requests_made=0,
             errors=1,
             duration_seconds=duration,
-            status='failed',
+            status=TaskStatus.FAILED,
             error_message=str(e),
         )
 
@@ -323,7 +325,7 @@ if CELERY_AVAILABLE and celery_app:
             results.append(result)
             total_items += result.items_scraped
         
-        successful = sum(1 for r in results if r.status == 'success')
+        successful = sum(1 for r in results if r.status == TaskStatus.SUCCESS)
         
         return BatchResult(
             total_spiders=len(spider_names),
@@ -361,7 +363,7 @@ if CELERY_AVAILABLE and celery_app:
             'args': [
                 [
                     'prothomalo', 'thedailystar', 'bdnews24',
-                    'dailysun', 'banglanews24', 'jugantor',
+                    'dailysun', 'banglatribune', 'jugantor',
                 ],
             ],
             'kwargs': {'max_items_per_spider': 100},

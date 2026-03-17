@@ -36,6 +36,8 @@ try:
 except ImportError:
     LXML_AVAILABLE = False
 
+from BDNewsPaper.enums import ExtractionSource
+
 logger = logging.getLogger(__name__)
 
 
@@ -47,7 +49,7 @@ class ExtractionResult:
     author: str = ""
     publication_date: str = ""
     image_url: str = ""
-    source: str = ""  # Which extractor was used
+    source: ExtractionSource = ExtractionSource.NONE
     confidence: float = 0.0
     metadata: Dict[str, Any] = field(default_factory=dict)
     
@@ -159,7 +161,7 @@ class JSONLDExtractor:
             author=author,
             publication_date=pub_date,
             image_url=image_url,
-            source="json-ld",
+            source=ExtractionSource.JSON_LD,
             confidence=0.95,  # High confidence for structured data
         )
 
@@ -214,7 +216,7 @@ class TrafilaturaExtractor:
                 author=author,
                 publication_date=pub_date,
                 image_url=image_url,
-                source="trafilatura",
+                source=ExtractionSource.TRAFILATURA,
                 confidence=0.80,
             )
             
@@ -256,9 +258,9 @@ class HeuristicExtractor:
                         headline = elements[0].text_content().strip()
                         if headline:
                             break
-                except:
+                except Exception:
                     continue
-            
+
             # Extract body paragraphs
             body_parts = []
             for selector in self.BODY_SELECTORS:
@@ -270,7 +272,7 @@ class HeuristicExtractor:
                             body_parts.append(text)
                     if body_parts:
                         break
-                except:
+                except Exception:
                     continue
             
             body = " ".join(body_parts)
@@ -284,7 +286,7 @@ class HeuristicExtractor:
                     if elements:
                         author = elements[0].text_content().strip()
                         break
-                except:
+                except Exception:
                     continue
             
             if headline or body:
@@ -292,7 +294,7 @@ class HeuristicExtractor:
                     headline=headline,
                     body=body,
                     author=author,
-                    source="heuristic",
+                    source=ExtractionSource.HEURISTIC,
                     confidence=0.60,
                 )
                 
@@ -323,7 +325,7 @@ class HeuristicExtractor:
                 return ExtractionResult(
                     headline=headline,
                     body=body,
-                    source="regex",
+                    source=ExtractionSource.REGEX,
                     confidence=0.30,
                 )
                 
@@ -375,7 +377,7 @@ class FallbackExtractor:
         
         # Return empty result if all fail
         logger.warning(f"All extractors failed for {url}")
-        return ExtractionResult(source="none", confidence=0.0)
+        return ExtractionResult(source=ExtractionSource.NONE, confidence=0.0)
     
     def extract_headline_only(self, html: str, url: str = "") -> str:
         """Quick extraction of just the headline."""
@@ -384,7 +386,7 @@ class FallbackExtractor:
                 result = extractor.extract(html, url)
                 if result and result.headline:
                     return result.headline
-            except:
+            except Exception:
                 continue
         return ""
 

@@ -54,7 +54,7 @@ Return ONLY valid JSON, no explanations."""
 
 
 @dataclass
-class ExtractionResult:
+class AIExtractionResult:
     """Result from AI extraction."""
     headline: str = ""
     body: str = ""
@@ -100,7 +100,7 @@ class OllamaClient:
         try:
             response = httpx.get(f"{self.endpoint}/api/version", timeout=5)
             return response.status_code == 200
-        except:
+        except Exception:
             return False
 
 
@@ -144,7 +144,7 @@ def extract_with_ai(
     model: str = 'llama3.2',
     endpoint: str = None,
     api_key: str = None,
-) -> ExtractionResult:
+) -> AIExtractionResult:
     """
     Extract article content using AI.
     
@@ -167,16 +167,16 @@ def extract_with_ai(
         client = OllamaClient(endpoint or 'http://localhost:11434', model)
     elif provider == 'openai':
         if not api_key:
-            return ExtractionResult(error="OpenAI API key required")
+            return AIExtractionResult(error="OpenAI API key required")
         client = OpenAIClient(api_key, model)
     else:
-        return ExtractionResult(error=f"Unknown provider: {provider}")
+        return AIExtractionResult(error=f"Unknown provider: {provider}")
     
     # Generate response
     response_text = client.generate(prompt)
     
     if not response_text:
-        return ExtractionResult(error="Empty response from AI")
+        return AIExtractionResult(error="Empty response from AI")
     
     # Parse JSON from response
     try:
@@ -187,7 +187,7 @@ def extract_with_ai(
         else:
             data = json.loads(response_text)
         
-        return ExtractionResult(
+        return AIExtractionResult(
             headline=data.get('headline', ''),
             body=data.get('body', ''),
             author=data.get('author', ''),
@@ -196,7 +196,7 @@ def extract_with_ai(
         )
         
     except json.JSONDecodeError as e:
-        return ExtractionResult(error=f"JSON parse error: {e}")
+        return AIExtractionResult(error=f"JSON parse error: {e}")
 
 
 class AIRepairPipeline:

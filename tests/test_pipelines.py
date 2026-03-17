@@ -142,8 +142,12 @@ class TestLanguageDetectionPipeline:
     
     def test_strict_mode_drops_wrong_language(self, mock_crawler, mock_spider):
         """Test that strict mode with wrong language is handled."""
-        mock_crawler.settings.getbool = lambda key, default=False: key == 'LANGUAGE_DETECTION_STRICT'
-        mock_crawler.settings.get = lambda key, default='': 'en' if key == 'EXPECTED_LANGUAGE' else default
+        mock_crawler.settings.getbool = lambda key, default=False: (
+            True if key in ('LANGUAGE_DETECTION_STRICT', 'LANGUAGE_DETECTION_ENABLED') else default
+        )
+        mock_crawler.settings.getlist = lambda key, default=None: (
+            ['en'] if key == 'EXPECTED_LANGUAGES' else (default or [])
+        )
         pipeline = LanguageDetectionPipeline.from_crawler(mock_crawler)
         
         if not pipeline._langdetect_available:
@@ -157,15 +161,9 @@ class TestLanguageDetectionPipeline:
             paper_name="Test",
         )
         
-        # In strict mode, Bengali should either be dropped or pass through
-        # depending on implementation - test that it doesn't crash
-        try:
-            result = pipeline.process_item(item, mock_spider)
-            # If it doesn't raise, it should return the item
-            assert result is not None
-        except DropItem:
-            # This is also acceptable behavior
-            pass
+        # In strict mode with expected_language='en', Bengali content must be dropped
+        with pytest.raises(DropItem, match="Language mismatch"):
+            pipeline.process_item(item, mock_spider)
     
     def test_disabled_passes_through(self, mock_crawler, mock_spider, valid_article_item):
         """Test that disabled pipeline passes items through."""

@@ -291,28 +291,3 @@ class ObserverBDSpider(BaseNewsSpider):
             author=author,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from various formats."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        # Format: Thursday, 25 December, 2025 at 10:12 PM
-        formats = [
-            '%A, %d %B, %Y at %I:%M %p',
-            '%A, %d %B, %Y',
-            '%d %B, %Y',
-            '%B %d, %Y',
-            '%Y-%m-%d',
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

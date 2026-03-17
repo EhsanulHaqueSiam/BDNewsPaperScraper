@@ -521,7 +521,7 @@ if 'bookmarks' not in st.session_state:
     if BOOKMARKS_FILE.exists():
         try:
             st.session_state.bookmarks = json.loads(BOOKMARKS_FILE.read_text())
-        except:
+        except Exception:
             st.session_state.bookmarks = []
     else:
         st.session_state.bookmarks = []

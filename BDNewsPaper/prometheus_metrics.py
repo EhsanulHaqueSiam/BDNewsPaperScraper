@@ -213,7 +213,7 @@ class PrometheusMetricsExtension:
             import json
             size = len(json.dumps(dict(item)))
             self.item_size.labels(spider=spider.name).observe(size)
-        except:
+        except Exception:
             pass
         
         self._push_metrics()

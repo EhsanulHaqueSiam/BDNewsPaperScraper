@@ -274,25 +274,3 @@ class JugantorSpider(BaseNewsSpider):
         except Exception as e:
             self.logger.error(f"Error processing article: {e}")
             return None
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from API format."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        # API format: 2025-12-26 04:39:15
-        formats = [
-            '%Y-%m-%d %H:%M:%S',
-            '%Y-%m-%d',
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str, fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

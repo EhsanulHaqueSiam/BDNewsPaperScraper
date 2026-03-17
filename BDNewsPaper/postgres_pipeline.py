@@ -51,7 +51,7 @@ class PostgreSQLPipeline:
         return cls(
             host=crawler.settings.get('POSTGRES_HOST', os.getenv('POSTGRES_HOST', 'localhost')),
             port=crawler.settings.getint('POSTGRES_PORT', int(os.getenv('POSTGRES_PORT', 5432))),
-            database=crawler.settings.get('POSTGRES_DB', os.getenv('POSTGRES_DB', 'bdnews')),
+            database=crawler.settings.get('POSTGRES_DATABASE', os.getenv('POSTGRES_DATABASE', os.getenv('POSTGRES_DB', 'bdnews'))),
             user=crawler.settings.get('POSTGRES_USER', os.getenv('POSTGRES_USER', 'postgres')),
             password=crawler.settings.get('POSTGRES_PASSWORD', os.getenv('POSTGRES_PASSWORD', '')),
         )
@@ -235,45 +235,46 @@ def full_text_search(query: str, limit: int = 20, offset: int = 0,
                      user: str = 'postgres', password: str = ''):
     """
     Perform full-text search on articles.
-    
+
     Args:
         query: Search query string
         limit: Maximum results
         offset: Offset for pagination
-    
+
     Returns:
         List of matching articles with rank
     """
     import psycopg2
-    
+
     conn = psycopg2.connect(
         host=host,
         database=database,
         user=user,
         password=password,
     )
-    cursor = conn.cursor()
-    
-    # Parse query into tsquery
-    cursor.execute("""
-        SELECT 
-            id, url, paper_name, headline, 
-            ts_rank(search_vector, plainto_tsquery('english', %s)) as rank
-        FROM articles
-        WHERE search_vector @@ plainto_tsquery('english', %s)
-        ORDER BY rank DESC
-        LIMIT %s OFFSET %s
-    """, (query, query, limit, offset))
-    
-    results = []
-    for row in cursor.fetchall():
-        results.append({
-            'id': row[0],
-            'url': row[1],
-            'paper_name': row[2],
-            'headline': row[3],
-            'rank': float(row[4]),
-        })
-    
-    conn.close()
-    return results
+    try:
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT
+                id, url, paper_name, headline,
+                ts_rank(search_vector, plainto_tsquery('english', %s)) as rank
+            FROM articles
+            WHERE search_vector @@ plainto_tsquery('english', %s)
+            ORDER BY rank DESC
+            LIMIT %s OFFSET %s
+        """, (query, query, limit, offset))
+
+        results = []
+        for row in cursor.fetchall():
+            results.append({
+                'id': row[0],
+                'url': row[1],
+                'paper_name': row[2],
+                'headline': row[3],
+                'rank': float(row[4]),
+            })
+
+        return results
+    finally:
+        conn.close()

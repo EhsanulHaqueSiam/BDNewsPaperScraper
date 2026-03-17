@@ -254,23 +254,3 @@ class News24BDSpider(BaseNewsSpider):
             author=author,
             image_url=image_url,
         )
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        if 'T' in date_str:
-            try:
-                return datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-            except ValueError:
-                pass
-        
-        for fmt in ['%Y-%m-%d %H:%M:%S', '%Y-%m-%d']:
-            try:
-                return self.dhaka_tz.localize(datetime.strptime(date_str, fmt))
-            except ValueError:
-                continue
-        
-        return None

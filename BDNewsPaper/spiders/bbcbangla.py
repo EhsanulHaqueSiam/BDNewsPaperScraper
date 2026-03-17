@@ -336,27 +336,3 @@ class BBCBanglaSpider(BaseNewsSpider):
             texts.extend(self._extract_text_from_block(nested))
         
         return texts
-    
-    def _parse_date_string(self, date_str: str) -> Optional[datetime]:
-        """Parse date from BBC format."""
-        if not date_str:
-            return None
-        
-        date_str = date_str.strip()
-        
-        # BBC uses ISO 8601 format: 2024-12-26T10:00:00.000Z
-        formats = [
-            '%Y-%m-%dT%H:%M:%S.%fZ',
-            '%Y-%m-%dT%H:%M:%SZ',
-            '%Y-%m-%dT%H:%M:%S',
-            '%Y-%m-%d',
-        ]
-        
-        for fmt in formats:
-            try:
-                dt = datetime.strptime(date_str.replace('+00:00', 'Z'), fmt)
-                return self.dhaka_tz.localize(dt)
-            except ValueError:
-                continue
-        
-        return None

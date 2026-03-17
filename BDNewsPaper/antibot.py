@@ -451,6 +451,121 @@ COHERENT_DEVICE_PROFILES = [
 ]
 
 
+def _extract_browser_brand_list(user_agent: Optional[str]) -> List[Dict[str, str]]:
+    """Extract sec-ch-ua brand list from user agent string.
+
+    Parses the Chrome version from a UA string and builds a navigator.userAgentData
+    brands list matching the Chrome 131+ client hints format.
+    """
+    if not user_agent:
+        return [
+            {'brand': 'Chromium', 'version': '133'},
+            {'brand': 'Google Chrome', 'version': '133'},
+            {'brand': 'Not?A_Brand', 'version': '99'},
+        ]
+
+    # Try to extract Chrome version
+    import re
+    chrome_match = re.search(r'Chrome/(\d+)', user_agent)
+    if chrome_match:
+        major = chrome_match.group(1)
+        return [
+            {'brand': 'Chromium', 'version': major},
+            {'brand': 'Google Chrome', 'version': major},
+            {'brand': 'Not?A_Brand', 'version': '99'},
+        ]
+
+    # Firefox
+    ff_match = re.search(r'Firefox/(\d+)', user_agent)
+    if ff_match:
+        return [{'brand': 'Firefox', 'version': ff_match.group(1)}]
+
+    # Safari
+    safari_match = re.search(r'Version/(\d+)', user_agent)
+    if safari_match and 'Safari' in user_agent:
+        return [{'brand': 'Safari', 'version': safari_match.group(1)}]
+
+    return [
+        {'brand': 'Chromium', 'version': '133'},
+        {'brand': 'Google Chrome', 'version': '133'},
+        {'brand': 'Not?A_Brand', 'version': '99'},
+    ]
+
+
+def _build_client_hints_headers(profile: Dict) -> Dict[str, str]:
+    """Build sec-ch-ua-* client hints headers matching the fingerprint.
+
+    Returns headers dict with all Chrome 131+ client hints fields for
+    consistent fingerprint presentation.
+    """
+    ua = profile.get('userAgent', '')
+    brands = _extract_browser_brand_list(ua)
+
+    # Build the sec-ch-ua header value
+    brand_parts = []
+    for b in brands:
+        brand_parts.append(f'"{b["brand"]}";v="{b["version"]}"')
+    sec_ch_ua = ', '.join(brand_parts)
+
+    # Detect platform from UA or profile
+    platform = 'Windows'
+    if ua:
+        if 'Macintosh' in ua or 'Mac OS' in ua:
+            platform = 'macOS'
+        elif 'Linux' in ua:
+            platform = 'Linux'
+        elif 'Android' in ua:
+            platform = 'Android'
+
+    # Detect mobile
+    mobile = '?1' if 'Mobile' in (ua or '') else '?0'
+
+    # Full version for sec-ch-ua-full-version-list
+    import re
+    full_version = '133.0.0.0'
+    chrome_match = re.search(r'Chrome/([\d.]+)', ua or '')
+    if chrome_match:
+        full_version = chrome_match.group(1)
+
+    full_brand_parts = []
+    for b in brands:
+        v = full_version if b['brand'] in ('Chromium', 'Google Chrome') else f'{b["version"]}.0.0.0'
+        full_brand_parts.append(f'"{b["brand"]}";v="{v}"')
+
+    return {
+        'sec-ch-ua': sec_ch_ua,
+        'sec-ch-ua-mobile': mobile,
+        'sec-ch-ua-platform': f'"{platform}"',
+        'sec-ch-ua-full-version-list': ', '.join(full_brand_parts),
+        'sec-ch-ua-arch': '"x86"' if platform != 'Android' else '"arm"',
+        'sec-ch-ua-bitness': '"64"',
+        'sec-ch-ua-model': '""',
+        'sec-ch-ua-wow64': '?0',
+    }
+
+
+def _get_webgl_for_browser(user_agent: Optional[str], profile: Dict) -> Dict[str, str]:
+    """Get consistent GPU/WebGL vendor strings matching the browser profile.
+
+    For Chrome-based browsers, WebGL vendor is 'Google Inc.' with ANGLE renderer.
+    For Firefox, vendor is the GPU maker directly.
+    For Safari/macOS, vendor is 'Apple Inc.'.
+    """
+    ua = user_agent or ''
+
+    # If profile already has good vendor/renderer from BrowserForge, keep them
+    if profile.get('vendor') and profile.get('renderer'):
+        return {'vendor': profile['vendor'], 'renderer': profile['renderer']}
+
+    if 'Firefox' in ua:
+        return {'vendor': 'Mozilla', 'renderer': 'Mozilla'}
+    if 'Safari' in ua and 'Chrome' not in ua:
+        return {'vendor': 'Apple Inc.', 'renderer': 'Apple GPU'}
+
+    # Default Chrome/Chromium
+    return {'vendor': 'Google Inc.', 'renderer': 'ANGLE (Intel, Intel(R) UHD Graphics 630)'}
+
+
 def generate_coherent_fingerprint() -> Dict:
     """
     Generate a statistically coherent browser fingerprint.
@@ -458,8 +573,16 @@ def generate_coherent_fingerprint() -> Dict:
     Uses BrowserForge if installed (Bayesian model trained on real browser traffic),
     otherwise falls back to curated device profiles with realistic co-occurrences.
 
+    The returned profile includes:
+    - Core device properties: vendor, renderer, width, height, cores, memory, colorDepth
+    - User agent and browser identification
+    - sec-ch-ua-* client hints headers matching the fingerprint (Chrome 131+ format)
+    - navigator.userAgentData brand list matching the browser profile
+    - Consistent GPU/WebGL vendor strings matching the fingerprint's browser
+
     Returns:
-        Dict with keys: vendor, renderer, width, height, cores, memory, colorDepth, userAgent
+        Dict with keys: vendor, renderer, width, height, cores, memory, colorDepth,
+        userAgent, clientHints, brandList, webgl
     """
     if BROWSERFORGE_AVAILABLE:
         try:
@@ -478,6 +601,15 @@ def generate_coherent_fingerprint() -> Dict:
                 'colorDepth': getattr(screen, 'colorDepth', 24) if screen else 24,
                 'userAgent': getattr(navigator, 'userAgent', None) if navigator else None,
             }
+
+            # Enrich with 2026 client hints and consistent GPU strings
+            profile['clientHints'] = _build_client_hints_headers(profile)
+            profile['brandList'] = _extract_browser_brand_list(profile.get('userAgent'))
+            webgl = _get_webgl_for_browser(profile.get('userAgent'), profile)
+            profile['vendor'] = webgl['vendor']
+            profile['renderer'] = webgl['renderer']
+            profile['webgl'] = webgl
+
             logger.debug(f"BrowserForge fingerprint: {profile['renderer']}, {profile['width']}x{profile['height']}")
             return profile
         except Exception as e:
@@ -485,6 +617,15 @@ def generate_coherent_fingerprint() -> Dict:
 
     # Fallback: use curated coherent profiles
     profile = random.choice(COHERENT_DEVICE_PROFILES).copy()
+
+    # Enrich fallback with client hints and brand list
+    profile['clientHints'] = _build_client_hints_headers(profile)
+    profile['brandList'] = _extract_browser_brand_list(profile.get('userAgent'))
+    webgl = _get_webgl_for_browser(profile.get('userAgent'), profile)
+    profile['vendor'] = webgl['vendor']
+    profile['renderer'] = webgl['renderer']
+    profile['webgl'] = webgl
+
     logger.debug(f"Coherent profile: {profile['renderer']}, {profile['width']}x{profile['height']}")
     return profile
 
@@ -543,6 +684,49 @@ def get_coherent_antibot_js(profile: Optional[Dict] = None) -> str:
     Object.defineProperty(navigator, 'deviceMemory', {{ get: () => {profile['memory']} }});
 }})();"""
 
+    # Build navigator.userAgentData with brand list matching sec-ch-ua headers
+    brand_list = profile.get('brandList', [
+        {'brand': 'Chromium', 'version': '133'},
+        {'brand': 'Google Chrome', 'version': '133'},
+        {'brand': 'Not?A_Brand', 'version': '99'},
+    ])
+    client_hints = profile.get('clientHints', {})
+    platform_name = client_hints.get('sec-ch-ua-platform', '"Windows"').strip('"')
+    is_mobile = client_hints.get('sec-ch-ua-mobile', '?0') == '?1'
+
+    ua_data_js = f"""
+(function() {{
+    // navigator.userAgentData brand list matching sec-ch-ua client hints
+    const brands = {json.dumps(brand_list)};
+    const platform = {json.dumps(platform_name)};
+    const mobile = {json.dumps(is_mobile)};
+
+    if (navigator.userAgentData !== undefined || 'userAgentData' in navigator) {{
+        Object.defineProperty(navigator, 'userAgentData', {{
+            get: () => ({{
+                brands: brands,
+                mobile: mobile,
+                platform: platform,
+                getHighEntropyValues: (hints) => Promise.resolve({{
+                    brands: brands,
+                    mobile: mobile,
+                    platform: platform,
+                    architecture: 'x86',
+                    bitness: '64',
+                    model: '',
+                    platformVersion: '15.0.0',
+                    uaFullVersion: brands[0] ? brands[0].version + '.0.0.0' : '133.0.0.0',
+                    fullVersionList: brands.map(b => ({{...b, version: b.version + '.0.0.0'}})),
+                    wow64: false,
+                }}),
+                toJSON: () => ({{ brands: brands, mobile: mobile, platform: platform }}),
+            }}),
+            configurable: true,
+        }});
+    }}
+    console.log('[AntiBot] userAgentData client hints applied');
+}})();"""
+
     scripts = [
         CANVAS_NOISE_JS,
         webgl_js,
@@ -550,6 +734,7 @@ def get_coherent_antibot_js(profile: Optional[Dict] = None) -> str:
         screen_js,
         LOCALE_CONSISTENCY_JS,
         hw_js,
+        ua_data_js,
         PLUGIN_SIMULATION_JS,
         WEBRTC_PROTECTION_JS,
         BEHAVIORAL_SIMULATION_JS,
