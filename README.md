@@ -1,25 +1,68 @@
-# BD Newspaper Scraper
+# 📰 BD Newspaper Scraper
 
-> The most comprehensive Bangladeshi newspaper scraping framework. Collect articles from 79 sources with built-in anti-bot bypass, full-text search, and REST/GraphQL APIs.
+> The most comprehensive Bangladeshi newspaper scraping framework. Collect articles from **95+ sources** with state-of-the-art anti-bot bypass, full-text search, and REST/GraphQL APIs.
 
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Scrapy 2.14+](https://img.shields.io/badge/Scrapy-2.14+-60A839?logo=scrapy&logoColor=white)](https://scrapy.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Spiders](https://img.shields.io/badge/Spiders-79-blue)](#available-spiders)
+[![Spiders](https://img.shields.io/badge/Spiders-95+-blue)](#available-spiders)
+[![Tests](https://img.shields.io/badge/Tests-239_passing-brightgreen)](#development)
 
 ---
 
 ## Features
 
-**Data Collection** -- 79 newspaper spiders covering English, Bangla, and international sources. Multiple discovery methods (RSS, sitemaps, JSON APIs, AJAX, HTML scraping). Smart date-range and category filtering. Full Bengali-to-English date conversion.
+### 📡 Data Collection — 95+ Newspaper Spiders
 
-**Anti-Bot Bypass** -- 9-level Cloudflare bypass with progressive escalation. Scrapling TLS fingerprint impersonation (enabled by default). Camoufox Firefox-based stealth browser. CAPTCHA solving for reCAPTCHA v2/v3, hCaptcha, and Turnstile via 4 providers. Akamai, DataDome, PerimeterX, and Incapsula bypass through browser automation. TLS fingerprinting with Chrome 128-133, Safari 18, and Firefox 133 profiles. BrowserForge coherent fingerprint generation.
+- 📰 **95+ Newspaper Spiders:** English, Bangla, and international sources covering all major Bangladeshi newspapers, TV channels, wire services, and regional papers.
+- 🔄 **Multiple Discovery Methods:** RSS feeds, Google News sitemaps, JSON/AJAX APIs, WordPress REST API, and intelligent HTML scraping — each spider uses the most reliable method for its source.
+- 📅 **Smart Date Filtering:** Scrape articles within any date range with `start_date` and `end_date` arguments. Full Bengali-to-English date conversion (জুলাই ১০, ২০২৪ → July 10, 2024).
+- 📂 **Category Filtering:** Target specific news categories (politics, sports, business, etc.) per spider.
+- 🧠 **4-Layer Fallback Extraction:** JSON-LD → Trafilatura (ML-based) → Heuristic CSS → Regex. If one method fails, the next takes over automatically.
+- 🔗 **Intelligent Link Discovery:** URL scoring algorithm to identify article links vs navigation/tag pages.
 
-**Storage & Search** -- SQLite (default, zero-config) or PostgreSQL for production. Content deduplication via SHA-256 hash and URL. Full-text search with FTS5 and BM25 ranking.
+### 🛡️ Anti-Bot Bypass — State of the Art (2026)
 
-**APIs** -- REST API (FastAPI) with rate limiting, pagination, and filtering. GraphQL API (Strawberry). Full-text search endpoint.
+- 🔒 **9-Level Cloudflare Bypass:** Progressive escalation from stealth headers → TLS fingerprinting → FlareSolverr → Scrapling → Camoufox → Playwright. Each level tried automatically on failure.
+- 🕷️ **Scrapling Integration (Default):** TLS fingerprint impersonation via curl_cffi. Impersonates Chrome 128-133, Safari 18, Firefox 133 with matching JA3/JA4/HTTP2 fingerprints. Enabled by default for all spiders.
+- 🦊 **Camoufox:** Firefox-based stealth browser — harder to detect than Chromium since bot detectors primarily target Chrome automation patterns.
+- 🤖 **CAPTCHA Solving:** reCAPTCHA v2 (checkbox + invisible), reCAPTCHA v3 (score-based), hCaptcha, and Cloudflare Turnstile. 4 provider backends: 2Captcha, CapSolver, AntiCaptcha, CapMonster. Auto-retry with exponential backoff.
+- 🛡️ **Akamai Bot Manager Bypass:** Detects `_abck`/`bm_sz` cookies and generates valid sensor data via browser automation.
+- 🔐 **DataDome / PerimeterX / Incapsula Bypass:** Automatic detection and cookie extraction via headless browsers with behavioral simulation (mouse movement, scrolling).
+- 🎭 **BrowserForge Fingerprints:** Statistically coherent browser fingerprints — GPU, screen, UA, platform, client hints all consistent. No random noise that detectors can spot.
+- 📡 **TLS Profile Rotation:** Rotates between Chrome/Safari/Firefox JA3 fingerprints matching the User-Agent header sent with each request.
+- 🆓 **Free by Default:** All browser-based bypasses (Akamai, DataDome, PerimeterX, Incapsula) are enabled out of the box — no API keys needed. Only CAPTCHA solving requires a paid provider key.
 
-**Monitoring** -- Streamlit dashboard for real-time scraping control. Prometheus metrics and Grafana dashboards. Health checks and automated alerting. Checkpoint/resume for crash recovery.
+### 💾 Storage & Search
+
+- 🗄️ **SQLite (Default):** Zero-config, WAL mode for concurrent writes, thread-safe connections. Just scrape and it works.
+- 🐘 **PostgreSQL:** Production-grade with connection pooling, full-text search via `tsvector`, and automatic search vector triggers.
+- 🔍 **Full-Text Search:** FTS5 with BM25 relevance ranking, phrase search with `"quoted terms"`, and highlighted results with `<mark>` tags.
+- 🔒 **Content Deduplication:** SHA-256 content hash + URL uniqueness. No duplicate articles in your database.
+
+### 🌐 REST & GraphQL APIs
+
+- ⚡ **REST API (FastAPI):** Rate-limited (100 req/min per IP), paginated, filterable by paper/category/date/author. OpenAPI/Swagger docs at `/docs`.
+- 🔮 **GraphQL API (Strawberry):** Query articles, papers, categories, and stats with flexible GraphQL queries.
+- 🔎 **Search Endpoint:** Full-text search with relevance ranking, highlighting, and paper/category filters.
+- 🔑 **Admin Auth:** Protected admin endpoints (index rebuild) require API key via `X-API-Key` header.
+
+### 📊 Monitoring & Operations
+
+- 📈 **Streamlit Dashboard:** Real-time scraping control with article browsing, search, and export. Premium dark UI.
+- 📉 **Prometheus Metrics:** Scrape rates, error counts, response times, database size — all exportable to Grafana.
+- 🏥 **Health Checks:** Automated database connectivity, article yield, and error rate monitoring with Slack alerting.
+- 💾 **Checkpoint/Resume:** Crash recovery with periodic checkpoints. Restart a failed scrape from where it left off.
+- 🐳 **Docker Ready:** Full Docker Compose setup with API, dashboard, Redis, PostgreSQL, Prometheus, and Grafana.
+
+### 🏗️ Robust Architecture
+
+- 🔄 **Circuit Breaker:** Per-domain circuit breaker with CLOSED → OPEN → HALF_OPEN state machine. Stops hammering failing sites.
+- ⏱️ **Adaptive Throttling:** Dynamic delay adjustment based on server response times. Respects slow sites automatically.
+- 🔁 **Smart Retry:** Exponential backoff with jitter for 500/502/503/504/429 errors. Configurable max retries.
+- 📡 **Hybrid Request Engine:** Automatically switches from HTTP to Playwright when JavaScript challenges are detected.
+- 🏛️ **Archive Fallback:** Queries Wayback Machine for 404/403 pages to recover deleted articles.
+- 🐝 **Honeypot Detection:** Identifies and avoids anti-bot trap links on listing pages.
 
 ---
 
