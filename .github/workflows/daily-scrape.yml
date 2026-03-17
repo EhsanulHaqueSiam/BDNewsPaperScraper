@@ -32,6 +32,7 @@ env:
   PYTHON_VERSION: '3.12'
   TZ: 'Asia/Dhaka'
   SCRAPLING_ENABLED: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   INPUT_SPIDERS: ${{ github.event.inputs.spiders }}
   INPUT_MAX_PAGES: ${{ github.event.inputs.max_pages }}
   INPUT_RUN_ALL: ${{ github.event.inputs.run_all }}
@@ -60,7 +61,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install dependencies
         run: |

@@ -23,6 +23,7 @@ concurrency:
 env:
   PYTHON_VERSION: '3.12'
   SCRAPLING_ENABLED: 'true'
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   test:
@@ -42,7 +43,7 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v4
         with:
-          enable-cache: true
+          enable-cache: false
 
       - name: Install dependencies
         run: |
