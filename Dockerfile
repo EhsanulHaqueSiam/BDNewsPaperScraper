@@ -2,26 +2,31 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies needed for building Python packages
 RUN apt-get update && apt-get install -y \
     gcc \
+    g++ \
     libffi-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy project files needed for install
+# Copy project files
 COPY pyproject.toml scrapy.cfg ./
 COPY BDNewsPaper/ BDNewsPaper/
 COPY scripts/ scripts/
 COPY app.py quickstart.py run_spiders_optimized.py ./
 
-# Install Python dependencies
+# Install core dependencies first (most likely to succeed)
 RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir ".[cloudflare,api]" && \
-    pip install --no-cache-dir scrapling curl_cffi browserforge patchright
+    pip install --no-cache-dir ".[api]"
 
-# Install browser for stealth fetching
-RUN python -m patchright install chromium --with-deps 2>/dev/null || true
+# Install anti-bot dependencies (may fail on some platforms — non-fatal)
+RUN pip install --no-cache-dir curl_cffi browserforge scrapling patchright || \
+    echo "Warning: Some anti-bot deps failed to install (optional)"
+
+# Install browser for stealth fetching (optional)
+RUN python -m patchright install chromium --with-deps 2>/dev/null || \
+    echo "Warning: Browser install skipped (optional for API-only mode)"
 
 # Create directories
 RUN mkdir -p /app/data /app/logs /app/.checkpoints /app/config
