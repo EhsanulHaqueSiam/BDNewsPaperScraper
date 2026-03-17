@@ -1,10 +1,11 @@
 """
 Bangla Vision Spider (Bangla)
 =============================
-Scrapes articles from Bangla Vision (banglavision.tv)
+Scrapes articles from Bangla Vision (bvnews24.com, formerly banglavision.tv)
 
 Features:
     - Category-based scraping
+    - Stealthy browser rendering via Scrapling (SSL/CF bypass)
     - Date filtering (client-side)
     - Search query filtering
 """
@@ -22,23 +23,24 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 class BanglaVisionSpider(BaseNewsSpider):
     """
     Spider for Bangla Vision (TV News Portal).
-    
-    Uses HTML scraping with category navigation.
-    
+
+    banglavision.tv redirects to bvnews24.com. Uses Scrapling stealthy
+    mode for SSL/Cloudflare bypass with extended timeout.
+
     Usage:
         scrapy crawl banglavision -a categories=national,politics
         scrapy crawl banglavision -a max_pages=10
     """
-    
+
     name = 'banglavision'
     paper_name = 'Bangla Vision'
-    allowed_domains = ['banglavision.tv', 'www.banglavision.tv']
+    allowed_domains = ['banglavision.tv', 'www.banglavision.tv', 'bvnews24.com', 'www.bvnews24.com']
     language = 'Bangla'
-    
+
     # API/filter capabilities
     supports_api_date_filter = False
     supports_api_category_filter = True
-    
+
     # Category slug mappings
     CATEGORIES = {
         'national': 'national',
@@ -57,105 +59,106 @@ class BanglaVisionSpider(BaseNewsSpider):
         'tech': 'tech',
         'technology': 'tech',
     }
-    
+
     custom_settings = {
         'DOWNLOAD_DELAY': 0.5,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         'AUTOTHROTTLE_ENABLED': True,
+        'DOWNLOAD_TIMEOUT': 60,
     }
-    
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger.info(f"Bangla Vision spider initialized")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate initial requests to category pages on bvnews24.com."""
         self.stats['requests_made'] = 0
-        
+
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
                 cat_slug = self.CATEGORIES.get(cat_lower, cat_lower)
-                url = f"https://www.banglavision.tv/category/{cat_slug}"
-                
+                url = f"https://www.bvnews24.com/category/{cat_slug}"
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1, 'scrapling': 'stealthy'},
                     errback=self.handle_request_failure,
                 )
         else:
             for cat in ['national', 'politics', 'sports', 'international']:
                 cat_slug = self.CATEGORIES.get(cat, cat)
-                url = f"https://www.banglavision.tv/category/{cat_slug}"
-                
+                url = f"https://www.bvnews24.com/category/{cat_slug}"
+
                 self.stats['requests_made'] += 1
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1, 'scrapling': 'stealthy'},
                     errback=self.handle_request_failure,
                 )
-    
+
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""
         category = response.meta.get('category', 'Unknown')
         cat_slug = response.meta.get('cat_slug')
         page = response.meta.get('page', 1)
-        
+
         article_links = response.css('a::attr(href)').getall()
-        # Filter to article links (Bangla Vision uses /news/id pattern)
-        article_links = [l for l in article_links if 'banglavision.tv/news/' in l]
+        # Filter to article links (check both old and new domains)
+        article_links = [
+            l for l in article_links
+            if ('banglavision.tv/news/' in l or 'bvnews24.com/news/' in l
+                or 'bvnews24.com/' in l and '/category/' not in l)
+        ]
         article_links = list(set(article_links))
-        
+
         # ROBUST FALLBACK: Use universal link discovery if selectors fail
         if not article_links:
             self.logger.info("CSS selectors failed, using universal link discovery")
             article_links = self.discover_links(response, limit=50)
 
-        
-        
-
-        
         self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
-        
+
         if not article_links:
             return
-        
+
         found_count = 0
         for url in article_links:
             if self.is_url_in_db(url):
                 continue
-            
+
             self.stats['articles_found'] += 1
             self.stats['requests_made'] += 1
             found_count += 1
-            
+
             yield Request(
                 url=url,
                 callback=self.parse_article,
-                meta={'category': category},
+                meta={'category': category, 'scrapling': 'stealthy'},
                 errback=self.handle_request_failure,
             )
-        
+
         if found_count > 0 and page < self.max_pages:
-            next_url = f"https://www.banglavision.tv/category/{cat_slug}?page={page + 1}"
+            next_url = f"https://www.bvnews24.com/category/{cat_slug}?page={page + 1}"
             self.stats['requests_made'] += 1
             yield Request(
                 url=next_url,
                 callback=self.parse_category,
-                meta={'category': category, 'cat_slug': cat_slug, 'page': page + 1},
+                meta={'category': category, 'cat_slug': cat_slug, 'page': page + 1, 'scrapling': 'stealthy'},
                 errback=self.handle_request_failure,
             )
-    
+
     def parse_article(self, response: Response) -> Generator[NewsArticleItem, None, None]:
         """Parse individual article page."""
         url = response.url
-        
+
         # ROBUST FALLBACK: Try universal extraction first
         fallback = self.extract_article_fallback(response)
         if fallback and fallback.get('headline') and fallback.get('article_body'):
@@ -177,46 +180,46 @@ class BanglaVisionSpider(BaseNewsSpider):
                     category=response.meta.get('category', 'General'),
                 )
                 return
-        
+
         # Original extraction
-        
+
         headline = (
             response.css('h1::text').get() or
             response.css('meta[property="og:title"]::attr(content)').get() or
             ''
         )
-        
+
         if not headline:
             return
-        
+
         headline = unescape(headline.strip())
-        
+
         body_parts = response.css('article p::text, .news-content p::text').getall()
         if not body_parts:
             body_parts = response.css('p::text').getall()
-        
+
         article_body = ' '.join(unescape(p.strip()) for p in body_parts if p.strip())
-        
+
         if len(article_body) < 100:
             return
-        
+
         if not self.filter_by_search_query(headline, article_body):
             return
-        
+
         pub_date = None
         date_text = response.css('meta[property="article:published_time"]::attr(content)').get()
         if date_text:
             pub_date = self._parse_date_string(date_text.strip())
-        
+
         if pub_date and not self.is_date_in_range(pub_date):
             self.stats['date_filtered'] += 1
             return
-        
+
         category = response.meta.get('category', 'General')
         image_url = response.css('meta[property="og:image"]::attr(content)').get()
-        
+
         self.stats['articles_processed'] += 1
-        
+
         yield self.create_article_item(
             url=url,
             headline=headline,

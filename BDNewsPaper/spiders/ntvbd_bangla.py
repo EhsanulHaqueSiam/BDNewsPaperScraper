@@ -5,6 +5,8 @@ Scrapes articles from NTV BD Bangla (ntvbd.com)
 
 Features:
     - Category-based scraping
+    - Sitemap discovery for en.ntvbd.com articles
+    - TLS impersonation via Scrapling
     - Date filtering (client-side)
     - Search query filtering
 """
@@ -23,23 +25,24 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 class NTVBDBanglaSpider(BaseNewsSpider):
     """
     Spider for NTV BD Bangla (TV News Portal).
-    
+
     Uses HTML scraping with category navigation.
-    
+    Also parses ntvbd.com sitemap to discover en.ntvbd.com articles.
+
     Usage:
         scrapy crawl ntvbd_bangla -a categories=bangladesh,sports
         scrapy crawl ntvbd_bangla -a max_pages=10
     """
-    
+
     name = 'ntvbd_bangla'
     paper_name = 'NTV BD Bangla'
-    allowed_domains = ['ntvbd.com', 'www.ntvbd.com']
+    allowed_domains = ['ntvbd.com', 'www.ntvbd.com', 'en.ntvbd.com']
     language = 'Bangla'
-    
+
     # API/filter capabilities
     supports_api_date_filter = False
     supports_api_category_filter = True
-    
+
     # Category slug mappings
     CATEGORIES = {
         'bangladesh': 'bangladesh',
@@ -58,41 +61,67 @@ class NTVBDBanglaSpider(BaseNewsSpider):
         'opinion': 'opinion',
         'editorial': 'opinion',
     }
-    
+
     custom_settings = {
         'DOWNLOAD_DELAY': 0.5,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         'AUTOTHROTTLE_ENABLED': True,
     }
-    
+
+    # Request headers for TLS impersonation
+    DEFAULT_REQUEST_HEADERS = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger.info(f"NTV BD Bangla spider initialized")
         self.logger.info(f"Categories: {self.categories or 'default'}")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests to category pages."""
+        """Generate initial requests to category pages and sitemap."""
         self.stats['requests_made'] = 0
-        
+
+        # Also try ntvbd.com sitemap to discover en.ntvbd.com articles
+        sitemap_url = 'https://ntvbd.com/sitemap.xml'
+        self.logger.info(f"Fetching sitemap: {sitemap_url}")
+        self.stats['requests_made'] += 1
+        yield Request(
+            url=sitemap_url,
+            callback=self.parse_sitemap,
+            meta={'scrapling': True},
+            headers=self.DEFAULT_REQUEST_HEADERS,
+            errback=self.handle_request_failure,
+        )
+
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
-                
+
                 if cat_lower in self.CATEGORIES:
                     cat_slug = self.CATEGORIES[cat_lower]
                 else:
                     cat_slug = cat_lower
-                
+
                 url = f"https://www.ntvbd.com/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1, 'scrapling': True},
+                    headers=self.DEFAULT_REQUEST_HEADERS,
                     errback=self.handle_request_failure,
                 )
         else:
@@ -100,88 +129,117 @@ class NTVBDBanglaSpider(BaseNewsSpider):
             for cat in default_cats:
                 cat_slug = self.CATEGORIES.get(cat, cat)
                 url = f"https://www.ntvbd.com/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {cat} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1, 'scrapling': True},
+                    headers=self.DEFAULT_REQUEST_HEADERS,
                     errback=self.handle_request_failure,
                 )
-    
+
+    def parse_sitemap(self, response: Response) -> Generator:
+        """Parse ntvbd.com sitemap to find en.ntvbd.com article URLs."""
+        # Extract URLs from sitemap XML
+        urls = response.css('loc::text').getall()
+        if not urls:
+            urls = re.findall(r'<loc>(.*?)</loc>', response.text)
+
+        # Filter for en.ntvbd.com article URLs
+        en_urls = [u for u in urls if 'en.ntvbd.com' in u]
+        self.logger.info(f"Sitemap: found {len(en_urls)} en.ntvbd.com URLs out of {len(urls)} total")
+
+        # Check for sub-sitemaps (sitemap index)
+        sitemap_urls = [u for u in urls if u.endswith('.xml')]
+        for sm_url in sitemap_urls:
+            self.stats['requests_made'] += 1
+            yield Request(
+                url=sm_url,
+                callback=self.parse_sitemap,
+                meta={'scrapling': True},
+                headers=self.DEFAULT_REQUEST_HEADERS,
+                errback=self.handle_request_failure,
+            )
+
+        for url in en_urls:
+            if self.is_url_in_db(url):
+                continue
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+            yield Request(
+                url=url,
+                callback=self.parse_article,
+                meta={'category': 'Sitemap', 'scrapling': True},
+                headers=self.DEFAULT_REQUEST_HEADERS,
+                errback=self.handle_request_failure,
+            )
+
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""
         category = response.meta.get('category', 'Unknown')
         cat_slug = response.meta.get('cat_slug')
         page = response.meta.get('page', 1)
-        
+
         # Find article links - NTV uses news-{id} pattern
         article_links = response.css('a::attr(href)').getall()
-        
+
         # Filter to article links
         article_links = [l for l in article_links if 'ntvbd.com' in l and re.search(r'news-\d+$', l)]
-        
+
         # Deduplicate
         article_links = list(set(article_links))
-        
+
         # ROBUST FALLBACK: Use universal link discovery if selectors fail
-
-        
         if not article_links:
-
-        
             self.logger.info("CSS selectors failed, using universal link discovery")
-
-        
             article_links = self.discover_links(response, limit=50)
 
-        
-        
-
-        
         self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
-        
+
         if not article_links:
             self.logger.info(f"No more articles in {category}")
             return
-        
+
         found_count = 0
-        
+
         for url in article_links:
             if self.is_url_in_db(url):
                 continue
-            
+
             self.stats['articles_found'] += 1
             self.stats['requests_made'] += 1
             found_count += 1
-            
+
             yield Request(
                 url=url,
                 callback=self.parse_article,
-                meta={'category': category},
+                meta={'category': category, 'scrapling': True},
+                headers=self.DEFAULT_REQUEST_HEADERS,
                 errback=self.handle_request_failure,
             )
-        
+
         # Pagination
         if found_count > 0 and page < self.max_pages:
             next_page = page + 1
             next_url = f"https://www.ntvbd.com/{cat_slug}?page={next_page}"
-            
+
             self.stats['requests_made'] += 1
-            
+
             yield Request(
                 url=next_url,
                 callback=self.parse_category,
-                meta={'category': category, 'cat_slug': cat_slug, 'page': next_page},
+                meta={'category': category, 'cat_slug': cat_slug, 'page': next_page, 'scrapling': True},
+                headers=self.DEFAULT_REQUEST_HEADERS,
                 errback=self.handle_request_failure,
             )
-    
+
     def parse_article(self, response: Response) -> Generator[NewsArticleItem, None, None]:
         """Parse individual article page."""
         url = response.url
-        
+
         # ROBUST FALLBACK: Try universal extraction first
         fallback = self.extract_article_fallback(response)
         if fallback and fallback.get('headline') and fallback.get('article_body'):
@@ -203,9 +261,9 @@ class NTVBDBanglaSpider(BaseNewsSpider):
                     category=response.meta.get('category', 'General'),
                 )
                 return
-        
+
         # Original extraction
-        
+
         # Extract headline
         headline = (
             response.css('h1::text').get() or
@@ -214,29 +272,29 @@ class NTVBDBanglaSpider(BaseNewsSpider):
             response.css('meta[property="og:title"]::attr(content)').get() or
             ''
         )
-        
+
         if not headline:
             self.logger.warning(f"No headline found: {url}")
             return
-        
+
         headline = unescape(headline.strip())
-        
+
         # Extract article body
         body_parts = response.css('.news-content p::text, .content p::text, article p::text').getall()
-        
+
         if not body_parts:
             body_parts = response.css('p::text').getall()
-        
+
         article_body = ' '.join(unescape(p.strip()) for p in body_parts if p.strip())
-        
+
         if len(article_body) < 100:
             self.logger.debug(f"Article too short: {url}")
             return
-        
+
         # Search query filter
         if not self.filter_by_search_query(headline, article_body):
             return
-        
+
         # Extract date
         pub_date = None
         date_text = (
@@ -246,30 +304,30 @@ class NTVBDBanglaSpider(BaseNewsSpider):
             response.css('meta[property="article:published_time"]::attr(content)').get() or
             ''
         )
-        
+
         if date_text:
             pub_date = self._parse_date_string(date_text.strip())
-        
+
         # Date filter
         if pub_date and not self.is_date_in_range(pub_date):
             self.stats['date_filtered'] += 1
             return
-        
+
         # Extract author
         author = self.extract_author(response)
-        
+
         # Extract category
         category = response.meta.get('category', 'General')
-        
+
         # Extract image
         image_url = (
             response.css('.news-image img::attr(src)').get() or
             response.css('article img::attr(src)').get() or
             response.css('meta[property="og:image"]::attr(content)').get()
         )
-        
+
         self.stats['articles_processed'] += 1
-        
+
         yield self.create_article_item(
             url=url,
             headline=headline,

@@ -5,6 +5,7 @@ Scrapes articles from DBC News (dbcnews.tv)
 
 Features:
     - Category-based scraping
+    - Stealthy browser rendering via Scrapling (Next.js SPA)
     - Date filtering (client-side)
     - Search query filtering
 """
@@ -24,23 +25,24 @@ from BDNewsPaper.spiders.base_spider import BaseNewsSpider
 class DBCNewsSpider(BaseNewsSpider):
     """
     Spider for DBC News (TV News Portal).
-    
-    Uses HTML scraping with category navigation.
-    
+
+    dbcnews.tv is a Next.js SPA with no feeds. Uses Scrapling stealthy
+    mode for browser rendering of JS-generated content.
+
     Usage:
         scrapy crawl dbcnews -a categories=bangladesh,politics
         scrapy crawl dbcnews -a max_pages=10
     """
-    
+
     name = 'dbcnews'
     paper_name = 'DBC News'
     allowed_domains = ['dbcnews.tv', 'www.dbcnews.tv']
     language = 'Bangla'
-    
+
     # API/filter capabilities
     supports_api_date_filter = False
     supports_api_category_filter = True
-    
+
     # Category slug mappings
     CATEGORIES = {
         'bangladesh': 'bangladesh',
@@ -61,35 +63,49 @@ class DBCNewsSpider(BaseNewsSpider):
         'miscellaneous': 'miscellaneous',
         'district-news': 'district-news',
     }
-    
+
     custom_settings = {
         'DOWNLOAD_DELAY': 0.5,
         'RANDOMIZE_DOWNLOAD_DELAY': True,
         'CONCURRENT_REQUESTS_PER_DOMAIN': 4,
         'AUTOTHROTTLE_ENABLED': True,
     }
-    
+
+    # Request headers to appear as a real browser
+    DEFAULT_REQUEST_HEADERS = {
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'bn-BD,bn;q=0.9,en-US;q=0.8,en;q=0.7',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+        'Sec-Fetch-Dest': 'document',
+        'Sec-Fetch-Mode': 'navigate',
+        'Sec-Fetch-Site': 'none',
+        'Sec-Fetch-User': '?1',
+    }
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.logger.info("DBC News spider initialized")
-    
+
     def start_requests(self) -> Generator[Request, None, None]:
         """Generate initial requests to category pages."""
         self.stats['requests_made'] = 0
-        
+
         if self.categories:
             for category in self.categories:
                 cat_lower = category.lower().strip()
                 cat_slug = self.CATEGORIES.get(cat_lower, cat_lower)
                 url = f"https://dbcnews.tv/{cat_slug}"
-                
+
                 self.logger.info(f"Crawling category: {category} -> {url}")
                 self.stats['requests_made'] += 1
-                
+
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': category, 'cat_slug': cat_slug, 'page': 1, 'scrapling': 'stealthy'},
+                    headers=self.DEFAULT_REQUEST_HEADERS,
                     errback=self.handle_request_failure,
                 )
         else:
@@ -97,66 +113,64 @@ class DBCNewsSpider(BaseNewsSpider):
             for cat in ['bangladesh', 'politics', 'sports', 'international']:
                 cat_slug = self.CATEGORIES.get(cat, cat)
                 url = f"https://dbcnews.tv/{cat_slug}"
-                
+
                 self.stats['requests_made'] += 1
                 yield Request(
                     url=url,
                     callback=self.parse_category,
-                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1},
+                    meta={'category': cat, 'cat_slug': cat_slug, 'page': 1, 'scrapling': 'stealthy'},
+                    headers=self.DEFAULT_REQUEST_HEADERS,
                     errback=self.handle_request_failure,
                 )
-    
+
     def parse_category(self, response: Response) -> Generator:
         """Parse category page for article links."""
         category = response.meta.get('category', 'Unknown')
         cat_slug = response.meta.get('cat_slug')
         page = response.meta.get('page', 1)
-        
+
         # Extract article links
         article_links = response.css('a::attr(href)').getall()
         # Filter to article links (DBC uses /category/id/slug pattern)
         article_links = [
-            l for l in article_links 
-            if 'dbcnews.tv/' in l 
+            l for l in article_links
+            if 'dbcnews.tv/' in l
             and re.search(r'/\d+/', l)
             and '/category/' not in l
         ]
         article_links = list(set(article_links))
-        
+
         # ROBUST FALLBACK: Use universal link discovery if selectors fail
         if not article_links:
             self.logger.info("CSS selectors failed, using universal link discovery")
             article_links = self.discover_links(response, limit=50)
 
-        
-        
-
-        
         self.logger.info(f"Found {len(article_links)} articles in {category} page {page}")
-        
+
         if not article_links:
             return
-        
+
         found_count = 0
         for url in article_links:
             # Ensure full URL
             if not url.startswith('http'):
                 url = f"https://dbcnews.tv{url}"
-            
+
             if self.is_url_in_db(url):
                 continue
-            
+
             self.stats['articles_found'] += 1
             self.stats['requests_made'] += 1
             found_count += 1
-            
+
             yield Request(
                 url=url,
                 callback=self.parse_article,
-                meta={'category': category},
+                meta={'category': category, 'scrapling': 'stealthy'},
+                headers=self.DEFAULT_REQUEST_HEADERS,
                 errback=self.handle_request_failure,
             )
-        
+
         # Pagination
         if found_count > 0 and page < self.max_pages:
             # Try to find pagination links
@@ -164,19 +178,20 @@ class DBCNewsSpider(BaseNewsSpider):
             if next_page_link:
                 if not next_page_link.startswith('http'):
                     next_page_link = f"https://dbcnews.tv{next_page_link}"
-                
+
                 self.stats['requests_made'] += 1
                 yield Request(
                     url=next_page_link,
                     callback=self.parse_category,
-                    meta={'category': category, 'cat_slug': cat_slug, 'page': page + 1},
+                    meta={'category': category, 'cat_slug': cat_slug, 'page': page + 1, 'scrapling': 'stealthy'},
+                    headers=self.DEFAULT_REQUEST_HEADERS,
                     errback=self.handle_request_failure,
                 )
-    
+
     def parse_article(self, response: Response) -> Generator[NewsArticleItem, None, None]:
         """Parse individual article page."""
         url = response.url
-        
+
         # ROBUST FALLBACK: Try universal extraction first
         fallback = self.extract_article_fallback(response)
         if fallback and fallback.get('headline') and fallback.get('article_body'):
@@ -198,21 +213,21 @@ class DBCNewsSpider(BaseNewsSpider):
                     category=response.meta.get('category', 'General'),
                 )
                 return
-        
+
         # Original extraction
-        
+
         # Extract headline
         headline = (
             response.css('h1::text').get() or
             response.css('meta[property="og:title"]::attr(content)').get() or
             ''
         )
-        
+
         if not headline:
             return
-        
+
         headline = unescape(headline.strip())
-        
+
         # Extract body
         body_parts = response.css(
             'article p::text, '
@@ -220,40 +235,40 @@ class DBCNewsSpider(BaseNewsSpider):
             '.article-content p::text, '
             '.details-content p::text'
         ).getall()
-        
+
         if not body_parts:
             body_parts = response.css('p::text').getall()
-        
+
         article_body = ' '.join(unescape(p.strip()) for p in body_parts if p.strip())
-        
+
         if len(article_body) < 100:
             return
-        
+
         # Search filter
         if not self.filter_by_search_query(headline, article_body):
             return
-        
+
         # Parse date
         pub_date = None
         date_text = response.css('meta[property="article:published_time"]::attr(content)').get()
         if not date_text:
             date_text = response.css('time::attr(datetime)').get()
-        
+
         if date_text:
             pub_date = self._parse_date_string(date_text.strip())
-        
+
         if pub_date and not self.is_date_in_range(pub_date):
             self.stats['date_filtered'] += 1
             return
-        
+
         category = response.meta.get('category', 'General')
         image_url = response.css('meta[property="og:image"]::attr(content)').get()
-        
+
         # Extract author
         author = self.extract_author(response)
-        
+
         self.stats['articles_processed'] += 1
-        
+
         yield self.create_article_item(
             url=url,
             headline=headline,
