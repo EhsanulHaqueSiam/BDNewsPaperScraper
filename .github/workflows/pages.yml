@@ -5,9 +5,9 @@ name: Deploy Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, master]
     paths:
-      - 'docs/**'  # Only trigger on docs changes
+      - 'docs/**'
   workflow_dispatch:
 
 permissions:
@@ -22,11 +22,11 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 5  # Very fast job
+    timeout-minutes: 5
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - uses: actions/checkout@v4
         with:

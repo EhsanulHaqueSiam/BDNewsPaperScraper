@@ -1,5 +1,5 @@
 # CI Pipeline - Lightweight
-# Uses ~3 min per run, skips unchanged files
+# Uses ~5 min per run, skips unchanged files
 
 name: CI
 
@@ -18,31 +18,46 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  PYTHON_VERSION: '3.12'
+  SCRAPLING_ENABLED: 'true'
+
 jobs:
   test:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    
+    timeout-minutes: 15
+
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
-          cache: 'pip'
-      
-      - name: Install
-        run: pip install -e ".[dev]" --quiet
-      
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: |
+          uv pip install --system -e ".[cloudflare]" --quiet
+          uv pip install --system scrapling curl_cffi browserforge patchright --quiet
+
+      - name: Install browser for anti-bot spiders
+        run: python -m patchright install chromium
+
       - name: Lint (errors only)
-        run: flake8 BDNewsPaper/ --select=E9,F63,F7,F82 --quiet || true
-      
+        run: |
+          uv pip install --system flake8 --quiet
+          flake8 BDNewsPaper/ --select=E9,F63,F7,F82 --quiet || true
+
       - name: Test
-        run: pytest tests/ -v --tb=short -x --timeout=60
+        run: python -m pytest tests/ -o "addopts=" -v --tb=short -x --timeout=60
         continue-on-error: true
-      
+
       - name: Verify spiders
-        run: python -c "from BDNewsPaper.spiders import *; print('✅ OK')"
+        run: python -c "from BDNewsPaper.spiders import *; print('All spiders OK')"

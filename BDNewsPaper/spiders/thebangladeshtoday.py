@@ -46,7 +46,11 @@ class BangladeshTodaySpider(BaseNewsSpider):
         'CONCURRENT_REQUESTS_PER_DOMAIN': 1,
         'ROBOTSTXT_OBEY': False,
         'DUPEFILTER_CLASS': 'scrapy.dupefilters.BaseDupeFilter',
-    }
+    
+        'DEFAULT_REQUEST_HEADERS': {
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.9,bn;q=0.8',
+        },}
     
     # Category mappings (ID to name)
     CATEGORY_MAP = {

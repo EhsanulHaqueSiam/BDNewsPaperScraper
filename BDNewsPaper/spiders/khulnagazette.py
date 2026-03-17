@@ -21,6 +21,8 @@ from scrapy.http import Request, Response
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
+from scrapy.selector import Selector
+from w3lib.html import remove_tags
 
 
 class KhulnaGazetteSpider(BaseNewsSpider):
@@ -57,11 +59,25 @@ class KhulnaGazetteSpider(BaseNewsSpider):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._rss_urls_seen = set()
         self.logger.info("Khulna Gazette spider initialized (WordPress API)")
     
-    def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial API requests."""
+    def start_requests(self):
+        """Generate initial requests: RSS/sitemap first, then category fallback."""
         self.stats['requests_made'] = 0
+
+        # Primary: RSS feed
+        self.stats['requests_made'] += 1
+        yield Request(
+            url='https://www.khulnagazette.com/feed/',
+            callback=self.parse_rss,
+            headers={'Accept': 'application/rss+xml, application/xml, text/xml'},
+            errback=self._rss_failed,
+            meta={'source': 'rss'},
+        )
+
+    def _generate_fallback_requests(self) -> Generator[Request, None, None]:
+        """Generate initial API requests."""
         
         params = self._build_date_params()
         url = self._build_api_url(params)
@@ -201,6 +217,15 @@ class KhulnaGazetteSpider(BaseNewsSpider):
             self.stats['errors'] += 1
             return None
     
+
+    def parse_article(self, response):
+        """Parse individual article page (fallback for RSS/sitemap items without full body)."""
+        item = self.parse_article_auto(response)
+        if item:
+            item['category'] = response.meta.get('category', 'General')
+            self.stats['articles_processed'] += 1
+            yield item
+
     def _clean_html(self, html_content: str) -> str:
         """Remove HTML tags and clean up content."""
         if not html_content:
@@ -214,3 +239,90 @@ class KhulnaGazetteSpider(BaseNewsSpider):
             pass
         text = re.sub(r'\s+', ' ', text).strip()
         return text
+
+    # ================================================================
+    # RSS Feed Parsing (Primary Source)
+    # ================================================================
+
+    def parse_rss(self, response):
+        """Parse RSS feed XML to extract articles."""
+        sel = Selector(response)
+        sel.remove_namespaces()
+        items = sel.xpath('//item')
+
+        self.logger.info(f"RSS feed: Found {len(items)} items")
+
+        rss_yielded = 0
+
+        for item in items:
+            headline = item.xpath('title/text()').get('').strip()
+            url = item.xpath('link/text()').get('').strip()
+            pub_date_str = item.xpath('pubDate/text()').get('').strip()
+            author = item.xpath('creator/text()').get('').strip()
+            body_html = item.xpath('encoded/text()').get('')
+            description = item.xpath('description/text()').get('').strip()
+            category = item.xpath('category/text()').get('General').strip()
+
+            if not url:
+                continue
+
+            self._rss_urls_seen.add(url)
+
+            if self.is_url_in_db(url):
+                continue
+
+            # Clean HTML from body
+            body = ''
+            if body_html:
+                body = remove_tags(body_html).strip()
+
+            # Date filtering
+            if pub_date_str:
+                parsed_date = self._parse_date_string(pub_date_str)
+                if parsed_date and not self.is_date_in_range(parsed_date):
+                    self.stats['date_filtered'] += 1
+                    continue
+
+            # Search query filter
+            if headline and body:
+                if not self.filter_by_search_query(headline, body):
+                    continue
+
+            if headline and body and len(body) > 100:
+                # Full article available from RSS
+                self.stats['articles_found'] += 1
+                self.stats['articles_processed'] += 1
+                rss_yielded += 1
+
+                yield self.create_article_item(
+                    url=url,
+                    headline=unescape(headline),
+                    article_body=body,
+                    publication_date=pub_date_str if pub_date_str else None,
+                    author=author if author else None,
+                    category=category,
+                )
+            elif headline and url:
+                # RSS item lacks full body -- visit article page
+                self.stats['articles_found'] += 1
+                self.stats['requests_made'] += 1
+                yield Request(
+                    url=url,
+                    callback=self.parse_article,
+                    meta={'category': category},
+                    errback=self.handle_request_failure,
+                )
+
+        self.logger.info(f"RSS feed: Yielded {rss_yielded} complete articles directly")
+
+        # If RSS returned few items, also launch category fallback
+        if len(items) < 5:
+            self.logger.info("RSS returned few items, launching category fallback")
+            yield from self._generate_fallback_requests()
+
+    def _rss_failed(self, failure):
+        """If RSS fails, fall back to existing scraping."""
+        self.logger.warning(f"RSS feed failed: {failure.value}. Falling back to category scraping.")
+        self.stats['errors'] += 1
+        yield from self._generate_fallback_requests()
+

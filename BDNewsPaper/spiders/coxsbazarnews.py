@@ -18,6 +18,7 @@ from scrapy.http import Request, Response
 
 from BDNewsPaper.items import NewsArticleItem
 from BDNewsPaper.spiders.base_spider import BaseNewsSpider
+from scrapy.selector import Selector
 
 
 class CoxsbazarNewsSpider(BaseNewsSpider):
@@ -50,9 +51,25 @@ class CoxsbazarNewsSpider(BaseNewsSpider):
         super().__init__(*args, **kwargs)
         self.logger.info("Coxsbazar News spider initialized (Regional)")
     
-    def start_requests(self) -> Generator[Request, None, None]:
-        """Generate initial requests."""
+    def start_requests(self):
+        """Generate initial requests: RSS/sitemap first, then category fallback."""
         self.stats['requests_made'] = 0
+
+        # Supplementary: News sitemap for date-filtered discovery
+        self.stats['requests_made'] += 1
+        yield Request(
+            url='https://www.coxsbazarnews.com/sitemap.xml',
+            callback=self.parse_sitemap,
+            headers={'Accept': 'application/xml, text/xml'},
+            errback=self.handle_request_failure,
+            meta={'source': 'sitemap'},
+        )
+
+        # Fallback: Category-based scraping
+        yield from self._generate_fallback_requests()
+
+    def _generate_fallback_requests(self) -> Generator[Request, None, None]:
+        """Generate fallback category requests."""
         
         # Default: main page
         url = "https://www.coxsbazarnews.com/"
@@ -133,6 +150,57 @@ class CoxsbazarNewsSpider(BaseNewsSpider):
                     errback=self.handle_request_failure,
                 )
     
+
+    # ================================================================
+    # Sitemap Parsing (Supplementary Source)
+    # ================================================================
+
+    def parse_sitemap(self, response):
+        """Parse news sitemap XML for date-filtered article discovery."""
+        sel = Selector(response)
+        sel.remove_namespaces()
+        urls = sel.xpath('//url')
+
+        self.logger.info(f"Sitemap: Found {len(urls)} URLs")
+
+        sitemap_count = 0
+
+        for url_node in urls:
+            loc = url_node.xpath('loc/text()').get('').strip()
+            lastmod = url_node.xpath('lastmod/text()').get('').strip()
+            pub_date = url_node.xpath('news/publication_date/text()').get('').strip()
+
+            if not loc:
+                continue
+
+            # Skip if already seen via RSS
+            if hasattr(self, '_rss_urls_seen') and loc in self._rss_urls_seen:
+                continue
+
+            if self.is_url_in_db(loc):
+                continue
+
+            # Date filter on lastmod or pub_date
+            date_str = pub_date or lastmod
+            if date_str:
+                parsed_date = self._parse_date_string(date_str)
+                if parsed_date and not self.is_date_in_range(parsed_date):
+                    self.stats['date_filtered'] += 1
+                    continue
+
+            self.stats['articles_found'] += 1
+            self.stats['requests_made'] += 1
+            sitemap_count += 1
+
+            yield Request(
+                url=loc,
+                callback=self.parse_article,
+                meta={'category': 'General'},
+                errback=self.handle_request_failure,
+            )
+
+        self.logger.info(f"Sitemap: Queued {sitemap_count} articles for scraping")
+
     def parse_article(self, response: Response) -> Generator[NewsArticleItem, None, None]:
         """Parse individual article page."""
         url = response.url

@@ -13,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       spiders:
-        description: 'Comma-separated spiders (empty = top 20 reliable)'
+        description: 'Comma-separated spiders (empty = top 10 reliable)'
         required: false
         default: ''
       max_pages:
@@ -21,7 +21,7 @@ on:
         required: false
         default: '5'
       run_all:
-        description: 'Run ALL 71 spiders (takes longer)'
+        description: 'Run ALL spiders (takes longer)'
         type: boolean
         default: false
 
@@ -29,8 +29,12 @@ permissions:
   contents: write
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
   TZ: 'Asia/Dhaka'
+  SCRAPLING_ENABLED: 'true'
+  INPUT_SPIDERS: ${{ github.event.inputs.spiders }}
+  INPUT_MAX_PAGES: ${{ github.event.inputs.max_pages }}
+  INPUT_RUN_ALL: ${{ github.event.inputs.run_all }}
 
 concurrency:
   group: daily-scrape
@@ -40,200 +44,229 @@ jobs:
   scrape:
     runs-on: ubuntu-latest
     timeout-minutes: 120  # 2 hour max to stay within free tier
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 1
-      
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: ${{ env.PYTHON_VERSION }}
-          cache: 'pip'
-      
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[cloudflare]" --quiet
-          pip install pandas openpyxl pyarrow --quiet
-      
-      - name: Install Playwright browsers
-        run: |
-          playwright install chromium --with-deps
-      
+          uv pip install --system -e ".[cloudflare]" --quiet
+          uv pip install --system scrapling curl_cffi browserforge patchright --quiet
+          uv pip install --system pandas openpyxl pyarrow --quiet
+
+      - name: Install browser for anti-bot spiders
+        run: python -m patchright install chromium
+
       - name: Get today's date
         id: date
         run: echo "today=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
-      
+
       - name: Create directories
         run: |
           mkdir -p data
           mkdir -p data/database
-      
+
       - name: Load existing database
         continue-on-error: true
         run: |
           if [ -f data/database/news_articles.db ]; then
             cp data/database/news_articles.db news_articles.db
-            echo "✅ Loaded existing database"
+            echo "Loaded existing database"
           fi
-      
+
       - name: Pre-flight Canary Health Check
         id: canary
         continue-on-error: true
         run: |
-          echo "🔍 Running canary health check..."
+          echo "Running canary health check..."
           python scripts/canary_check.py --all --format json --output canary_report.json || true
-          
+
           # Check if any healthy spiders exist
           if [ -f canary_report.json ]; then
             HEALTHY=$(python -c "import json; r=json.load(open('canary_report.json')); print(r['summary']['healthy'])")
             TOTAL=$(python -c "import json; r=json.load(open('canary_report.json')); print(r['summary']['total_checked'])")
             echo "canary_healthy=$HEALTHY" >> $GITHUB_OUTPUT
             echo "canary_total=$TOTAL" >> $GITHUB_OUTPUT
-            echo "📊 Canary Results: $HEALTHY/$TOTAL healthy"
+            echo "Canary Results: $HEALTHY/$TOTAL healthy"
           else
             echo "canary_healthy=0" >> $GITHUB_OUTPUT
             echo "canary_total=0" >> $GITHUB_OUTPUT
-            echo "⚠️ Canary check failed"
+            echo "Canary check failed"
           fi
-      
-      # Default: Run top 20 most reliable spiders (scheduled or manual without run_all)
+
+      # Default: Run top 10 most important spiders (scheduled or manual without run_all)
       - name: Run top spiders (default)
-        if: (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && github.event.inputs.run_all != 'true' && github.event.inputs.spiders == '')
+        if: (github.event_name == 'schedule') || (github.event_name == 'workflow_dispatch' && env.INPUT_RUN_ALL != 'true' && env.INPUT_SPIDERS == '')
+        env:
+          TODAY: ${{ steps.date.outputs.today }}
         run: |
-          # Top 20 most reliable spiders (API-based + stable HTML)
+          # Top 10 most important Bangladeshi news spiders
           SPIDERS=(
             "prothomalo"
             "thedailystar"
-            "dailysun"
             "jugantor"
-            "tbsnews"
-            "ittefaq"
-            "unb"
-            "bdnews24"
-            "dhakatribune"
-            "banglatribune"
             "samakal"
+            "ittefaq"
+            "banglatribune"
+            "dhakatribune"
+            "bdnews24"
             "jagonews24"
             "risingbd"
-            "nayadiganta"
-            "BDpratidin"
-            "manabzamin"
-            "dhakapost"
-            "barta24"
-            "bbcbangla"
-            "dwbangla"
           )
-          
+
           TOTAL=${#SPIDERS[@]}
           SUCCESS=0
           FAILED=0
-          
+          FAILED_LIST=""
+
           for i in "${!SPIDERS[@]}"; do
             spider="${SPIDERS[$i]}"
             echo ""
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            echo "🕷️ [$((i+1))/$TOTAL] $spider"
-            echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-            
-            if timeout 180 scrapy crawl "$spider" \
-              -a start_date=${{ steps.date.outputs.today }} \
-              -a end_date=${{ steps.date.outputs.today }} \
+            echo "========================================"
+            echo "[$((i+1))/$TOTAL] $spider"
+            echo "========================================"
+
+            if timeout 300 scrapy crawl "$spider" \
+              -a start_date="$TODAY" \
+              -a end_date="$TODAY" \
               -a max_pages=5 \
               -s LOG_LEVEL=INFO \
               2>&1 | tail -20; then
               SUCCESS=$((SUCCESS+1))
-              echo "✅ $spider completed"
+              echo "OK: $spider completed"
             else
               FAILED=$((FAILED+1))
-              echo "⚠️ $spider failed/timeout"
+              FAILED_LIST="$FAILED_LIST $spider"
+              echo "WARN: $spider failed/timeout (continuing...)"
             fi
           done
-          
+
           echo ""
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          echo "📊 Results: $SUCCESS success, $FAILED failed"
-          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-      
+          echo "========================================"
+          echo "Results: $SUCCESS success, $FAILED failed out of $TOTAL"
+          if [ -n "$FAILED_LIST" ]; then
+            echo "Failed spiders:$FAILED_LIST"
+          fi
+          echo "========================================"
+
+          # Don't fail the workflow if some spiders failed - partial data is still valuable
+          if [ "$SUCCESS" -eq 0 ]; then
+            echo "ERROR: All spiders failed!"
+            exit 1
+          fi
+
       # Manual: Run ALL spiders (only if explicitly requested)
       - name: Run ALL spiders (manual only)
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.run_all == 'true'
+        if: github.event_name == 'workflow_dispatch' && env.INPUT_RUN_ALL == 'true'
+        env:
+          TODAY: ${{ steps.date.outputs.today }}
+          MAX_PAGES: ${{ github.event.inputs.max_pages }}
         run: |
           SPIDERS=$(scrapy list)
           TOTAL=$(echo "$SPIDERS" | wc -l)
           COUNT=0
           SUCCESS=0
-          
+          FAILED=0
+
           for spider in $SPIDERS; do
             COUNT=$((COUNT+1))
-            echo "🕷️ [$COUNT/$TOTAL] $spider"
-            
-            if timeout 120 scrapy crawl "$spider" \
-              -a start_date=${{ steps.date.outputs.today }} \
-              -a end_date=${{ steps.date.outputs.today }} \
-              -a max_pages=${{ github.event.inputs.max_pages }} \
+            echo "[$COUNT/$TOTAL] $spider"
+
+            if timeout 180 scrapy crawl "$spider" \
+              -a start_date="$TODAY" \
+              -a end_date="$TODAY" \
+              -a max_pages="$MAX_PAGES" \
               -s LOG_LEVEL=ERROR \
               2>&1 | tail -3; then
               SUCCESS=$((SUCCESS+1))
+            else
+              FAILED=$((FAILED+1))
+              echo "WARN: $spider failed/timeout (continuing...)"
             fi
           done
-          
-          echo "📊 Completed: $SUCCESS/$TOTAL spiders"
-      
+
+          echo "Completed: $SUCCESS/$TOTAL spiders ($FAILED failed)"
+
       # Manual: Run specific spiders
       - name: Run selected spiders
-        if: github.event_name == 'workflow_dispatch' && github.event.inputs.spiders != ''
+        if: github.event_name == 'workflow_dispatch' && env.INPUT_SPIDERS != ''
+        env:
+          TODAY: ${{ steps.date.outputs.today }}
+          MAX_PAGES: ${{ github.event.inputs.max_pages }}
+          SELECTED_SPIDERS: ${{ github.event.inputs.spiders }}
         run: |
-          IFS=',' read -ra SPIDERS <<< "${{ github.event.inputs.spiders }}"
-          
+          IFS=',' read -ra SPIDERS <<< "$SELECTED_SPIDERS"
+
+          SUCCESS=0
+          FAILED=0
           for spider in "${SPIDERS[@]}"; do
-            spider=$(echo $spider | xargs)
-            echo "🕷️ Running: $spider"
-            
-            timeout 180 scrapy crawl "$spider" \
-              -a start_date=${{ steps.date.outputs.today }} \
-              -a end_date=${{ steps.date.outputs.today }} \
-              -a max_pages=${{ github.event.inputs.max_pages }} \
+            spider=$(echo "$spider" | xargs)
+            echo "Running: $spider"
+
+            if timeout 300 scrapy crawl "$spider" \
+              -a start_date="$TODAY" \
+              -a end_date="$TODAY" \
+              -a max_pages="$MAX_PAGES" \
               -s LOG_LEVEL=WARNING \
-              2>&1 | tail -10 || echo "⚠️ Failed: $spider"
+              2>&1 | tail -10; then
+              SUCCESS=$((SUCCESS+1))
+            else
+              FAILED=$((FAILED+1))
+              echo "WARN: $spider failed (continuing...)"
+            fi
           done
-      
+
+          echo "Completed: $SUCCESS success, $FAILED failed"
+
       - name: Export data
+        timeout-minutes: 10
+        env:
+          TODAY: ${{ steps.date.outputs.today }}
         run: |
           python << 'EOF'
           import sqlite3
           import json
           import os
           from datetime import datetime
-          
-          today = "${{ steps.date.outputs.today }}"
+
+          today = os.environ["TODAY"]
           db_path = "news_articles.db"
-          
+
           if not os.path.exists(db_path):
-              print("❌ No database found")
+              print("No database found")
               exit(0)
-          
+
           conn = sqlite3.connect(db_path)
           conn.row_factory = sqlite3.Row
-          
+
           # Get today's articles
           cursor = conn.execute('''
-              SELECT * FROM articles 
+              SELECT * FROM articles
               WHERE date(publication_date) = ? OR date(scraped_at) = ?
               ORDER BY paper_name
           ''', (today, today))
-          
+
           articles = [dict(row) for row in cursor.fetchall()]
-          
+
           if not articles:
-              print("📭 No articles found for today")
+              print("No articles found for today")
               conn.close()
               exit(0)
-          
+
           # === JSON Export (merge with existing) ===
           json_path = "data/articles.json"
           existing_articles = []
@@ -241,34 +274,34 @@ jobs:
               try:
                   with open(json_path, 'r', encoding='utf-8') as f:
                       existing_articles = json.load(f)
-                  print(f"📂 Loaded {len(existing_articles)} existing articles from JSON")
+                  print(f"Loaded {len(existing_articles)} existing articles from JSON")
               except (json.JSONDecodeError, IOError) as e:
-                  print(f"⚠️ Could not load existing JSON: {e}")
+                  print(f"Could not load existing JSON: {e}")
                   existing_articles = []
-          
+
           # Deduplicate by URL
           existing_urls = {a.get('url') for a in existing_articles if a.get('url')}
           new_articles = [a for a in articles if a.get('url') not in existing_urls]
           all_articles = existing_articles + new_articles
-          
+
           with open(json_path, 'w', encoding='utf-8') as f:
               json.dump(all_articles, f, ensure_ascii=False, indent=2, default=str)
-          print(f"📄 JSON: {len(new_articles)} new articles added (total: {len(all_articles)})")
-          
+          print(f"JSON: {len(new_articles)} new articles added (total: {len(all_articles)})")
+
           # === CSV Export ===
           import pandas as pd
           df = pd.DataFrame(all_articles)
           df.to_csv('data/articles.csv', index=False, encoding='utf-8')
-          print(f"📋 CSV: {len(all_articles)} articles exported")
-          
+          print(f"CSV: {len(all_articles)} articles exported")
+
           # === Excel Export ===
           df.to_excel('data/articles.xlsx', index=False, engine='openpyxl')
-          print(f"📊 XLSX: {len(all_articles)} articles exported")
-          
+          print(f"XLSX: {len(all_articles)} articles exported")
+
           # === Parquet Export (compressed) ===
           df.to_parquet('data/articles.parquet', compression='snappy', index=False)
-          print(f"🗜️ Parquet: {len(all_articles)} articles exported")
-          
+          print(f"Parquet: {len(all_articles)} articles exported")
+
           # === Generate cumulative summary README ===
           by_paper = {}
           by_category = {}
@@ -282,21 +315,21 @@ jobs:
               pub_date = a.get('publication_date', '')
               if pub_date:
                   dates.append(str(pub_date)[:10])
-          
+
           total_db = conn.execute('SELECT COUNT(*) FROM articles').fetchone()[0]
-          
+
           # Get date range
           min_date = min(dates) if dates else 'N/A'
           max_date = max(dates) if dates else 'N/A'
-          
+
           readme_path = "data/README.md"
           with open(readme_path, 'w') as f:
-              f.write(f"# 📰 Bangladesh News Articles Dataset\n\n")
+              f.write(f"# Bangladesh News Articles Dataset\n\n")
               f.write(f"A comprehensive collection of news articles from major Bangladeshi newspapers.\n\n")
-              f.write(f"**🔗 [View on Kaggle](https://www.kaggle.com/datasets/ehsanulhaquesiam/bangladesh-news-articles)** | ")
-              f.write(f"**📦 [Source Code](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper)**\n\n")
+              f.write(f"**[View on Kaggle](https://www.kaggle.com/datasets/ehsanulhaquesiam/bangladesh-news-articles)** | ")
+              f.write(f"**[Source Code](https://github.com/EhsanulHaqueSiam/BDNewsPaperScraper)**\n\n")
               f.write(f"---\n\n")
-              f.write(f"## 📊 Dataset Statistics\n\n")
+              f.write(f"## Dataset Statistics\n\n")
               f.write(f"| Metric | Value |\n|--------|-------|\n")
               f.write(f"| **Total Articles** | {len(all_articles):,} |\n")
               f.write(f"| Total in Database | {total_db:,} |\n")
@@ -305,25 +338,25 @@ jobs:
               f.write(f"| Newspapers | {len(by_paper)} |\n")
               f.write(f"| Categories | {len(by_category)} |\n")
               f.write(f"| Last Updated | {today} |\n\n")
-              
-              f.write(f"---\n\n## 📰 Articles by Newspaper\n\n")
+
+              f.write(f"---\n\n## Articles by Newspaper\n\n")
               f.write(f"| Newspaper | Articles | % |\n|-----------|----------|---|\n")
               for p, c in sorted(by_paper.items(), key=lambda x: -x[1]):
                   pct = (c / len(all_articles)) * 100
                   f.write(f"| {p} | {c:,} | {pct:.1f}% |\n")
-              
-              f.write(f"\n---\n\n## 🏷️ Articles by Category\n\n")
+
+              f.write(f"\n---\n\n## Articles by Category\n\n")
               f.write(f"| Category | Articles | % |\n|----------|----------|---|\n")
               for cat, c in sorted(by_category.items(), key=lambda x: -x[1])[:15]:
                   pct = (c / len(all_articles)) * 100
                   f.write(f"| {cat} | {c:,} | {pct:.1f}% |\n")
               if len(by_category) > 15:
                   f.write(f"| *...and {len(by_category) - 15} more* | | |\n")
-              
-              f.write(f"\n---\n\n## 📂 Available Files\n\n")
+
+              f.write(f"\n---\n\n## Available Files\n\n")
               f.write(f"| Format | File | Size | Best For |\n")
               f.write(f"|--------|------|------|----------|\n")
-              
+
               import os
               files = [
                   ("JSON", "articles.json", "Web apps, APIs, JavaScript"),
@@ -345,8 +378,8 @@ jobs:
                   else:
                       size_str = "-"
                   f.write(f"| {fmt} | `{fname}` | {size_str} | {use} |\n")
-              
-              f.write(f"\n---\n\n## 🔬 Data Schema\n\n")
+
+              f.write(f"\n---\n\n## Data Schema\n\n")
               f.write(f"| Column | Type | Description |\n")
               f.write(f"|--------|------|-------------|\n")
               f.write(f"| `headline` | string | Article title/headline |\n")
@@ -357,8 +390,8 @@ jobs:
               f.write(f"| `category` | string | News category |\n")
               f.write(f"| `paper_name` | string | Source newspaper name |\n")
               f.write(f"| `scraped_at` | datetime | When scraped |\n")
-              
-              f.write(f"\n---\n\n## 🚀 Quick Start\n\n")
+
+              f.write(f"\n---\n\n## Quick Start\n\n")
               f.write(f"```python\n")
               f.write(f"import pandas as pd\n\n")
               f.write(f"# Load data (choose your preferred format)\n")
@@ -368,93 +401,94 @@ jobs:
               f.write(f"print(f'Total articles: {{len(df):,}}')\n")
               f.write(f"print(df['paper_name'].value_counts().head(10))\n")
               f.write(f"```\n\n")
-              
-              f.write(f"---\n\n## 📜 License\n\n")
+
+              f.write(f"---\n\n## License\n\n")
               f.write(f"**CC0 1.0 Universal (Public Domain)** - Free to use for any purpose.\n\n")
-              f.write(f"---\n\n## 🙏 Citation\n\n")
+              f.write(f"---\n\n## Citation\n\n")
               f.write(f"```\n")
               f.write(f"Ehsanul Haque Siam. (2026). Bangladesh News Articles Dataset.\n")
               f.write(f"Kaggle. https://doi.org/10.34740/KAGGLE/DS/9384161\n")
               f.write(f"```\n")
-          
-          print(f"📊 README updated")
+
+          print(f"README updated")
           conn.close()
           EOF
-      
+
       - name: Save database
         run: |
           if [ -f news_articles.db ]; then
             cp news_articles.db data/database/news_articles.db
-            echo "💾 Database saved"
+            echo "Database saved"
           fi
-      
+
       - name: Commit changes
+        env:
+          TODAY: ${{ steps.date.outputs.today }}
         run: |
           git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
-          
+
           git add data/
-          
+
           if git diff --staged --quiet; then
             echo "No changes"
           else
-            git commit -m "📰 ${{ steps.date.outputs.today }}: News update"
+            git commit -m "$TODAY: News update"
             git push
           fi
-      
+
       - name: Upload to Kaggle Dataset
         if: success() && hashFiles('data/articles.json') != ''
         env:
           KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
           KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+          TODAY: ${{ steps.date.outputs.today }}
         run: |
-          pip install kaggle --quiet
-          
+          uv pip install --system kaggle --quiet
+
           # Create kaggle config
           mkdir -p ~/.kaggle
           echo "{\"username\":\"$KAGGLE_USERNAME\",\"key\":\"$KAGGLE_KEY\"}" > ~/.kaggle/kaggle.json
           chmod 600 ~/.kaggle/kaggle.json
-          
+
           # Update dataset-metadata.json with correct username
           cd data
           sed -i "s/KAGGLE_USERNAME/$KAGGLE_USERNAME/g" dataset-metadata.json || true
-          
+
           # Add id field if missing (required by Kaggle API)
           python3 << 'PYEOF'
           import json
           import os
-          
+
           meta_path = "dataset-metadata.json"
           username = os.environ.get("KAGGLE_USERNAME", "")
-          
+
           with open(meta_path, "r") as f:
               meta = json.load(f)
-          
+
           # Ensure id field exists
-          if "id" not in meta:
-              meta["id"] = f"{username}/bangladesh-news-articles"
-          else:
-              meta["id"] = f"{username}/bangladesh-news-articles"
-          
+          meta["id"] = f"{username}/bangladesh-news-articles"
+
           with open(meta_path, "w") as f:
               json.dump(meta, f, indent=2)
-          
-          print(f"✅ Metadata updated for {meta['id']}")
+
+          print(f"Metadata updated for {meta['id']}")
           PYEOF
-          
+
           # Try to update existing dataset, create if doesn't exist
           if kaggle datasets status "$KAGGLE_USERNAME/bangladesh-news-articles" 2>/dev/null; then
-            echo "📤 Updating existing dataset..."
-            kaggle datasets version -p . -m "Daily update: ${{ steps.date.outputs.today }}" --dir-mode zip
+            echo "Updating existing dataset..."
+            kaggle datasets version -p . -m "Daily update: $TODAY" --dir-mode zip
           else
-            echo "📤 Creating new dataset..."
+            echo "Creating new dataset..."
             kaggle datasets create -p . --dir-mode zip
           fi
-          
-          echo "✅ Kaggle upload complete"
-          echo "📊 Dataset: https://www.kaggle.com/datasets/$KAGGLE_USERNAME/bangladesh-news-articles"
-      
+
+          echo "Kaggle upload complete"
+          echo "Dataset: https://www.kaggle.com/datasets/$KAGGLE_USERNAME/bangladesh-news-articles"
+
       - name: Upload artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: news-${{ steps.date.outputs.today }}
@@ -467,15 +501,11 @@ jobs:
             data/database/news_articles.db
           retention-days: 30
           compression-level: 9
-      
+
       - name: Summary
         if: always()
         run: |
-          echo "## 📰 Scraping Complete" >> $GITHUB_STEP_SUMMARY
+          echo "## Scraping Complete" >> $GITHUB_STEP_SUMMARY
           if [ -f data/README.md ]; then
             cat data/README.md >> $GITHUB_STEP_SUMMARY
           fi
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📤 Kaggle Dataset" >> $GITHUB_STEP_SUMMARY
-          echo "Dataset: [${KAGGLE_USERNAME}/bangladesh-news-articles](https://www.kaggle.com/datasets/${KAGGLE_USERNAME}/bangladesh-news-articles)" >> $GITHUB_STEP_SUMMARY
-
