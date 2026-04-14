@@ -10,13 +10,13 @@ A comprehensive collection of news articles from major Bangladeshi newspapers.
 
 | Metric | Value |
 |--------|-------|
-| **Total Articles** | 20,147 |
-| Total in Database | 625 |
-| Added Today | 108 |
+| **Total Articles** | 20,249 |
+| Total in Database | 623 |
+| Added Today | 102 |
 | Date Range | 2018-04-08 to Unknown |
 | Newspapers | 14 |
 | Categories | 72 |
-| Last Updated | 2026-04-13 |
+| Last Updated | 2026-04-14 |
 
 ---
 
@@ -24,17 +24,17 @@ A comprehensive collection of news articles from major Bangladeshi newspapers.
 
 | Newspaper | Articles | % |
 |-----------|----------|---|
-| Jago News 24 | 6,661 | 33.1% |
-| The Daily Star | 2,935 | 14.6% |
+| Jago News 24 | 6,736 | 33.3% |
+| The Daily Star | 2,935 | 14.5% |
 | Rising BD | 2,467 | 12.2% |
 | Daily Naya Diganta | 2,020 | 10.0% |
-| Prothom Alo | 1,987 | 9.9% |
+| Prothom Alo | 2,001 | 9.9% |
 | The Business Standard | 1,373 | 6.8% |
-| Jugantor | 1,136 | 5.6% |
+| Jugantor | 1,149 | 5.7% |
 | Dhaka Post | 973 | 4.8% |
 | BD News 24 | 202 | 1.0% |
-| Barta24 | 192 | 1.0% |
-| BBC Bangla | 91 | 0.5% |
+| Barta24 | 192 | 0.9% |
+| BBC Bangla | 91 | 0.4% |
 | Dhaka Tribune | 63 | 0.3% |
 | Samakal | 41 | 0.2% |
 | The Daily Ittefaq | 6 | 0.0% |
@@ -45,21 +45,21 @@ A comprehensive collection of news articles from major Bangladeshi newspapers.
 
 | Category | Articles | % |
 |----------|----------|---|
-| national | 3,899 | 19.4% |
-| sports | 3,207 | 15.9% |
-| politics | 2,459 | 12.2% |
-| Bangladesh | 2,263 | 11.2% |
-| economy | 1,588 | 7.9% |
+| national | 3,924 | 19.4% |
+| sports | 3,215 | 15.9% |
+| politics | 2,461 | 12.2% |
+| Bangladesh | 2,276 | 11.2% |
+| economy | 1,597 | 7.9% |
 | bangladesh | 1,538 | 7.6% |
-| Sports | 1,402 | 7.0% |
-| Business | 1,263 | 6.3% |
-| জাতীয় | 293 | 1.5% |
-| country | 289 | 1.4% |
-| আন্তর্জাতিক | 232 | 1.2% |
+| Sports | 1,403 | 6.9% |
+| Business | 1,263 | 6.2% |
+| country | 297 | 1.5% |
+| জাতীয় | 294 | 1.5% |
+| আন্তর্জাতিক | 236 | 1.2% |
 | রাজনীতি | 161 | 0.8% |
 | সারাদেশ | 138 | 0.7% |
-| international | 116 | 0.6% |
-| lifestyle | 110 | 0.5% |
+| international | 121 | 0.6% |
+| lifestyle | 111 | 0.5% |
 | *...and 57 more* | | |
 
 ---
@@ -68,10 +68,10 @@ A comprehensive collection of news articles from major Bangladeshi newspapers.
 
 | Format | File | Size | Best For |
 |--------|------|------|----------|
-| JSON | `articles.json` | 87.3 MB | Web apps, APIs, JavaScript |
-| CSV | `articles.csv` | 80.8 MB | Excel, Google Sheets, pandas, R |
-| Excel | `articles.xlsx` | 23.4 MB | Microsoft Excel, LibreOffice |
-| Parquet | `articles.parquet` | 32.3 MB | Spark, Dask, big data analytics |
+| JSON | `articles.json` | 87.7 MB | Web apps, APIs, JavaScript |
+| CSV | `articles.csv` | 81.3 MB | Excel, Google Sheets, pandas, R |
+| Excel | `articles.xlsx` | 23.5 MB | Microsoft Excel, LibreOffice |
+| Parquet | `articles.parquet` | 32.4 MB | Spark, Dask, big data analytics |
 | SQLite | `database/news_articles.db` | - | SQL queries, local analysis |
 
 ---
